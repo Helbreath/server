@@ -5080,7 +5080,7 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 		gate->mutclientlist.lock_shared();
 		for (shared_ptr<Client> client : clientlist)
 		{
-			if ((client->m_handle != npc->m_handle) && (client->m_bIsInitComplete) && (npc->pMap == client->pMap)
+			if ((client->m_bIsInitComplete) && (npc->pMap == client->pMap)
 				&& ((client->m_sX > npc->m_sX - 13) && (client->m_sX < npc->m_sX + 13)//screen res location
 				&& (client->m_sY > npc->m_sY - 11) && (client->m_sY < npc->m_sY + 11)))
 			{
