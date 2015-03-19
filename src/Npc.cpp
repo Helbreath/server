@@ -4,7 +4,6 @@
 #include "GServer.h"
 #include "Map.h"
 //#include "misc.h"
-//#include "combat.h"
 #include "Client.h"
 //#include "ActionID.h"
 //#include "DelayEvent.h"
@@ -12,6 +11,9 @@
 //#include "..\astoria.h"
 //#include "Quest.h"
 #include "funcs.h"
+#include "netmessages.h"
+#include "Tile.h"
+#include "Misc.h"
 
 extern char _tmp_cTmpDirX[9];
 extern char _tmp_cTmpDirY[9];
@@ -55,6 +57,9 @@ Npc::Npc(uint64_t NpcH, GServer * gs)
 	m_iNpcCrops = 0;
 	m_iCropsSkillLV = 0;
 
+	// added - acidx
+	m_cTargetType = 0;
+	m_cFollowOwnerType = 0;
 	// 2002-09-17 #1
 	m_iNpcitemMax = 0;
 
@@ -66,7 +71,6 @@ Npc::~Npc()
 
 }
 
-//TODO: have the server pass the config struct or something.
 bool Npc::initNpcAttr(string & pNpcName, char cSA)
 {
 	int i, iTemp;
@@ -329,19 +333,20 @@ void Npc::Behave()
 	switch (m_cBehavior)
 	{
 	case BEHAVIOR_DEAD:
-		//gserver->NpcBehavior_Dead(m_handle);
+		behavior_dead();
 		break;
 	case BEHAVIOR_STOP:
 		behavior_stop();
 		break;
 	case BEHAVIOR_MOVE:
 		Behavior_Move();
+		behavior_move();
 		break;
 	case BEHAVIOR_ATTACK:
-		Behavior_Attack();
+		behavior_attack();
 		break;
 	case BEHAVIOR_FLEE:
-		//gserver->NpcBehavior_Flee(m_handle);
+		behavior_flee();
 		break;
 	}
 }
@@ -379,6 +384,7 @@ bool Npc::behavior_searchMaster()
 }
 
 void Npc::Behavior_Move()
+void Npc::behavior_move()
 {
 // 	char  cDir;
 // 	short sX, sY, dX, dY, absX, absY;
@@ -546,76 +552,338 @@ void Npc::Behavior_Move()
 // 			gserver->SendEventToNearClient_TypeA(m_handle, OWNERTYPE_NPC, MSGID_MOTION_MOVE, NULL, NULL, NULL);
 // 		}
 // 	}
+
+	std::cout << "Npc::Move"<<std::endl;
+ 	char  cDir;
+ 	short sX, sY, dX, dY, absX, absY;
+ 	short sDistance;
+ 	Unit  * sTarget;
+	dX = 0; dY = 0;
+ 	if (m_bIsKilled == true) return;
+
+ 	if ((m_bIsSummoned == true) &&
+ 		(m_iSummonControlMode == 1)) return;
+ 	if (m_cMagicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0) return;
+	if ((m_iTargetIndex != nullptr) && (m_iTargetIndex->pMap->m_cName != pMap->m_cName))
+	{	//since we removed this from GServer probably need to re-add it.. because it's not making sense to be in this class
+		RemoveFromTarget(this); return;
+	}
+ 	switch (m_cActionLimit) {
+ 	case 2:
+ 	case 3:
+ 	case 5:
+ 		case 8: // Heldenian gates
+ 		m_cBehavior          = BEHAVIOR_STOP;
+ 		m_sBehaviorTurnCount = 0;
+ 		return;
+	}
+
+ 	int iStX, iStY;
+ 	if (pMap != NULL) {
+ 		iStX = m_sX / 20;
+ 		iStY = m_sY / 20;
+		/*for (int i = 0; i < MAXSECTORS*MAXSECTORS; i++)
+		{
+			std::cout << i << pMap->m_stSectorInfo[i].iPlayerActivity << endl;
+		}*/
+	//pMap->m_stTempSectorInfo[iStX + iStY*MAXSECTORS].iMonsterActivity++; //AcidX - TODO Figure out a way to pull from the Vectors!
+ 	}
+
+ 	m_sBehaviorTurnCount++;
+ 	if (m_sBehaviorTurnCount > 5)
+ 	{
+ 		absX = abs(m_vX - m_sX);
+ 		absY = abs(m_vY - m_sY);
+
+ 		if ((absX <= 2)	&& (absY <= 2)) {
+ 			m_sBehaviorTurnCount = 0;
+ 			nextWaypointDest();
+ 		}
+
+ 		m_vX = m_sX;
+ 		m_vY = m_sY;
+ 	}
+
+ 	if (m_sBehaviorTurnCount > 20)
+ 	{
+ 			nextWaypointDest();
+ 	}
+
+	sTarget = TargetSearch();
+	if (sTarget!=nullptr) {
+		
+ 		if (m_dwActionTime < 500) {//Changed to 500 for quicker re-action time.. 1000 seems too slow
+ 			if (dice(1,3) == 3) {
+ 				m_cBehavior          = BEHAVIOR_ATTACK;
+ 				m_sBehaviorTurnCount = 0;
+ 				m_iTargetIndex = sTarget;
+				
+ 				m_cTargetType  = sTarget->m_ownerType;
+				
+ 				return;
+ 			}
+		}
+ 		else {//I don't think this was even needed? Either way it's kind of stupid whoever did this.
+ 			m_cBehavior          = BEHAVIOR_ATTACK;
+ 			m_sBehaviorTurnCount = 0;
+ 			m_iTargetIndex = sTarget;
+			m_cTargetType  = sTarget->m_ownerType;
+ 			return;
+ 		}
+ 	}
+
+ 	if ((m_bIsMaster == true) && (dice(1,3) == 2)) return;
+
+ 	if (m_cMoveType == MOVETYPE_FOLLOW) {
+ 		sX = m_sX;
+ 		sY = m_sY;
+ 		switch (m_cFollowOwnerType) {
+ 		case OWNERTYPE_PLAYER:
+ 			if (m_iFollowOwnerIndex == NULL) {
+ 				m_cMoveType = MOVETYPE_RANDOM;
+ 				return;
+ 			}
+
+ 			dX = m_iFollowOwnerIndex->m_sX;
+ 			dY = m_iFollowOwnerIndex->m_sY;
+ 			break;
+ 		case OWNERTYPE_NPC:
+ 			if (m_iFollowOwnerIndex == NULL) {
+ 				m_cMoveType = MOVETYPE_RANDOM;
+ 				m_iFollowOwnerIndex = NULL;
+ 				//searchMaster(m_handle);
+ 				return;
+ 			}
+
+ 			dX = m_iFollowOwnerIndex->m_sX;
+ 			dY = m_iFollowOwnerIndex->m_sY;
+ 			break;
+ 		}
+		if (dX < 0 || dY < 0)return;
+ 		if (abs(sX - dX) >= abs(sY - dY))
+ 			sDistance = abs(sX - dX);
+ 		else sDistance = abs(sY - dY);
+
+ 		if (sDistance >= 3) {
+ 			short DOType = 0;
+			cDir =GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError, &DOType);
+
+ 			if (cDir == 0) {
+ 			}
+ 			else {
+ 				if(DOType == DYNAMICOBJECT_SPIKE)
+ 				{
+ 					//uint32_t dmg = dice(2,4);
+ 					uint32_t dmg = 100; // Npc Damage Spike Field xRisenx
+ 					ReduceHP(dmg);
+
+ 					if(IsDead())
+ 					{
+ 						//gserver->NpcKilledHandler(NULL, NULL, m_handle, 0);
+ 						return;
+ 					} else {
+ 						gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, NULL);
+ 					}
+ 				}
+				//Clear tile and set next tile owner
+ 				dX = m_sX + _tmp_cTmpDirX[cDir];
+ 				dY = m_sY + _tmp_cTmpDirY[cDir];
+				pMap->ClearOwner(m_sX, m_sY);
+				pMap->SetOwner(this, dX,dY);
+	
+ 				m_sX   = dX;
+ 				m_sY   = dY;
+ 				m_cDir = cDir;
+ 				gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, NULL, NULL, NULL);
+ 			}
+ 		}
+ 	}
+ 	else
+ 	{
+ 		short DOType = 0;
+ 		cDir = GetNextMoveDir(m_sX, m_sY, m_dX, m_dY,
+ 			pMap, m_cTurn, &m_tmp_iError, &DOType);
+			
+ 		if (cDir == 0) {
+ 			if (dice(1,10) == 3) nextWaypointDest();
+ 		}
+ 		else {
+ 			if(DOType == DYNAMICOBJECT_SPIKE)
+ 			{
+ 				//uint32_t dmg = dice(2,4);
+ 				uint32_t dmg = 100; // Npc Damage Spike Field xRisenx
+ 				ReduceHP(dmg);
+
+ 				if(IsDead())
+ 				{
+ 					//gserver->NpcKilledHandler(NULL, NULL, m_handle, 0);
+ 					return;
+ 				} else {
+ 					gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, NULL);
+ 				}
+ 			}
+ 			dX = m_sX + _tmp_cTmpDirX[cDir];
+ 			dY = m_sY + _tmp_cTmpDirY[cDir];
+			//Clear tile and set next tile owner
+			pMap->ClearOwner(m_sX, m_sY);
+			pMap->SetOwner(this, dX, dY);
+ 			m_sX   = dX;
+ 			m_sY   = dY;
+ 			m_cDir = cDir;
+ 			gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, NULL, NULL, NULL);
+			
+ 		}
+	
+ 	}
+}
+//Removed from GS and added here.. 
+void Npc::behavior_flee()
+{
+	char cDir;
+	short sX, sY, dX, dY;
+	Unit* sTarget;
+	char  cTargetType;
+
+	if (this == NULL) return;
+	if (this->m_bIsKilled == true) return;
+
+	this->m_sBehaviorTurnCount++;
+
+
+	switch (this->m_iAttackStrategy) {
+	case ATTACKAI_EXCHANGEATTACK:
+	case ATTACKAI_TWOBYONEATTACK:
+		if (this->m_sBehaviorTurnCount >= 2) {
+
+			this->m_cBehavior = BEHAVIOR_ATTACK;
+			this->m_sBehaviorTurnCount = 0;
+			return;
+		}
+		break;
+
+	default:
+		//TODO add this mobs support master/slaves
+		//if (dice(1, 2) == 1) NpcRequestAssistance(iNpcH);
+		break;
+	}
+
+	if (this->m_sBehaviorTurnCount > 10) {
+
+		this->m_sBehaviorTurnCount = 0;
+		this->m_cBehavior = BEHAVIOR_MOVE;
+		this->m_tmp_iError = 0;
+		if (this->m_iHP <= 3) {
+			this->m_iHP += dice(1, this->m_iHitDice);
+			if (this->m_iHP <= 0) this->m_iHP = 1;
+		}
+		return;
+	}
+
+	sTarget = this->TargetSearch();
+	cTargetType = sTarget->m_ownerType;
+	if (sTarget != NULL) {
+		this->m_iTargetIndex = sTarget;
+		this->m_cTargetType = cTargetType;
+	}
+
+	sX = this->m_sX;
+	sY = this->m_sY;
+	switch (this->m_cTargetType) {
+	case OWNERTYPE_PLAYER:
+		dX = this->m_iTargetIndex->m_sX;
+		dY = this->m_iTargetIndex->m_sY;
+		break;
+	case OWNERTYPE_NPC:
+		dX = this->m_iTargetIndex->m_sX;
+		dY = this->m_iTargetIndex->m_sY;
+		break;
+	}
+	dX = sX - (dX - sX);
+	dY = sY - (dY - sY);
+
+	cDir = GetNextMoveDir(sX, sY, dX, dY, this->pMap, this->m_cTurn, &this->m_tmp_iError);
+	if (cDir == 0) {
+	}
+	else {
+		dX = this->m_sX + _tmp_cTmpDirX[cDir];
+		dY = this->m_sY + _tmp_cTmpDirY[cDir];
+		this->pMap->ClearOwner(this->m_sX, this->m_sY);
+
+		this->pMap->SetOwner(this, dX, dY);
+		this->m_sX = dX;
+		this->m_sY = dY;
+		this->m_cDir = cDir;
+		gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, NULL, NULL, NULL);
+	}
 }
 
 void Npc::behavior_stop()
 {
-// 	char  cTargetType;
-// 	short sTarget = NULL;
-// 	bool  bFlag;
-//
-// 	m_sBehaviorTurnCount++;
-//
-// 	switch (m_cActionLimit)
-// 	{
-// 	case 5:
-// 		switch (m_sType)
-// 		{
-// 		case 38: // Mana Collector
-// 			if (m_sBehaviorTurnCount >= 3) {
-// 				m_sBehaviorTurnCount = 0;
-// 				bFlag = behavior_manaCollector();
-//
-// 				if (bFlag == true) {
-// 					gserver->SendEventToNearClient_TypeA(m_handle, OWNERTYPE_NPC, MSGID_MOTION_ATTACK, m_sX, m_sY, 1);
-// 				}
-// 			}
-// 			break;
-//
-// 		case 39: // Detector
-// 			if (m_sBehaviorTurnCount >= 3) {
-// 				m_sBehaviorTurnCount = 0;
-// 				bFlag = behavior_detector();
-//
-// 				if (bFlag == true) {
-// 					gserver->SendEventToNearClient_TypeA(m_handle, OWNERTYPE_NPC, MSGID_MOTION_ATTACK, m_sX, m_sY, 1);
-// 				}
-// 			}
-// 			break;
-//
-// 		case 40: // Energy Shield Generator
-// 			break;
-//
-// 		case 41: // Grand Magic Generator
-// 			if (m_sBehaviorTurnCount >= 3) {
-// 				m_sBehaviorTurnCount = 0;
-// 				behavior_grandMagicGenerator();
-// 			}
-// 			break;
-//
-// 		case 42: // ManaStone
-// 			m_sBehaviorTurnCount = 0;
-// 			m_iV1 += 5;
-// 			if (m_iV1 >= 5) m_iV1 = 5;
-// 			break;
-//
-// 		default:
-// 			TargetSearch(&sTarget, &cTargetType);
-// 			break;
-// 		}
-// 		break;
-// 	}
-//
-// 	if (sTarget != NULL) {
-//
-// 		m_cBehavior          = BEHAVIOR_ATTACK;
-// 		m_sBehaviorTurnCount = 0;
-// 		m_iTargetIndex = sTarget;
-// 		m_cTargetType  = cTargetType;
-// 		return;
-// 	}
+	std::cout << "NPC::Stop" << std::endl;
+	char  cTargetType;
+	Unit * sTarget = NULL;
+	bool  bFlag;
+
+	m_sBehaviorTurnCount++;
+
+	switch (m_cActionLimit)
+	{
+	case 5:
+		switch (m_sType)
+		{
+		case 38: // Mana Collector
+			if (m_sBehaviorTurnCount >= 3) {
+				m_sBehaviorTurnCount = 0;
+				bFlag = behavior_manaCollector();
+
+				if (bFlag == true) {
+					gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, m_sX, m_sY, 1);
+				}
+			}
+			break;
+
+		case 39: // Detector
+			if (m_sBehaviorTurnCount >= 3) {
+				m_sBehaviorTurnCount = 0;
+				bFlag = behavior_detector();
+				if (bFlag == true) {
+					gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, m_sX, m_sY, 1);
+				}
+			}
+			break;
+		case 40: // Energy Shield Generator
+			break;
+
+		case 41: // Grand Magic Generator
+			if (m_sBehaviorTurnCount >= 3) {
+				m_sBehaviorTurnCount = 0;
+				behavior_grandMagicGenerator();
+			}
+			break;
+
+		case 42: // ManaStone
+			m_sBehaviorTurnCount = 0;
+			m_iV1 += 5;
+			if (m_iV1 >= 5) m_iV1 = 5;
+			break;
+		default:
+			sTarget = TargetSearch();
+			break;
+		}
+		break;
+	}
+
+	if (sTarget != NULL) {
+
+		m_cBehavior = BEHAVIOR_ATTACK;
+		m_sBehaviorTurnCount = 0;
+		m_iTargetIndex = sTarget;
+		m_cTargetType = sTarget->m_sType;
+		return;
+	}
 }
-void Npc::Behavior_Attack()
+
+void Npc::behavior_attack()
 {
 // 	int   iMagicType;
 // 	short sX, sY, dX, dY;

@@ -178,14 +178,23 @@ public:
 	void Behave();
 	bool behavior_searchMaster();
 	virtual void Behavior_Move();
+	virtual void behavior_move();
 	void behavior_stop();
 	virtual void Behavior_Attack();
 	virtual void Behavior_Death(Unit * attacker, int16_t dmg);
+	virtual void behavior_attack();
+	virtual void behavior_death(Unit * attacker, int16_t dmg);
+	void behavior_dead();
 	bool behavior_manaCollector();
 	void behavior_grandMagicGenerator();
 	bool behavior_detector();
+	void behavior_flee();
 	void nextWaypointDest();
 	virtual void TargetSearch(short * pTarget, char * pTargetType);
+	uint8_t	GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError, short * DOType);
+	uint8_t GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError);
+	//Unit * TargetSearch(uint8_t dX, uint8_t dY, uint8_t Radius);
+	Unit * TargetSearch();
 	int getDangerValue(short dX, short dY);
 	void magicHandler(short dX, short dY, short sType);
 	int GetGenLevel();
@@ -194,6 +203,8 @@ public:
 	void Cast(short x, short y, short spell);
 
 	bool Follow(Unit * master);
+	void ReleaseFollowMode(Unit* owner);
+	void RemoveFromTarget(Unit * target, int iCode=0);
 	void SetTarget(Unit * target, bool isperm = true);
 
 	virtual void RegenHP();
@@ -251,6 +262,8 @@ public:
 	Unit * m_iFollowOwnerIndex;
 	bool  m_bIsSummoned;            
 	uint64_t m_dwSummonedTime;
+	char  m_cTargetType;
+	char  m_cFollowOwnerType;
 	Unit * m_iTargetIndex;
 	uint8_t  m_cCurWaypoint;
 	uint8_t  m_cTotalWaypoint;
@@ -309,3 +322,4 @@ case 8:  "Hi-Explosive"
 	int		m_iCropsSkillLV;
 };
 
+typedef std::auto_ptr<Npc> NpcPtr;
