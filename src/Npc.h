@@ -177,11 +177,9 @@ public:
 	bool initNpcAttr(string & pNpcName, char cSA);
 	void Behave();
 	bool behavior_searchMaster();
-	virtual void Behavior_Move();
+
 	virtual void behavior_move();
 	void behavior_stop();
-	virtual void Behavior_Attack();
-	virtual void Behavior_Death(Unit * attacker, int16_t dmg);
 	virtual void behavior_attack();
 	virtual void behavior_death(Unit * attacker, int16_t dmg);
 	void behavior_dead();
@@ -190,7 +188,6 @@ public:
 	bool behavior_detector();
 	void behavior_flee();
 	void nextWaypointDest();
-	virtual void TargetSearch(short * pTarget, char * pTargetType);
 	uint8_t	GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError, short * DOType);
 	uint8_t GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError);
 	//Unit * TargetSearch(uint8_t dX, uint8_t dY, uint8_t Radius);
