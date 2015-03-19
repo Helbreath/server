@@ -94,7 +94,7 @@ Client::Client()
 	Equipped.RightHand = nullptr;
 	Equipped.Necklace = nullptr;
 	Equipped.pArrow = nullptr;
-
+	Equipped.TwoHand = nullptr;
 	for (i = 0; i < MAXMAGICTYPE; i++)
 		m_cMagicMastery[i] = 0;
 

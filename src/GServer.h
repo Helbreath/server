@@ -267,7 +267,7 @@ public:
 	bool bGetEmptyPosition(short * pX, short * pY, Unit * client);
 	void RequestTeleportHandler(Client * client, char teleportType, string cMapName = "", int dX = -1, int dY = -1);
 	int iGetMapLocationSide(string MapName);
-	void RemoveFromTarget(Unit * target, int iCode = 0);
+	
 	void PlayerMapEntry(Client * client, bool setRecallTime);
 	void ToggleCombatModeHandler(shared_ptr<Client> client);
 	Npc * CreateNpc(string & pNpcName, Map * mapIndex, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
@@ -277,7 +277,12 @@ public:
 	bool bCheckClientMoveFrequency(Client * client, bool running);
 	void _CheckAttackType(Client * client, int16_t & spType);
 	void ClearSkillUsingStatus(Client * client);
-
+	//Acidx NpcProcess Function
+	void NpcProcess();
+	
+	void DeleteNpc(Unit *NpcH);
+	
+	int getPlayerNum(Map * pMap, short dX, short dY, char cRadius);
 	bool CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int iHitRatio);
 	bool CheckResistingPoisonSuccess(Unit * owner);
 	bool CheckResistingIceSuccess(char cAttackerDir, Unit * target, int iHitRatio);
