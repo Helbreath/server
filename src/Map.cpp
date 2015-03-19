@@ -92,7 +92,8 @@ Map::Map(GServer * pGame)
 	m_bRandomMobGenerator = false;
 
 	sMobEventAmount = 15 ;   
-}
+
+	}
 
 Map::~Map()
 {
@@ -162,50 +163,55 @@ Unit * Map::GetDeadOwner(short sX, short sY)
 
 }
 
-Unit ** Map::GetOwners(short x1, short x2, short y1, short y2)
+std::list<Unit*>Map::GetOwners(short x1, short x2, short y1, short y2)
 {
+	class Tile * pTile;
 	//TODO: this. shoot whoever wrote it and rewrite it before an alpha test
-	return 0;
-// 	static Unit * owners[400];
-// 
-// 	if(x1 < 0)
-// 		x1 = 0;
-// 
-// 	if(x2 >= m_sSizeX)
-// 		x2 = m_sSizeX-1;
-// 
-// 	if(y1 < 0)
-// 		y1 = 0;
-// 
-// 	if(y2 >= m_sSizeY)
-// 		y2 = m_sSizeY-1;
-// 
-// 	int n = 0;
-// 
-// 	for(int y = y1; y <= y2; y++) 
-// 	{
-// 		for (int x = x1; x <= x2; x++)
-// 		{
-// 			pTile = (Tile *)(m_pTile + x + y*m_sSizeY);
-// 
-// 			switch(pTile->m_cOwnerClass)
-// 			{
-// 			case OWNERTYPE_PLAYER:
-// 				owners[n] = g_clientList[pTile->m_sOwner];
-// 				n++;
-// 				break;;
-// 
-// 			case OWNERTYPE_NPC:
-// 				owners[n] = g_npcList[pTile->m_sOwner];
-// 				n++;
-// 				break;
-// 			}
-// 		}
-// 	}
-// 
-// 	owners[n] = NULL;
-// 
-// 	return owners;
+	//return 0;
+ 	 std::list<Unit*> owners;
+ 
+ 	if(x1 < 0)
+ 		x1 = 0;
+ 
+ 	if(x2 >= m_sSizeX)
+ 		x2 = m_sSizeX-1;
+ 
+ 	if(y1 < 0)
+ 		y1 = 0;
+ 
+ 	if(y2 >= m_sSizeY)
+ 		y2 = m_sSizeY-1;
+ 
+ 	int n = 0;
+ 
+ 	for(int y = y1; y <= y2; y++) 
+ 	{
+ 		for (int x = x1; x <= x2; x++)
+ 		{
+ 			pTile = (Tile *)(m_pTile + x + y*m_sSizeY);
+ 
+ 			switch(pTile->m_cOwnerClass)
+ 			{
+ 			case OWNERTYPE_PLAYER:
+ 				owners.push_back(pTile->owner);
+ 				n++;
+ 				break;;
+ 
+ 			case OWNERTYPE_NPC:
+				owners.push_back(pTile->owner);
+ 				n++;
+ 				break;
+			case 0:
+				owners.push_back(NULL);
+				n++;
+				break;
+			}
+ 		}
+ 	}
+ 
+	owners.push_back(NULL);
+ 
+ 	return owners;
 }
 
 bool Map::bGetMoveable(short dX, short dY, short * pDOtype, Item * pTopItem) 

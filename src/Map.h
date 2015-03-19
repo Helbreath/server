@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "funcs.h"
+#include <list>
 
 // for Client Data
 #define MAXTELEPORTLOC		200
@@ -78,7 +79,7 @@ public:
 	void SetOwner(Unit * sOwner, short sX, short sY);
 	Unit * GetDeadOwner(short sX, short sY);
 	void SetDeadOwner(Unit * sOwner, short sX, short sY);
-	Unit ** GetOwners(short x1, short x2, short y1, short y2);
+	std::list<Unit*>GetOwners(short x1, short x2, short y1, short y2);
 	void IncPlayerActivity(Client * player);
 	bool bDecodeMapConfig();
 	bool GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation);
