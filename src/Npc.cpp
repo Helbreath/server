@@ -615,6 +615,12 @@ void Npc::behavior_flee()
 	}
 
 	sTarget = this->TargetSearch();
+
+	if (sTarget == nullptr)
+	{
+		return;
+	}
+
 	cTargetType = sTarget->m_ownerType;
 	if (sTarget != NULL) {
 		this->m_iTargetIndex = sTarget;
