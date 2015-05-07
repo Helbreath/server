@@ -75,11 +75,11 @@ public:
 	void ClearDeadOwner(short sX, short sY);
 	void ClearOwner(short sX, short sY);
 	bool bGetMoveable(short dX, short dY, short * pDOtype = 0, Item * pTopItem = 0); 
-	Unit * GetOwner(short sX, short sY);
-	void SetOwner(Unit * sOwner, short sX, short sY);
-	Unit * GetDeadOwner(short sX, short sY);
-	void SetDeadOwner(Unit * sOwner, short sX, short sY);
-	std::list<Unit*>GetOwners(short x1, short x2, short y1, short y2);
+	shared_ptr<Unit> GetOwner(short sX, short sY);
+	void SetOwner(shared_ptr<Unit> sOwner, short sX, short sY);
+	shared_ptr<Unit> GetDeadOwner(short sX, short sY);
+	void SetDeadOwner(shared_ptr<Unit> sOwner, short sX, short sY);
+	std::list<shared_ptr<Unit>>GetOwners(short x1, short x2, short y1, short y2);
 	void IncPlayerActivity(Client * player);
 	bool bDecodeMapConfig();
 	bool GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation);

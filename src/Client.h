@@ -201,6 +201,8 @@ public:
 
 	bool m_bIsHunter;
 
+	bool m_bActive;
+
 	string m_cCharName;
 	string account;
 	string password;

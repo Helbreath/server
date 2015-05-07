@@ -487,7 +487,7 @@ void Gate::SocketThread()
 			StreamRead sr = StreamRead(msg->data, msg->size);
 			StreamWrite sw = StreamWrite();
             
-            shared_ptr<Client> client = msg->client;
+			shared_ptr<Client> client = msg->client;
 
 			uint32_t msgid = sr.ReadInt();
 			client->lastpackettime = unixtime();
@@ -712,6 +712,9 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 			client->pMap->ClearDeadOwner(client->m_sX, client->m_sY);
 		else
 			client->pMap->ClearOwner(client->m_sX, client->m_sY);
+
+		//let npcs know it's an invalid target
+		client->m_bActive = false;
 
 		client->gserver->SendEventToNearClient_TypeA(client.get(), MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
 

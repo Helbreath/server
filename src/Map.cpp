@@ -114,7 +114,7 @@ Map::~Map()
 	}
 }
 
-void Map::SetOwner(Unit * sOwner, short sX, short sY)
+void Map::SetOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
@@ -126,7 +126,7 @@ void Map::SetOwner(Unit * sOwner, short sX, short sY)
 }
 
 
-void Map::SetDeadOwner(Unit * sOwner, short sX, short sY)
+void Map::SetDeadOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
@@ -137,7 +137,7 @@ void Map::SetDeadOwner(Unit * sOwner, short sX, short sY)
 	pTile->m_cDeadOwnerClass = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
 }
 
-Unit * Map::GetOwner(short sX, short sY)
+shared_ptr<Unit> Map::GetOwner(short sX, short sY)
 {
 	Tile * pTile;
 
@@ -150,7 +150,7 @@ Unit * Map::GetOwner(short sX, short sY)
 
 }
 
-Unit * Map::GetDeadOwner(short sX, short sY)
+shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
 {
 	Tile * pTile;
 
@@ -163,12 +163,12 @@ Unit * Map::GetDeadOwner(short sX, short sY)
 
 }
 
-std::list<Unit*>Map::GetOwners(short x1, short x2, short y1, short y2)
+std::list<shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2)
 {
 	class Tile * pTile;
 	//TODO: this. shoot whoever wrote it and rewrite it before an alpha test
 	//return 0;
- 	 std::list<Unit*> owners;
+	std::list<shared_ptr<Unit>> owners;
  
  	if(x1 < 0)
  		x1 = 0;
@@ -202,14 +202,14 @@ std::list<Unit*>Map::GetOwners(short x1, short x2, short y1, short y2)
  				n++;
  				break;
 			case 0:
-				owners.push_back(NULL);
+				owners.push_back(nullptr);
 				n++;
 				break;
 			}
  		}
  	}
  
-	owners.push_back(NULL);
+	owners.push_back(nullptr);
  
  	return owners;
 }

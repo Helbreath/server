@@ -174,6 +174,9 @@ public:
 
 	Npc(uint64_t NpcH, GServer * gs);
 	~Npc();
+
+	weak_ptr<Npc> self;
+
 	bool initNpcAttr(string & pNpcName, char cSA);
 	void Behave();
 	bool behavior_searchMaster();
@@ -181,7 +184,7 @@ public:
 	virtual void behavior_move();
 	void behavior_stop();
 	virtual void behavior_attack();
-	virtual void behavior_death(Unit * attacker, int16_t dmg);
+	virtual void behavior_death(shared_ptr<Unit> attacker, int16_t dmg);
 	void behavior_dead();
 	bool behavior_manaCollector();
 	void behavior_grandMagicGenerator();
@@ -191,18 +194,18 @@ public:
 	uint8_t	GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError, short * DOType);
 	uint8_t GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError);
 	//Unit * TargetSearch(uint8_t dX, uint8_t dY, uint8_t Radius);
-	Unit * TargetSearch();
+	shared_ptr<Unit> TargetSearch();
 	int getDangerValue(short dX, short dY);
 	void magicHandler(short dX, short dY, short sType);
 	int GetGenLevel();
 
-	void Cast(Unit * target, short spell);
+	void Cast(shared_ptr<Unit> target, short spell);
 	void Cast(short x, short y, short spell);
 
-	bool Follow(Unit * master);
-	void ReleaseFollowMode(Unit* owner);
-	void RemoveFromTarget(Unit * target, int iCode=0);
-	void SetTarget(Unit * target, bool isperm = true);
+	bool Follow(shared_ptr<Unit> master);
+	void ReleaseFollowMode(shared_ptr<Unit> owner);
+	void RemoveFromTarget(shared_ptr<Unit> target, int iCode = 0);
+	void SetTarget(shared_ptr<Unit> target, bool isperm = true);
 
 	virtual void RegenHP();
 	virtual void RegenMP();
@@ -256,12 +259,12 @@ public:
 	short m_sBehaviorTurnCount;
 	char  m_cTargetSearchRange;
 
-	Unit * m_iFollowOwnerIndex;
+	shared_ptr<Unit> m_iFollowOwnerIndex;
 	bool  m_bIsSummoned;            
 	uint64_t m_dwSummonedTime;
 	char  m_cTargetType;
 	char  m_cFollowOwnerType;
-	Unit * m_iTargetIndex;
+	shared_ptr<Unit> m_iTargetIndex;
 	uint8_t  m_cCurWaypoint;
 	uint8_t  m_cTotalWaypoint;
 

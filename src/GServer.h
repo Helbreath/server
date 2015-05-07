@@ -264,24 +264,33 @@ public:
 	void SendItemNotifyMsg(shared_ptr<Client> client, uint16_t msgtype, Item *pItem, int iV1);
 	void DropItemHandler(shared_ptr<Client> client, short sItemIndex, int iAmount, string pItemName, bool bByPlayer);
 	void ItemDepleteHandler(shared_ptr<Client> client, Item * pItem, bool bIsUseItemResult, bool bIsLog = true, bool notify = true);
-	bool bGetEmptyPosition(short * pX, short * pY, Unit * client);
+	bool bGetEmptyPosition(short * pX, short * pY, shared_ptr<Unit> client);
 	void RequestTeleportHandler(Client * client, char teleportType, string cMapName = "", int dX = -1, int dY = -1);
 	int iGetMapLocationSide(string MapName);
 	
-	void PlayerMapEntry(Client * client, bool setRecallTime);
+	void PlayerMapEntry(shared_ptr<Client> client, bool setRecallTime);
 	void ToggleCombatModeHandler(shared_ptr<Client> client);
-	Npc * CreateNpc(string & pNpcName, Map * mapIndex, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
+	shared_ptr<Npc> CreateNpc(string & pNpcName, Map * mapIndex, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
 	void RequestTitleHandler(Client * client, StreamRead & sr);
 	bool bCheckClientAttackFrequency(Client * client);
 	bool bCheckClientMagicFrequency(Client * client);
 	bool bCheckClientMoveFrequency(Client * client, bool running);
 	void _CheckAttackType(Client * client, int16_t & spType);
 	void ClearSkillUsingStatus(Client * client);
-	//Acidx NpcProcess Function
+
 	void NpcProcess();
+
+	void RemoveFromTarget(shared_ptr<Unit> target, int iCode = 0);
+	void NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16_t damage);
+	void NpcBehavior_Flee(shared_ptr<Npc> npc);
+	void NpcBehavior_Dead(shared_ptr<Npc> npc);
+
+	void DeleteNpc(shared_ptr<Npc> NpcH);
 	
-	void DeleteNpc(Unit *NpcH);
-	
+	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError);
+	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError, short * DOType);
+
+
 	int getPlayerNum(Map * pMap, short dX, short dY, char cRadius);
 	bool CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int iHitRatio);
 	bool CheckResistingPoisonSuccess(Unit * owner);
@@ -308,8 +317,8 @@ public:
 
 	uint64_t npchandle;
 
-	Client * GetClient(int32_t ObjectID);
-	Npc * GetNpc(int32_t ObjectID);
+	shared_ptr<Client> GetClient(uint64_t ObjectID);
+	shared_ptr<Npc> GetNpc(uint64_t ObjectID);
 
 	void ParseChat(Client * client, string message);
 
@@ -323,7 +332,7 @@ public:
 	//Give guilds more purpose than just another chat channel in game
 
 
-	std::list<Npc*> npclist;
+	std::list<shared_ptr<Npc>> npclist;
 
 	struct
 	{

@@ -22,8 +22,8 @@ public:
 
 	uint8_t  m_cOwnerClass;		// OT_PLAYER / OT_NPC
 	uint8_t  m_cDeadOwnerClass;	
-	Unit * owner;
-	Unit * deadowner;
+	shared_ptr<Unit> owner;
+	shared_ptr<Unit> deadowner;
 
 	std::vector<Item *> m_pItem;
 

@@ -11,10 +11,10 @@ Tile::Tile()
 	m_bIsWater       = false;
 	m_bIsFarmingAllowed = false; 
 
-	owner = 0;
+	owner = nullptr;
 	m_cOwnerClass = 0;
 
-	deadowner = 0;
+	deadowner = nullptr;
 	m_cDeadOwnerClass = 0;
 
 	m_wDynamicObjectID   = 0;

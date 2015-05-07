@@ -54,7 +54,7 @@ public:
 	Side m_side;
 	uint32_t m_iStatus;
 	bool m_bIsKilled;
-	Unit * m_killer;
+	shared_ptr<Unit> m_killer;
 	Map * pMap;
 
 	int8_t  m_cDir;

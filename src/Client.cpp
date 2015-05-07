@@ -34,6 +34,8 @@ Client::Client()
 	disconnecttime = 0;
 	lastpackettime = 0;
 
+	m_bActive = true;
+
 	for (int i = 0; i < DEFAULTBAGSIZE; ++i)
 	{
 		m_pItemList.push_back(new ItemWrap);

@@ -392,7 +392,7 @@ void Npc::behavior_move()
  	char  cDir;
  	short sX, sY, dX, dY, absX, absY;
  	short sDistance;
- 	Unit  * sTarget;
+ 	shared_ptr<Unit> sTarget;
 	dX = 0; dY = 0;
  	if (m_bIsKilled == true) return;
 
@@ -400,8 +400,9 @@ void Npc::behavior_move()
  		(m_iSummonControlMode == 1)) return;
  	if (m_cMagicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0) return;
 	if ((m_iTargetIndex != nullptr) && (m_iTargetIndex->pMap->m_cName != pMap->m_cName))
-	{	//since we removed this from GServer probably need to re-add it.. because it's not making sense to be in this class
-		RemoveFromTarget(this); return;
+	{
+		gserver->RemoveFromTarget(this->self.lock());
+		return;
 	}
  	switch (m_cActionLimit) {
  	case 2:
@@ -474,7 +475,7 @@ void Npc::behavior_move()
  		sY = m_sY;
  		switch (m_cFollowOwnerType) {
  		case OWNERTYPE_PLAYER:
- 			if (m_iFollowOwnerIndex == NULL) {
+ 			if (m_iFollowOwnerIndex == nullptr) {
  				m_cMoveType = MOVETYPE_RANDOM;
  				return;
  			}
@@ -483,9 +484,9 @@ void Npc::behavior_move()
  			dY = m_iFollowOwnerIndex->m_sY;
  			break;
  		case OWNERTYPE_NPC:
- 			if (m_iFollowOwnerIndex == NULL) {
+			if (m_iFollowOwnerIndex == nullptr) {
  				m_cMoveType = MOVETYPE_RANDOM;
- 				m_iFollowOwnerIndex = NULL;
+				m_iFollowOwnerIndex = nullptr;
  				//searchMaster(m_handle);
  				return;
  			}
@@ -503,9 +504,11 @@ void Npc::behavior_move()
  			short DOType = 0;
 			cDir =GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError, &DOType);
 
- 			if (cDir == 0) {
+ 			if (cDir == 0)
+			{
  			}
- 			else {
+ 			else
+			{
  				if(DOType == DYNAMICOBJECT_SPIKE)
  				{
  					//uint32_t dmg = dice(2,4);
@@ -516,20 +519,22 @@ void Npc::behavior_move()
  					{
  						//gserver->NpcKilledHandler(NULL, NULL, m_handle, 0);
  						return;
- 					} else {
- 						gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, NULL);
+ 					}
+					else
+					{
+ 						gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
  					}
  				}
 				//Clear tile and set next tile owner
  				dX = m_sX + _tmp_cTmpDirX[cDir];
  				dY = m_sY + _tmp_cTmpDirY[cDir];
 				pMap->ClearOwner(m_sX, m_sY);
-				pMap->SetOwner(this, dX,dY);
+				pMap->SetOwner(this->self.lock(), dX,dY);
 	
  				m_sX   = dX;
  				m_sY   = dY;
  				m_cDir = cDir;
- 				gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, NULL, NULL, NULL);
+ 				gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
  			}
  		}
  	}
@@ -554,18 +559,18 @@ void Npc::behavior_move()
  					//gserver->NpcKilledHandler(NULL, NULL, m_handle, 0);
  					return;
  				} else {
- 					gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, NULL);
+ 					gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
  				}
  			}
  			dX = m_sX + _tmp_cTmpDirX[cDir];
  			dY = m_sY + _tmp_cTmpDirY[cDir];
 			//Clear tile and set next tile owner
 			pMap->ClearOwner(m_sX, m_sY);
-			pMap->SetOwner(this, dX, dY);
+			pMap->SetOwner(this->self.lock(), dX, dY);
  			m_sX   = dX;
  			m_sY   = dY;
  			m_cDir = cDir;
- 			gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, NULL, NULL, NULL);
+ 			gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
 			
  		}
 	
@@ -576,7 +581,7 @@ void Npc::behavior_flee()
 {
 	char cDir;
 	short sX, sY, dX, dY;
-	Unit* sTarget;
+	shared_ptr<Unit> sTarget;
 	char  cTargetType;
 
 	if (this == NULL) return;
@@ -622,7 +627,7 @@ void Npc::behavior_flee()
 	}
 
 	cTargetType = sTarget->m_ownerType;
-	if (sTarget != NULL) {
+	if (sTarget != nullptr) {
 		this->m_iTargetIndex = sTarget;
 		this->m_cTargetType = cTargetType;
 	}
@@ -650,11 +655,11 @@ void Npc::behavior_flee()
 		dY = this->m_sY + _tmp_cTmpDirY[cDir];
 		this->pMap->ClearOwner(this->m_sX, this->m_sY);
 
-		this->pMap->SetOwner(this, dX, dY);
+		this->pMap->SetOwner(this->self.lock(), dX, dY);
 		this->m_sX = dX;
 		this->m_sY = dY;
 		this->m_cDir = cDir;
-		gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, NULL, NULL, NULL);
+		gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
 	}
 }
 
@@ -662,7 +667,7 @@ void Npc::behavior_stop()
 {
 	std::cout << "NPC::Stop" << std::endl;
 	char  cTargetType;
-	Unit * sTarget = NULL;
+	shared_ptr<Unit> sTarget;
 	bool  bFlag;
 
 	m_sBehaviorTurnCount++;
@@ -772,7 +777,7 @@ void Npc::behavior_attack()
  	sX = m_sX;
  	sY = m_sY;
 
- 	Unit * target = NULL;
+ 	shared_ptr<Unit> target = NULL;
  	if(m_cTargetType == OWNERTYPE_PLAYER)
  		target = m_iTargetIndex;
  	else if(m_cTargetType == OWNERTYPE_NPC)
@@ -840,13 +845,13 @@ void Npc::behavior_attack()
  				if (target) {
  				if(m_cTargetType == OWNERTYPE_PLAYER) {
  				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, m_sX + _tmp_cTmpDirX[cDir], m_sY + _tmp_cTmpDirY[cDir], 2);
- 				gserver->CalculateAttackEffect(m_iTargetIndex,this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+				gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
  					}
  				}
  				break;
  			case 36: // Crossbow Guard Tower
  				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, m_sX + _tmp_cTmpDirX[cDir], m_sY + _tmp_cTmpDirY[cDir], 2);
-				gserver->CalculateAttackEffect(m_iTargetIndex, this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+				gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
  				break;
 
  			case 37: // Cannon Guard Tower:
@@ -865,7 +870,7 @@ void Npc::behavior_attack()
  			} else
  			{
  				gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, 0,0, 1);
-				gserver->CalculateAttackEffect(m_iTargetIndex, this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
+				gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
  			}
  		}
  		m_iAttackCount++;
@@ -1133,13 +1138,13 @@ void Npc::behavior_attack()
  						if (target) {
  						if(m_cTargetType == OWNERTYPE_PLAYER) {
 							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
-							gserver->CalculateAttackEffect(m_iTargetIndex, this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+							gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
  							}
  						}
  					break;
  					case 36: // Crossbow Guard Tower
 							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
-							gserver->CalculateAttackEffect(m_iTargetIndex, this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+							gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
  					break;
 
  					case 37://  Cannon Guard Tower
@@ -1159,31 +1164,31 @@ void Npc::behavior_attack()
 
  					case 54:  //Dark Elf
  						gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
-						gserver->CalculateAttackEffect(m_iTargetIndex, this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+						gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
  						break;
  					case 63: //v2.20 2002-12-20 frost
  					case 53:// Beholder
  					case 79:
  						if (target)
  						{
-							if (!target->IsDead() && gserver->CheckResistingIceSuccess(m_cDir, m_iTargetIndex, m_iMagicHitRatio) == false)
+							if (!target->IsDead() && gserver->CheckResistingIceSuccess(m_cDir, m_iTargetIndex.get(), m_iMagicHitRatio) == false)
  							{
  								if (target->m_cMagicEffectStatus[ MAGICTYPE_ICE ] == 0)
  								{
  									target->m_cMagicEffectStatus[ MAGICTYPE_ICE ] = 1;
  									target->SetStatusFlag(STATUS_FROZEN, true);
  									gserver->RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_ICE, dwTime + (5*1000),
- 										target, NULL, NULL, NULL, 1, NULL, NULL);
+										target.get(), 0, 0, 0, 1, 0, 0);
  								}
  							}
  							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 20);
-							gserver->CalculateAttackEffect(m_iTargetIndex, this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
+							gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
  						}
  						break;
 
  					default:
  						gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 20);
-						gserver->CalculateAttackEffect(m_iTargetIndex, this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
+						gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
  						break;
  					}
  				}
@@ -1221,7 +1226,7 @@ void Npc::behavior_attack()
  			dX = m_sX + _tmp_cTmpDirX[cDir];
  			dY = m_sY + _tmp_cTmpDirY[cDir];
  			pMap->ClearOwner( m_sX, m_sY);
- 			pMap->SetOwner(this, dX, dY);
+ 			pMap->SetOwner(this->self.lock(), dX, dY);
  			m_sX   = dX;
  			m_sY   = dY;
  			m_cDir = cDir;
@@ -1435,7 +1440,7 @@ Unit * Npc::TargetSearch(uint8_t dX,uint8_t dY,uint8_t Radius)
 
 	return 0;
 }*/
-Unit * Npc::TargetSearch( )
+shared_ptr<Unit> Npc::TargetSearch()
 {
  	int ix, iy, iPKCount;
  	short sX, sY, rX, rY;
@@ -1450,18 +1455,19 @@ Unit * Npc::TargetSearch( )
  	case NPC_CP: iSearchType = 1; break;
  	}
 
- 	std::list<Unit*> owners = pMap->GetOwners(
+ 	std::list<shared_ptr<Unit>> owners = pMap->GetOwners(
  		m_sX - m_cTargetSearchRange, m_sX + m_cTargetSearchRange,
  		m_sY - m_cTargetSearchRange, m_sY + m_cTargetSearchRange);
 	if (owners.size() <= 0)return 0;
 	std::cout << "Owners Size = " << owners.size() << endl;
+	std::cout << "HP = " << this->m_iHP << endl;
 	
- 	Unit *target = NULL;
-	for (Unit* owner : owners)
+ 	shared_ptr<Unit> target;
+	for (shared_ptr<Unit> owner : owners)
 	{
 	
 		if (owner == nullptr) continue;
- 		if(owner == this)
+ 		if (owner == this->self.lock())
  			continue;
 
  		iPKCount = 0;
@@ -2733,17 +2739,14 @@ void Npc::ReduceHP(uint64_t value)
 // 	}
 }
 
-void Npc::behavior_death(Unit * attacker, int16_t dmg)
+void Npc::behavior_death(shared_ptr<Unit> attacker, int16_t dmg)
 {
  	short  sAttackerWeapon = 1;
-
- 	Client * player = (Client*)attacker;
- 	Npc * npc = (Npc*)attacker;
 
  	if(attacker && attacker->IsPlayer())
  	{
 		m_killer = attacker;
- 		sAttackerWeapon = (player->m_sAppr2 & 0x0FF0) >> 4;
+ 		sAttackerWeapon = ((static_cast<Client*>(attacker.get()))->m_sAppr2 & 0x0FF0) >> 4;
  	}
 
  	m_bIsKilled = true;
@@ -2752,18 +2755,18 @@ void Npc::behavior_death(Unit * attacker, int16_t dmg)
 
  	pMap->m_iTotalAliveObject--;
 
- 	RemoveFromTarget(this,OWNERTYPE_NPC);
+ 	gserver->RemoveFromTarget(this->self.lock(), OWNERTYPE_NPC);
 
- 	ReleaseFollowMode(this);
+	ReleaseFollowMode(this->self.lock());
 
- 	m_iTargetIndex = NULL;
- 	m_cTargetType  = NULL;
+ 	m_iTargetIndex = 0;
+ 	m_cTargetType  = 0;
 
- 	gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_DYING, dmg, sAttackerWeapon, NULL);
+ 	gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_DYING, dmg, sAttackerWeapon, 0);
 
  	pMap->ClearOwner(  m_sX, m_sY);
 
- 	pMap->SetDeadOwner(this, m_sX, m_sY);
+	pMap->SetDeadOwner(this->self.lock(), m_sX, m_sY);
 
  	m_cBehavior = BEHAVIOR_DEAD;
 
@@ -2988,7 +2991,7 @@ void Npc::behavior_death(Unit * attacker, int16_t dmg)
  		}*/
 }
 
-void Npc::Cast(Unit * target, short spell)
+void Npc::Cast(shared_ptr<Unit> target, short spell)
 {
 	Cast(target->m_sX, target->m_sY, spell);
 }
@@ -3002,7 +3005,7 @@ void Npc::Cast(short x, short y, short spell)
 }
 
 
-bool Npc::Follow(Unit * master)
+bool Npc::Follow(shared_ptr<Unit> master)
 {
 	if(!master || master->pMap != pMap)
 		return false;
@@ -3014,9 +3017,9 @@ bool Npc::Follow(Unit * master)
 
 	return true;
 }
-void Npc::ReleaseFollowMode(Unit* owner) 
+void Npc::ReleaseFollowMode(shared_ptr<Unit> owner)
 {
-	for (Npc* npcs : gserver->npclist)
+	for (shared_ptr<Npc> npcs : gserver->npclist)
 		if (npcs != nullptr)  {
 			if ((npcs->m_cMoveType == MOVETYPE_FOLLOW) &&
 				(npcs->m_iFollowOwnerIndex == owner) &&
@@ -3026,45 +3029,7 @@ void Npc::ReleaseFollowMode(Unit* owner)
 			}
 		}
 }
-void Npc::RemoveFromTarget(Unit * target, int iCode)
-{
-	uint64_t dwTime = unixtime();
-
-	for (Npc * npc : gserver->npclist)
-	{
-		if ((npc->m_iGuildGUID != 0) && (target->IsPlayer()) && (target->m_iGuildGUID == npc->m_iGuildGUID))
-		{
-			if (npc->m_cActionLimit == 0)
-			{
-				npc->m_bIsSummoned = true;
-				npc->m_dwSummonedTime = dwTime;
-			}
-		}
-
-		if (npc->m_iTargetIndex == target)
-		{
-			switch (iCode)
-			{
-			case MAGICTYPE_INVISIBILITY:
-				if (npc->m_cSpecialAbility == 1)
-				{
-				}
-				else
-				{
-					npc->m_cBehavior = BEHAVIOR_MOVE;
-					npc->m_iTargetIndex = 0;
-				}
-				break;
-			default:
-				npc->m_cBehavior = BEHAVIOR_MOVE;
-				npc->m_iTargetIndex = 0;
-				break;
-			}
-		}
-	}
-}
-
-void Npc::SetTarget(Unit * target, bool isperm)
+void Npc::SetTarget(shared_ptr<Unit> target, bool isperm)
 {
 	//TODO: set attack target to Unit* type
 	m_cBehavior = BEHAVIOR_ATTACK;
@@ -3086,7 +3051,7 @@ void Npc::behavior_dead()
 	}
 
 	if ((dwTime - m_dwDeadTime) > m_dwRegenTime)
-		gserver->DeleteNpc(this);
+		gserver->DeleteNpc(this->self.lock());
 }
 uint8_t Npc::GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError)
 {
