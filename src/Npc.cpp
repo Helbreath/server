@@ -731,7 +731,6 @@ void Npc::behavior_stop()
 
 void Npc::behavior_attack()
 {
-	std::cout << "NPC::Attack()" << endl;
  	int   iMagicType;
  	short sX, sY, dX, dY;
  	uint8_t cDir;
@@ -777,7 +776,7 @@ void Npc::behavior_attack()
  	sX = m_sX;
  	sY = m_sY;
 
- 	shared_ptr<Unit> target = NULL;
+ 	shared_ptr<Unit> target = nullptr;
  	if(m_cTargetType == OWNERTYPE_PLAYER)
  		target = m_iTargetIndex;
  	else if(m_cTargetType == OWNERTYPE_NPC)
@@ -785,7 +784,7 @@ void Npc::behavior_attack()
 
  	switch (m_cTargetType) {
  	case OWNERTYPE_PLAYER:
- 		if (m_iTargetIndex == NULL) {
+		if (m_iTargetIndex == nullptr) {
  			m_sBehaviorTurnCount = 0;
  			m_cBehavior    = BEHAVIOR_MOVE;
  			return;
@@ -795,7 +794,7 @@ void Npc::behavior_attack()
  		break;
 
  	case OWNERTYPE_NPC:
- 		if (m_iTargetIndex == NULL) {
+		if (m_iTargetIndex == nullptr) {
  			m_sBehaviorTurnCount = 0;
  			m_cBehavior    = BEHAVIOR_MOVE;
  			return;
@@ -829,6 +828,8 @@ void Npc::behavior_attack()
 		m_cDir=GetNextMoveDir(sX, sY, dX, dY,pMap,m_cTurn,&m_tmp_iError) +1;
  		//if (cDir == 0) return;
  		//m_cDir = cDir;
+
+		gserver->consoleLogger->information(Poco::format("NPC::Attack() - dir: %d", (int)m_cDir));
 
  		if (m_cActionLimit == 5) {
  			switch (m_sType) {
@@ -2764,7 +2765,7 @@ void Npc::behavior_death(shared_ptr<Unit> attacker, int16_t dmg)
 
  	gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_DYING, dmg, sAttackerWeapon, 0);
 
- 	pMap->ClearOwner(  m_sX, m_sY);
+ 	pMap->ClearOwner(m_sX, m_sY);
 
 	pMap->SetDeadOwner(this->self.lock(), m_sX, m_sY);
 

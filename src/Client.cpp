@@ -26,6 +26,37 @@ Client::Client()
 
 	gserver = 0;
 
+	m_iAddChargeCritical = 0;
+
+	m_iAddTransMana = 0;
+
+	_IceResist = _ParalyzeResist = _FireResist = _PoisonResist = _LightningResist = _ArcaneResist = 0;
+
+	m_timeHackDif = 0;
+
+	m_iVit = m_iCharisma = m_iLuck = m_iLU_Pool = 0;
+
+	memset(m_iSkillSSN, 0, sizeof(m_iSkillSSN));
+
+	m_dwLogoutHackCheck = m_dwWarBeginTime = 0;
+	m_dwPoisonTime = 0;
+
+	iReturnID = iNumPoints = iRank = iCrusadeJob = iTitleIndex = iNextRankPoints = 0;
+
+	m_iCustomItemValue_Attack = m_iCustomItemValue_Defense = 0;
+
+	m_iMinAP_L = m_iMinAP_SM = m_iMaxAP_L = m_iMaxAP_SM = 0;
+
+	m_nextRecallPoint = 0;
+	m_iAddMR = 0;
+	m_iAddTransMana = 0;
+	m_iAddChargeCritical = 0;
+	m_iLastDamage = 0;
+	m_dwAttackLAT = 0;
+	m_specialAbilityLastSec = m_specialAbilityStartTime = 0;
+
+	m_bIsWarLocation = false;
+
 	m_bIsHunter = false;
 
 	currentstatus = 1;
