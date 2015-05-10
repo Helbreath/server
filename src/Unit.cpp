@@ -114,7 +114,7 @@ bool Unit::AddMagicEffect(int16_t magicType, uint64_t effectTime, int8_t kind)
 // 			this, 0, 0, 0, kind, 0, 0);
 	
 	if (IsPlayer())
-		gserver->SendNotifyMsg(0, static_cast<Client*>(this), NOTIFY_MAGICEFFECTON, magicType, kind, 0, 0);
+		gserver->SendNotifyMsg(0, static_cast<Client*>(this), NOTIFY_MAGICEFFECTON, magicType, kind, 0);
 
 	SetMagicFlag(magicType, true);
  	return true;

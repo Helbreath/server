@@ -6515,14 +6515,14 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 				player->m_sX, player->m_sY,  
 				pItem->m_sSprite, pItem->m_sSpriteFrame, pItem->m_ItemColor); 
 
-			SendNotifyMsg(nullptr, client.get(), NOTIFY_DROPITEMFIN_COUNTCHANGED, sItemIndex, iAmount, NULL, NULL);
+			SendNotifyMsg(nullptr, client.get(), NOTIFY_DROPITEMFIN_COUNTCHANGED, sItemIndex, iAmount, 0);
 	}
 	else {
 
 		//ReleaseItemHandler(iClientH, sItemIndex, true);
 
 		if ( player->m_pItemList[sItemIndex]->_item->equipped == true)
-			SendNotifyMsg(nullptr, client.get(), NOTIFY_ITEMRELEASED, itemDrop->m_cEquipPos, sItemIndex, NULL, NULL);
+			SendNotifyMsg(nullptr, client.get(), NOTIFY_ITEMRELEASED, itemDrop->m_cEquipPos, sItemIndex, 0);
 
 		if ((itemDrop->m_sItemEffectType == ITEMEFFECTTYPE_ALTERITEMDROP) && 
 			(itemDrop->m_wCurLifeSpan == 0)) {
@@ -6560,13 +6560,13 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 		itemDrop = 0;
 		player->m_pItemList[sItemIndex]->_item->equipped = false;
 
-		SendNotifyMsg(0, player, NOTIFY_DROPITEMFIN_ERASEITEM, sItemIndex, iAmount, 0, 0);
+		SendNotifyMsg(0, player, NOTIFY_DROPITEMFIN_ERASEITEM, sItemIndex, iAmount, 0);
 
 		player->Equipped.pArrow = _iGetArrowItemIndex(player);
 	}
 
 	iCalcTotalWeight(client);
-	SendNotifyMsg(0, player, NOTIFY_REQDEF, player->m_iDefenseRatio, 0, 0, 0); // Auto updates defense in game xRisenx
+	SendNotifyMsg(0, player, NOTIFY_REQDEF, player->m_iDefenseRatio, 0, 0); // Auto updates defense in game xRisenx
 }
 
 void GServer::AddGroundItem(Item * pItem, uint16_t x, uint16_t y, Map * mapIndex, uint32_t dwTime)
@@ -6676,7 +6676,7 @@ int GServer::SetItemCount(shared_ptr<Client> client, int32_t iItemID, uint32_t d
 			else
 			{
 				pitemw->_item->m_dwCount = dwCount;
-				SendNotifyMsg(0, client.get(), NOTIFY_SETITEMCOUNT, iItemID, dwCount, (char)true, 0);
+				SendNotifyMsg(0, client.get(), NOTIFY_SETITEMCOUNT, iItemID, dwCount, (char)true);
 			}
 			return wWeight;
 		}
@@ -6712,7 +6712,7 @@ void GServer::ItemDepleteHandler(shared_ptr<Client> client, Item * pItem, bool b
 	//ReleaseItemHandler(client, sItemIndex, true);
 
 	if(notify)
-		SendNotifyMsg(nullptr, client.get(), NOTIFY_ITEMDEPLETED_ERASEITEM, pItem->m_slot, (int)bIsUseItemResult, 0, 0);
+		SendNotifyMsg(nullptr, client.get(), NOTIFY_ITEMDEPLETED_ERASEITEM, pItem->m_slot, (int)bIsUseItemResult, 0);
 
 	for (ItemWrap * pitemw : client->m_pItemList)
 	{
@@ -7596,7 +7596,7 @@ void GServer::ClearSkillUsingStatus(Client * client)
 // 			m_pFish[client->m_iAllocatedFish]->m_sEngagingCount--;
 // 
 // 		client->m_iAllocatedFish = NULL;
-// 		SendNotifyMsg(nullptr, client, NOTIFY_FISHCANCELED, 0, 0, 0, 0);
+// 		SendNotifyMsg(nullptr, client, NOTIFY_FISHCANCELED, 0, 0, 0);
 // 	}
 }
 
@@ -7869,7 +7869,7 @@ void GServer::CalculateSSN_SkillIndex(Client * client, short sSkillIndex, int iV
 		if (client->m_iSkillSSN[sSkillIndex] == 0) {
 			client->CheckTotalSkillMasteryPoints(sSkillIndex);
 
-			SendNotifyMsg(nullptr, client, NOTIFY_SKILL, sSkillIndex, client->m_cSkillMastery[sSkillIndex], 0, 0);
+			SendNotifyMsg(nullptr, client, NOTIFY_SKILL, sSkillIndex, client->m_cSkillMastery[sSkillIndex], 0);
 		}
 	}
 }
@@ -8389,7 +8389,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 							if (cattacker->m_iWarContribution > MAXWARCONTRIBUTION)
 								cattacker->m_iWarContribution = MAXWARCONTRIBUTION;
 
-							SendNotifyMsg(nullptr,cattacker, NOTIFY_CONSTRUCTIONPOINT, cattacker->m_iConstructionPoint, cattacker->m_iWarContribution, 0, 0);
+							SendNotifyMsg(nullptr,cattacker, NOTIFY_CONSTRUCTIONPOINT, cattacker->m_iConstructionPoint, cattacker->m_iWarContribution, 0);
 						}
 						break;
 					case 5:
@@ -8737,7 +8737,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 						cattacker->Equipped.pArrow = _iGetArrowItemIndex(cattacker);
 					}
 					else {
-						SendNotifyMsg(nullptr, cattacker, NOTIFY_SETITEMCOUNT, cattacker->Equipped.pArrow->m_slot, cattacker->Equipped.pArrow->m_dwCount, (char)false, 0);
+						SendNotifyMsg(nullptr, cattacker, NOTIFY_SETITEMCOUNT, cattacker->Equipped.pArrow->m_slot, cattacker->Equipped.pArrow->m_dwCount, (char)false);
 						iCalcTotalWeight(cattacker->self.lock());
 					}
 				}
@@ -9116,7 +9116,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 						ctarget->m_iHP += iAP_SM;
 						if (ctarget->GetMaxHP() < ctarget->m_iHP)
 							ctarget->m_iHP = ctarget->GetMaxHP();
-						SendNotifyMsg(nullptr, ctarget, NOTIFY_HP, 0, 0, 0, 0);
+						SendNotifyMsg(nullptr, ctarget, NOTIFY_HP, 0, 0, 0);
 						break;
 					}
 				}
@@ -9177,7 +9177,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 
 
 				if (cAttackerSA == 2 && ctarget->m_cMagicEffectStatus[MAGICTYPE_PROTECT]) {
-					SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTOFF, MAGICTYPE_PROTECT, ctarget->m_cMagicEffectStatus[MAGICTYPE_PROTECT], NULL, NULL);
+					SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTOFF, MAGICTYPE_PROTECT, ctarget->m_cMagicEffectStatus[MAGICTYPE_PROTECT], 0);
 					switch (ctarget->m_cMagicEffectStatus[MAGICTYPE_PROTECT])
 					{
 					case MAGICPROTECT_PFA:
@@ -9210,7 +9210,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 						ctarget->m_dwPoisonTime = dwTime;
 
 						ctarget->SetStatusFlag(STATUS_POISON, true);
-						SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTON, MAGICTYPE_POISON, ctarget->m_iPoisonLevel, 0, 0);
+						SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTON, MAGICTYPE_POISON, ctarget->m_iPoisonLevel, 0);
 #ifdef TAIWANLOG
 						_bItemLog(ITEMLOG_POISONED, sTargetH, (char *)NULL, NULL);
 #endif
@@ -9223,7 +9223,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 						ZeroMemory(cDamageMod, sizeof(cDamageMod));
 						//wsprintf(cDamageMod ,"You did [%d] Damage to Character [%s] Remaining Life [%d]", iAP_SM,g_game->m_pClientList[sTargetH]->m_cCharName,g_game->m_pClientList[sTargetH]->m_iHP);
 						wsprintf(cDamageMod, "You did [%d] Damage to Character [%s]", iAP_SM, gserver->m_pClientList[sTargetH]->m_cCharName);
-						gserver->SendNotifyMsg(NULL, sAttackerH, NOTIFY_NOTICEMSG, NULL, NULL, NULL, cDamageMod);
+						gserver->SendNotifyMsg(0, sAttackerH, NOTIFY_NOTICEMSG, 0, 0, 0, cDamageMod);
 					}
 				}
 #else
@@ -9262,14 +9262,14 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 							if (dice(1, 100) < (ctarget->m_iAddChargeCritical)) {
 								/*iMaxSuperAttack = (g_clientList[sTargetH]->m_iLevel / 10);
 								if (g_clientList[sTargetH]->m_iSuperAttackLeft < iMaxSuperAttack) g_clientList[sTargetH]->m_iSuperAttackLeft++;
-								g_game->SendNotifyMsg(NULL, sTargetH, NOTIFY_SUPERATTACKLEFT, NULL, NULL, NULL, NULL);*/
+								g_game->SendNotifyMsg(0, sTargetH, NOTIFY_SUPERATTACKLEFT, 0, 0, 0, 0);*/
 								if (ctarget->m_iSuperAttackLeft < MAXSUPERATTACK) {
 									ctarget->m_iSuperAttackLeft++;
-									SendNotifyMsg(nullptr, ctarget, NOTIFY_SUPERATTACKLEFT, 0, 0, 0, 0);
+									SendNotifyMsg(nullptr, ctarget, NOTIFY_SUPERATTACKLEFT, 0, 0, 0);
 								}
 							}
 						}
-						//SendNotifyMsg(nullptr, ctarget, NOTIFY_HP, 0, 0, 0, 0);
+						SendNotifyMsg(nullptr, ctarget, NOTIFY_HP, 0, 0, 0);
 
 						if (attacker->m_ownerType == OWNERTYPE_PLAYER)
 							sAttackerWeapon = ((cattacker->m_sAppr2 & 0x0FF0) >> 4);
@@ -9301,7 +9301,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 
 							ctarget->m_iLastDamage = iAP_SM;
 
-							SendNotifyMsg(nullptr, ctarget, NOTIFY_DAMAGEMOVE, cDamageMoveDir, iAP_SM, sAttackerWeapon, 0);
+							SendNotifyMsg(nullptr, ctarget, NOTIFY_DAMAGEMOVE, cDamageMoveDir, iAP_SM, sAttackerWeapon);
 						}
 						else {
 						CAE_SKIPDAMAGEMOVE:;
@@ -9329,7 +9329,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 
 							// 1: Hold-Person 
 							// 2: Paralyze
-							SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTOFF, MAGICTYPE_HOLDOBJECT, ctarget->m_cMagicEffectStatus[MAGICTYPE_HOLDOBJECT], 0, 0);
+							SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTOFF, MAGICTYPE_HOLDOBJECT, ctarget->m_cMagicEffectStatus[MAGICTYPE_HOLDOBJECT], 0);
 
 							ctarget->m_cMagicEffectStatus[MAGICTYPE_HOLDOBJECT] = 0;
 							RemoveFromDelayEventList(target, MAGICTYPE_HOLDOBJECT);
@@ -9340,10 +9340,10 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 							ctarget->m_iSuperAttackCount = 0;
 							/*iMaxSuperAttack = (g_clientList[sTargetH]->m_iLevel / 10);
 							if (g_clientList[sTargetH]->m_iSuperAttackLeft < iMaxSuperAttack) g_clientList[sTargetH]->m_iSuperAttackLeft++;
-							g_game->SendNotifyMsg(NULL, sTargetH, NOTIFY_SUPERATTACKLEFT, NULL, NULL, NULL, NULL);*/
+							g_game->SendNotifyMsg(0, sTargetH, NOTIFY_SUPERATTACKLEFT, 0, 0, 0);*/
 							if (ctarget->m_iSuperAttackLeft < MAXSUPERATTACK) {
 								ctarget->m_iSuperAttackLeft++;
-								SendNotifyMsg(nullptr, ctarget, NOTIFY_SUPERATTACKLEFT, 0, 0, 0, 0);
+								SendNotifyMsg(nullptr, ctarget, NOTIFY_SUPERATTACKLEFT, 0, 0, 0);
 							}
 						}
 					}
