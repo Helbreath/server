@@ -4879,66 +4879,62 @@ int GServer::iClientMotion_Stop_Handler(shared_ptr<Client> client, uint16_t sX, 
 	return 1;
 }
 
-//Acidx - NpcProcess Introduction
 void GServer::NpcProcess()
 {
-	int i, iMaxHP;
+	int iMaxHP;
 	uint32_t dwTime, dwActionTime;
 
 	dwTime = unixtime();
 
-	for (i = 1; i < MAXNPCS; i++) {
+	for (shared_ptr<Npc> npc : npclist)
+	{
+		switch (npc->m_cBehavior)
+		{
+		case BEHAVIOR_ATTACK:
+			dwActionTime = npc->m_dwActionTime + 50 * dice(1, 7);
+			break;
+		case BEHAVIOR_MOVE:
+		case BEHAVIOR_FLEE:
+			dwActionTime = npc->m_dwActionTime + 400;
+			break;
+		default:
+			dwActionTime = npc->m_dwActionTime;
+			break;
+		}
 
-		if (GetNpc(i) != NULL) {
-			switch (GetNpc(i)->m_cBehavior)
-			{
-			case BEHAVIOR_ATTACK:
-				dwActionTime = GetNpc(i)->m_dwActionTime + 50 * dice(1, 7);
-				break;
-			case BEHAVIOR_MOVE:
-			case BEHAVIOR_FLEE:
-				dwActionTime = GetNpc(i)->m_dwActionTime + 400;
-				break;
-			default:
-				dwActionTime = GetNpc(i)->m_dwActionTime;
-				break;
-			}
 
+		if (npc->m_cMagicEffectStatus[MAGICTYPE_ICE] != 0)
+			dwActionTime += (dwActionTime / 2);
 
-			if (GetNpc(i)->m_cMagicEffectStatus[MAGICTYPE_ICE] != 0)
-				dwActionTime += (dwActionTime / 2);
+		if ((dwTime - npc->m_dwTime) > dwActionTime) {
+			npc->m_dwTime = dwTime;
 
-			if ((dwTime - GetNpc(i)->m_dwTime) > dwActionTime) {
-				GetNpc(i)->m_dwTime = dwTime;
+			npc->RegenHP();
+			npc->RegenMP();
+			npc->Behave();
 
-				GetNpc(i)->RegenHP();
-				GetNpc(i)->RegenMP();
-				GetNpc(i)->Behave();
-
-				if ((GetNpc(i) != NULL) && (GetNpc(i)->m_iHP != 0) && (GetNpc(i)->m_bIsSummoned == true)) {
-					switch (GetNpc(i)->m_sType) {
-					case 29:
-						if ((dwTime - GetNpc(i)->m_dwSummonedTime) > 1000 * 90)
-							//NpcKilledHandler(NULL, NULL, i, 0);
+			if ((npc->m_iHP != 0) && (npc->m_bIsSummoned == true)) {
+				switch (npc->m_sType) {
+				case 29:
+					if ((dwTime - npc->m_dwSummonedTime) > 1000 * 90)
+						NpcKilledHandler(nullptr, npc, 0);
 						break;
-					case 64:
-						if ((dwTime - GetNpc(i)->m_dwSummonedTime) > PLANTTIME)
-							//DeleteNpc(i);
+				case 64:
+					if ((dwTime - npc->m_dwSummonedTime) > PLANTTIME)
+						DeleteNpc(npc);
 						break;
-					default:
-						if ((dwTime - GetNpc(i)->m_dwSummonedTime) > SUMMONTIME)
-							//NpcKilledHandler(NULL, NULL, i, 0);
+				default:
+					if ((dwTime - npc->m_dwSummonedTime) > SUMMONTIME)
+						NpcKilledHandler(nullptr, npc, 0);
 						break;
-					}
 				}
 			}
 		}
 	}
 }
-//Acidx - DeleteNpc - handles drops and deletion,  Needs Recoding badly
-void GServer::DeleteNpc(shared_ptr<Npc> NpcH)
+void GServer::DeleteNpc(shared_ptr<Npc> npc)
 {
-	/*int  i, iNumItem, iItemID, iItemIDs[MAX_NPCITEMDROP], iSlateID;
+	int  i, iNumItem, iItemID, iItemIDs[MAX_NPCITEMDROP], iSlateID;
 	char cItemName[21];
 	class Item * pItem, *pItem2;
 	uint32_t dwCount, dwTime;
@@ -4946,29 +4942,27 @@ void GServer::DeleteNpc(shared_ptr<Npc> NpcH)
 	char cTemp[256];
 	SYSTEMTIME SysTime;
 
-	NpcPtr npc(npclist[iNpcH]);
-
 	dwTime = unixtime();
 
 	//Init number of items to 1 unless its a multidrop;
 	iNumItem = 0;
 	iItemID = 0; // No current item
 
-	SendEventToNearClient_TypeA(iNpcH, OWNERTYPE_NPC, MSGID_MOTION_EVENT_REJECT, NULL, NULL, NULL);
-	maplist[npc->pMap]->ClearOwner(iNpcH, OWNERTYPE_NPC, npc->m_sX, npc->m_sY);
+	SendEventToNearClient_TypeA(npc.get(), MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
+	npc->pMap->ClearOwner(npc->m_sX, npc->m_sY);
 
-	maplist[npc->pMap]->m_iTotalActiveObject--;
+	npc->pMap->m_iTotalActiveObject--;
 
-	if (maplist[npc->pMap]->m_bIsApocalypseMap)
+	if (npc->pMap->m_bIsApocalypseMap)
 	{
-		if (npc->m_sType == maplist[npc->pMap]->m_iApocalypseBossMobNpcID)
+		if (npc->m_sType == npc->pMap->m_iApocalypseBossMobNpcID)
 		{
-			RegisterDelayEvent(DELAYEVENTTYPE_END_APOCALYPSE, 0, unixtime() + 5 _m,
-				0, 0, npc->pMap, 0, 0, 0, 0, 0);
+			RegisterDelayEvent(DELAYEVENTTYPE_END_APOCALYPSE, 0, unixtime() + 300*1000,
+				0, npc->pMap, 0, 0, 0, 0, 0);
 			// open gate back to town
-			if (maplist[npc->pMap->] != NULL)
+			if (npc->pMap != nullptr)
 			{
-				maplist[npc->pMap]->m_cDynamicGateType = 4;
+				npc->pMap->m_cDynamicGateType = 4;
 
 				int iShortCutIndex = 0;
 				while (int i = m_iClientShortCut[iShortCutIndex++])
@@ -4977,28 +4971,28 @@ void GServer::DeleteNpc(shared_ptr<Npc> NpcH)
 				}
 			}
 		}
-		else if (maplist[maplist[NpcH]->pMap]->m_iTotalActiveObject == 0)
+		else if (npc->pMap->m_iTotalActiveObject == 0)
 		{
-			if (maplist[maplist[NpcH->]->pMap]->m_iApocalypseMobGenType == AMGT_OPENGATE)
+			if (npc->pMap->m_iApocalypseMobGenType == AMGT_OPENGATE)
 			{
 				int iShortCutIndex = 0;
 				while (int i = m_iClientShortCut[iShortCutIndex++])
 				{
-					Notify_ApocalypseGateState(i);
+					//Notify_ApocalypseGateState(i);
 				}
 			}
-			else if (maplist[maplist[iNpcH]->pMap]->m_iApocalypseMobGenType == AMGT_SPAWNBOSS)
+			else if (npc->pMap->m_iApocalypseMobGenType == AMGT_SPAWNBOSS)
 			{
-				GenerateApocalypseBoss(maplist[iNpcH]->pMap);
+				//GenerateApocalypseBoss(maplist[iNpcH]->pMap);
 			}
 		}
 	}
 
 
-	if (npc->m_iSpotMobIndex != NULL)
-		maplist[npc->pMap]->m_stSpotMobGenerator[npc->m_iSpotMobIndex].iCurMobs--;
+	if (npc->m_iSpotMobIndex != 0)
+		npc->pMap->m_stSpotMobGenerator[npc->m_iSpotMobIndex].iCurMobs--;
 
-	RemoveFromTarget(iNpcH, OWNERTYPE_NPC);
+	RemoveFromTarget(npc);
 
 	switch (npc->m_sType)
 	{
@@ -5007,7 +5001,7 @@ void GServer::DeleteNpc(shared_ptr<Npc> NpcH)
 	case NPC_MS:
 	case NPC_DT:
 	case NPC_MANASTONE:
-		maplist[npc->pMap]->bRemoveCrusadeStructureInfo(npc->m_sX, npc->m_sY);
+		npc->pMap->bRemoveCrusadeStructureInfo(npc->m_sX, npc->m_sY);
 
 		for (i = 0; i < MAXGUILDS; i++) {
 			if (m_pGuildTeleportLoc[i].m_iV1 == npc->m_iGuildGUID) {
@@ -5035,14 +5029,12 @@ void GServer::DeleteNpc(shared_ptr<Npc> NpcH)
 		break;
 
 	case NPC_CROPS:
-		maplist[npc->pMap]->bRemoveCropsTotalSum();
+		npc->pMap->bRemoveCropsTotalSum();
 		break;
 	}
 
 
-	RemoveFromDelayEventList(iNpcH, OWNERTYPE_NPC, NULL);
-
-	maplist[iNpcH] = NULL;
+	RemoveFromDelayEventList(npc.get(), 0);
 
 #ifdef NO_SECONDDROP
 	return;
@@ -5051,163 +5043,173 @@ void GServer::DeleteNpc(shared_ptr<Npc> NpcH)
 	if (npc->m_bIsSummoned)
 		return;
 
-	pItem = new Item;
-	ZeroMemory(cItemName, sizeof(cItemName));
+	npclist.remove(npc);
+// 	for (std::list<shared_ptr<Npc>>::const_iterator iter = npclist.cbegin(); iter != npclist.cend(); ++iter)
+// 	{
+// 		if (*iter == npc)
+// 		{
+// 			npclist.remove(iter);
+// 			break;
+// 		}
+// 	}
 
-	if (drops.HasSecondaryDrop(npc.get()))
-	{
-		if (drops.GetSecDropNum(npc->m_sType) == 1)
-			iItemID = drops.Roll(npc.get(), ONNPCDELETE);
-		else
-			iNumItem = RollMultiple(npc.get(), ITEMSPREAD_FIXED, 4, iItemIDs, ItemPositions);
-	}
-
-	dwCount = 1;
-
-
-	if (iNumItem > 0) {
-		GetLocalTime(&SysTime);
-		wsprintf(cTemp, "%d%02d%", SysTime.wMonth, SysTime.wDay);
-		for (int j = 0; j < iNumItem; j++){
-			if (pItem == NULL) {
-				pItem = new class CItem;
-			}
-			if (pItem->InitItemAttr(iItemIDs[j]) == false ||
-				maplist[npc->pMap]->bGetIsMoveAllowedTile(ItemPositions[j].x, ItemPositions[j].y) == false) {
-				delete pItem;
-				pItem = NULL;
-			}
-			else {
-				if (iItemIDs[j] == ITEM_GOLD)
-				{
-					if (npc->dwGoldDropValue <= 4) pItem->m_dwCount = dice(1, npc->dwGoldDropValue);
-					else
-						switch (dice(1, 2))
-					{
-						case 1:
-							pItem->m_dwCount = (uint32_t)(npc->dwGoldDropValue + dice(1, npc->dwGoldDropValue / 5));
-							break;
-
-						case 2:
-							pItem->m_dwCount = (uint32_t)(npc->dwGoldDropValue - dice(1, npc->dwGoldDropValue / 5));
-							break;
-					}
-				}
-				else
-					pItem->m_dwCount = dwCount;
-
-				pItem->m_sTouchEffectType = ITET_ID;
-				pItem->m_sTouchEffectValue1 = dice(1, 100000);
-				pItem->m_sTouchEffectValue2 = dice(1, 100000);
-				pItem->m_sTouchEffectValue3 = (short)dwTime;
-				if (!maplist[npc->pMap]->bSetItem(
-					ItemPositions[j].x, ItemPositions[j].y, pItem))
-				{
-					delete pItem;
-				}
-				else
-				{
-					SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, npc->pMap,
-						ItemPositions[j].x, ItemPositions[j].y, pItem->m_sSprite, pItem->m_sSpriteFrame, pItem->m_cItemColor);
-					_bItemLog(ITEMLOG_NEWGENDROP, NULL, npc->m_cNpcName, pItem);
-					AddGroundItem(pItem, ItemPositions[j].x, ItemPositions[j].y, npc->pMap, TILECLEANTIMEPLAYER);
-				}
-				pItem = NULL;
-			}
-		}
-	}
-	else{
-		if (iItemID == 0 && npc->dwGoldDropValue > 0 && dice(1, 50) == 13) {
-			iItemID = ITEM_GOLD;
-			if (npc->dwGoldDropValue <= 4) dwCount = dice(1, npc->dwGoldDropValue);
-			else
-				switch (dice(1, 2))
-			{
-				case 1:
-					dwCount = (uint32_t)(npc->dwGoldDropValue + dice(1, npc->dwGoldDropValue / 5));
-					break;
-
-				case 2:
-					dwCount = (uint32_t)(npc->dwGoldDropValue - dice(1, npc->dwGoldDropValue / 5));
-					break;
-			}
-		}
-		if (pItem->InitItemAttr(iItemID) == false) {
-			delete pItem;
-			pItem = NULL;
-		}
-		else {
-
-			pItem->m_dwCount = dwCount;
-
-			pItem->m_sTouchEffectType = ITET_ID;
-			pItem->m_sTouchEffectValue1 = dice(1, 100000);
-			pItem->m_sTouchEffectValue2 = dice(1, 100000);
-#ifdef LOGTIME
-			pItem->m_sTouchEffectValue3 = dwTime;
-#else 
-			SYSTEMTIME SysTime;
-			char cTemp[256];
-			GetLocalTime(&SysTime);
-			ZeroMemory(cTemp, sizeof(cTemp));
-			//			wsprintf(cTemp, "%d%02d%02d",  (short)SysTime.wMonth, (short)SysTime.wDay,(short) SysTime.wHour);
-			wsprintf(cTemp, "%d%02d%", (short)SysTime.wMonth, (short)SysTime.wDay);
-
-			pItem->m_sTouchEffectValue3 = atoi(cTemp);
-#endif
-			if (!maplist[npc->pMap]->bSetItem(
-				npc->m_sX, npc->m_sY, pItem))
-			{
-				delete pItem;
-			}
-			else
-			{
-				SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, npc->pMap,
-					npc->m_sX, npc->m_sY,
-					pItem->m_sSprite, pItem->m_sSpriteFrame, pItem->m_cItemColor);
-
-				_bItemLog(ITEMLOG_NEWGENDROP, 0, npc->m_cNpcName, pItem);
-				AddGroundItem(pItem, npc->m_sX, npc->m_sY, npc->pMap, TILECLEANTIMEPLAYER);
-			}
-			pItem = NULL;
-		}
-	}
-
-	if (dice(1, 100000) < 60) {
-		pItem2 = new class Item;
-		switch (dice(1, 4)){
-		case 1:	iSlateID = 868; break;
-		case 2: iSlateID = 869; break;
-		case 3: iSlateID = 870; break;
-		case 4: iSlateID = 871; break;
-		}
-		if (pItem2->InitItemAttr(iSlateID) == false) {
-			delete pItem2;
-			pItem2 = NULL;
-		}
-		else {
-			pItem2->m_dwCount = 1;
-
-			pItem2->m_sTouchEffectType = ITET_ID;
-			pItem2->m_sTouchEffectValue1 = dice(1, 100000);
-			pItem2->m_sTouchEffectValue2 = dice(1, 100000);
-			pItem2->m_sTouchEffectValue3 = (short)dwTime;
-
-			if (!maplist[npc->pMap]->bSetItem(
-				npc->m_sX, npc->m_sY, pItem2))
-			{
-				delete pItem2;
-			}
-			else
-			{
-				SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, npc->pMap,
-					npc->m_sX, npc->m_sY, pItem2->m_sSprite, pItem2->m_sSpriteFrame, pItem2->m_cItemColor);
-				//_bItemLog(ITEMLOG_NEWGENDROP, NULL, npc->m_cNpcName, pItem2);
-				AddGroundItem(pItem, npc->m_sX, npc->m_sY, npc->pMap, TILECLEANTIMEPLAYER);
-			}
-			pItem2 = NULL;
-		}
-	}*/
+// 	pItem = new Item;
+// 	ZeroMemory(cItemName, sizeof(cItemName));
+// 
+// 	if (drops.HasSecondaryDrop(npc.get()))
+// 	{
+// 		if (drops.GetSecDropNum(npc->m_sType) == 1)
+// 			iItemID = drops.Roll(npc.get(), ONNPCDELETE);
+// 		else
+// 			iNumItem = RollMultiple(npc.get(), ITEMSPREAD_FIXED, 4, iItemIDs, ItemPositions);
+// 	}
+// 
+// 	dwCount = 1;
+// 
+// 
+// 	if (iNumItem > 0) {
+// 		GetLocalTime(&SysTime);
+// 		wsprintf(cTemp, "%d%02d%", SysTime.wMonth, SysTime.wDay);
+// 		for (int j = 0; j < iNumItem; j++){
+// 			if (pItem == NULL) {
+// 				pItem = new class CItem;
+// 			}
+// 			if (pItem->InitItemAttr(iItemIDs[j]) == false ||
+// 				maplist[npc->pMap]->bGetIsMoveAllowedTile(ItemPositions[j].x, ItemPositions[j].y) == false) {
+// 				delete pItem;
+// 				pItem = NULL;
+// 			}
+// 			else {
+// 				if (iItemIDs[j] == ITEM_GOLD)
+// 				{
+// 					if (npc->dwGoldDropValue <= 4) pItem->m_dwCount = dice(1, npc->dwGoldDropValue);
+// 					else
+// 						switch (dice(1, 2))
+// 					{
+// 						case 1:
+// 							pItem->m_dwCount = (uint32_t)(npc->dwGoldDropValue + dice(1, npc->dwGoldDropValue / 5));
+// 							break;
+// 
+// 						case 2:
+// 							pItem->m_dwCount = (uint32_t)(npc->dwGoldDropValue - dice(1, npc->dwGoldDropValue / 5));
+// 							break;
+// 					}
+// 				}
+// 				else
+// 					pItem->m_dwCount = dwCount;
+// 
+// 				pItem->m_sTouchEffectType = ITET_ID;
+// 				pItem->m_sTouchEffectValue1 = dice(1, 100000);
+// 				pItem->m_sTouchEffectValue2 = dice(1, 100000);
+// 				pItem->m_sTouchEffectValue3 = (short)dwTime;
+// 				if (!maplist[npc->pMap]->bSetItem(
+// 					ItemPositions[j].x, ItemPositions[j].y, pItem))
+// 				{
+// 					delete pItem;
+// 				}
+// 				else
+// 				{
+// 					SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, npc->pMap,
+// 						ItemPositions[j].x, ItemPositions[j].y, pItem->m_sSprite, pItem->m_sSpriteFrame, pItem->m_cItemColor);
+// 					_bItemLog(ITEMLOG_NEWGENDROP, NULL, npc->m_cNpcName, pItem);
+// 					AddGroundItem(pItem, ItemPositions[j].x, ItemPositions[j].y, npc->pMap, TILECLEANTIMEPLAYER);
+// 				}
+// 				pItem = NULL;
+// 			}
+// 		}
+// 	}
+// 	else{
+// 		if (iItemID == 0 && npc->dwGoldDropValue > 0 && dice(1, 50) == 13) {
+// 			iItemID = ITEM_GOLD;
+// 			if (npc->dwGoldDropValue <= 4) dwCount = dice(1, npc->dwGoldDropValue);
+// 			else
+// 				switch (dice(1, 2))
+// 			{
+// 				case 1:
+// 					dwCount = (uint32_t)(npc->dwGoldDropValue + dice(1, npc->dwGoldDropValue / 5));
+// 					break;
+// 
+// 				case 2:
+// 					dwCount = (uint32_t)(npc->dwGoldDropValue - dice(1, npc->dwGoldDropValue / 5));
+// 					break;
+// 			}
+// 		}
+// 		if (pItem->InitItemAttr(iItemID) == false) {
+// 			delete pItem;
+// 			pItem = NULL;
+// 		}
+// 		else {
+// 
+// 			pItem->m_dwCount = dwCount;
+// 
+// 			pItem->m_sTouchEffectType = ITET_ID;
+// 			pItem->m_sTouchEffectValue1 = dice(1, 100000);
+// 			pItem->m_sTouchEffectValue2 = dice(1, 100000);
+// #ifdef LOGTIME
+// 			pItem->m_sTouchEffectValue3 = dwTime;
+// #else 
+// 			SYSTEMTIME SysTime;
+// 			char cTemp[256];
+// 			GetLocalTime(&SysTime);
+// 			ZeroMemory(cTemp, sizeof(cTemp));
+// 			//			wsprintf(cTemp, "%d%02d%02d",  (short)SysTime.wMonth, (short)SysTime.wDay,(short) SysTime.wHour);
+// 			wsprintf(cTemp, "%d%02d%", (short)SysTime.wMonth, (short)SysTime.wDay);
+// 
+// 			pItem->m_sTouchEffectValue3 = atoi(cTemp);
+// #endif
+// 			if (!maplist[npc->pMap]->bSetItem(
+// 				npc->m_sX, npc->m_sY, pItem))
+// 			{
+// 				delete pItem;
+// 			}
+// 			else
+// 			{
+// 				SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, npc->pMap,
+// 					npc->m_sX, npc->m_sY,
+// 					pItem->m_sSprite, pItem->m_sSpriteFrame, pItem->m_cItemColor);
+// 
+// 				_bItemLog(ITEMLOG_NEWGENDROP, 0, npc->m_cNpcName, pItem);
+// 				AddGroundItem(pItem, npc->m_sX, npc->m_sY, npc->pMap, TILECLEANTIMEPLAYER);
+// 			}
+// 			pItem = NULL;
+// 		}
+// 	}
+// 
+// 	if (dice(1, 100000) < 60) {
+// 		pItem2 = new class Item;
+// 		switch (dice(1, 4)){
+// 		case 1:	iSlateID = 868; break;
+// 		case 2: iSlateID = 869; break;
+// 		case 3: iSlateID = 870; break;
+// 		case 4: iSlateID = 871; break;
+// 		}
+// 		if (pItem2->InitItemAttr(iSlateID) == false) {
+// 			delete pItem2;
+// 			pItem2 = NULL;
+// 		}
+// 		else {
+// 			pItem2->m_dwCount = 1;
+// 
+// 			pItem2->m_sTouchEffectType = ITET_ID;
+// 			pItem2->m_sTouchEffectValue1 = dice(1, 100000);
+// 			pItem2->m_sTouchEffectValue2 = dice(1, 100000);
+// 			pItem2->m_sTouchEffectValue3 = (short)dwTime;
+// 
+// 			if (!maplist[npc->pMap]->bSetItem(
+// 				npc->m_sX, npc->m_sY, pItem2))
+// 			{
+// 				delete pItem2;
+// 			}
+// 			else
+// 			{
+// 				SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, npc->pMap,
+// 					npc->m_sX, npc->m_sY, pItem2->m_sSprite, pItem2->m_sSpriteFrame, pItem2->m_cItemColor);
+// 				//_bItemLog(ITEMLOG_NEWGENDROP, NULL, npc->m_cNpcName, pItem2);
+// 				AddGroundItem(pItem, npc->m_sX, npc->m_sY, npc->pMap, TILECLEANTIMEPLAYER);
+// 			}
+// 			pItem2 = NULL;
+// 		}
+// 	}
 }
 // Calculates the number of players within a given radius.
 int GServer::getPlayerNum(Map * pMap, short dX, short dY, char cRadius)

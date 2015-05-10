@@ -285,7 +285,7 @@ public:
 	void NpcBehavior_Flee(shared_ptr<Npc> npc);
 	void NpcBehavior_Dead(shared_ptr<Npc> npc);
 
-	void DeleteNpc(shared_ptr<Npc> NpcH);
+	void DeleteNpc(shared_ptr<Npc> npc);
 	
 	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError);
 	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError, short * DOType);
