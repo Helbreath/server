@@ -4886,8 +4886,12 @@ void GServer::NpcProcess()
 
 	dwTime = unixtime();
 
-	for (shared_ptr<Npc> npc : npclist)
+	std::list<shared_ptr<Npc>> tempnpclist = npclist;
+
+	for (shared_ptr<Npc> npc : tempnpclist)
 	{
+		if (npc == nullptr)
+			continue;
 		switch (npc->m_cBehavior)
 		{
 		case BEHAVIOR_ATTACK:
