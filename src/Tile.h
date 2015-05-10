@@ -20,8 +20,8 @@ public:
 	bool IsTele()		const { return (m_attribute & 0x40) ? true : false; }
 	bool IsMovable()	const { return (m_attribute & 0x80 || !m_bIsTempMoveAllowed) ? false : true; }
 
-	uint8_t  m_cOwnerClass;		// OT_PLAYER / OT_NPC
-	uint8_t  m_cDeadOwnerClass;	
+	uint8_t  m_cOwnerType;		// OT_PLAYER / OT_NPC
+	uint8_t  m_cDeadOwnerType;	
 	shared_ptr<Unit> owner;
 	shared_ptr<Unit> deadowner;
 

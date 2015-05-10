@@ -12,10 +12,10 @@ Tile::Tile()
 	m_bIsFarmingAllowed = false; 
 
 	owner = nullptr;
-	m_cOwnerClass = 0;
+	m_cOwnerType = 0;
 
 	deadowner = nullptr;
-	m_cDeadOwnerClass = 0;
+	m_cDeadOwnerType = 0;
 
 	m_wDynamicObjectID   = 0;
 	m_sDynamicObjectType = 0;
