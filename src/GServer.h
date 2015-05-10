@@ -247,7 +247,7 @@ public:
 	void RequestFullObjectData(shared_ptr<Client> client, Unit * target);
 	bool _bGetIsPlayerHostile(Client * player, Client * target);
 	bool WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, uint16_t ix, uint16_t iy);
-	void AddGroundItem(Item * pItem, uint16_t x, uint16_t y, Map * mapIndex, uint32_t dwTime);
+	void AddGroundItem(Item * pItem, uint16_t x, uint16_t y, Map * mapIndex, uint64_t dwTime);
 	Map * GetMap(string name);
 	uint8_t iSetSide(Client * client);
 	void RequestHuntmode(Client * client);

@@ -415,7 +415,7 @@ void Npc::behavior_move()
 	}
 
  	int iStX, iStY;
- 	if (pMap != NULL) {
+ 	if (pMap != nullptr) {
  		iStX = m_sX / 20;
  		iStY = m_sY / 20;
 		/*for (int i = 0; i < MAXSECTORS*MAXSECTORS; i++)
@@ -584,7 +584,6 @@ void Npc::behavior_flee()
 	shared_ptr<Unit> sTarget;
 	char  cTargetType;
 
-	if (this == NULL) return;
 	if (this->m_bIsKilled == true) return;
 
 	this->m_sBehaviorTurnCount++;
@@ -719,7 +718,7 @@ void Npc::behavior_stop()
 		break;
 	}
 
-	if (sTarget != NULL) {
+	if (sTarget != nullptr) {
 
 		m_cBehavior = BEHAVIOR_ATTACK;
 		m_sBehaviorTurnCount = 0;
@@ -1232,7 +1231,7 @@ void Npc::behavior_attack()
  			m_sX   = dX;
  			m_sY   = dY;
  			m_cDir = cDir;
- 			gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, NULL, NULL, NULL);
+ 			gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
  		}
  	}
 }
@@ -1451,7 +1450,7 @@ shared_ptr<Unit> Npc::TargetSearch()
 
  	sDistance    = 100;
 
- 	iSearchType = NULL;
+ 	iSearchType = 0;
  	switch (m_sType)
  	{
  	case NPC_CP: iSearchType = 1; break;

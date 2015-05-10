@@ -1129,7 +1129,7 @@ void GServer::ParseChat(Client * client, string message)
 						if (iEraseReq == 1)
 						{
 							delete pItem;
-							pItem = NULL;
+							pItem = nullptr;
 						}
 
 						logger->information(Poco::format("GM Order(%s): Create ItemName(%s)", client->m_cCharName, tokens[1]));
@@ -5232,7 +5232,7 @@ int GServer::getPlayerNum(Map * pMap, short dX, short dY, char cRadius)
 			}
 			else {
 				pTile = (class Tile *)(pMap->m_pTile + x + y*pMap->m_sSizeY);
-				if ((pTile->owner != NULL) && (pTile->m_cOwnerType == OWNERTYPE_PLAYER))
+				if ((pTile->owner != nullptr) && (pTile->m_cOwnerType == OWNERTYPE_PLAYER))
 					ret++;
 			}
 		}
@@ -5660,7 +5660,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 
 	maptarget = client->pMap->GetOwner(dX, dY);
 
-	if (maptarget != NULL) {
+	if (maptarget != nullptr) {
 		if ((wType != 0) && ((dwTime - client->m_dwRecentAttackTime) > 100)) {
 			if (client->m_bIsInBuilding == false) {
 				//sItemIndex = m_pClientList[iClientH]->m_sItemEquipmentStatus[EQUIPPOS_TWOHAND]; // Commented because Battle Mages xRisenx
@@ -5673,7 +5673,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 				}
 				else sItemIndex = -1;
 
-				if (sItemIndex != -1 && client->m_pItemList[sItemIndex] != NULL) {
+				if (sItemIndex != -1 && client->m_pItemList[sItemIndex] != nullptr) {
 
 					if (client->Equipped.RightHand->m_sItemEffectType == ITEMEFFECTTYPE_ATTACK_MAGICITEM) {
 						short sType;
@@ -6527,7 +6527,7 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 		if ((itemDrop->m_sItemEffectType == ITEMEFFECTTYPE_ALTERITEMDROP) && 
 			(itemDrop->m_wCurLifeSpan == 0)) {
 				delete itemDrop;
-				itemDrop = NULL;
+				itemDrop = nullptr;
 		}
 		else {
 			if(itemDrop->m_sIDnum != ITEM_RELIC/* || (m_astoria.get() && m_astoria->IsRelicGenuine(itemDrop))*/)
@@ -6569,14 +6569,14 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 	SendNotifyMsg(0, player, NOTIFY_REQDEF, player->m_iDefenseRatio, 0, 0); // Auto updates defense in game xRisenx
 }
 
-void GServer::AddGroundItem(Item * pItem, uint16_t x, uint16_t y, Map * mapIndex, uint32_t dwTime)
+void GServer::AddGroundItem(Item * pItem, uint16_t x, uint16_t y, Map * mapIndex, uint64_t dwTime)
 {
 	for(int i = 0; i < MAXGROUNDITEMS; i++)
 	{
 		if(m_stGroundNpcItem[i].bEmpty)
 		{
 			m_stGroundNpcItem[i].bEmpty = false;
-			m_stGroundNpcItem[i].dropTime = time(NULL) + dwTime;
+			m_stGroundNpcItem[i].dropTime = unixtime() + dwTime;
 			m_stGroundNpcItem[i].item = pItem;
 			m_stGroundNpcItem[i].sx = x;
 			m_stGroundNpcItem[i].sy = y;
@@ -7003,7 +7003,7 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 		RecordSet rs(select);
 
 		rs.moveFirst();
-
+		
 		client->m_handle = rs.value("charid").convert<uint64_t>();
 		client->m_cMapName = rs.value("maploc").convert<string>();
 		client->m_sX = rs.value("locx").convert<int16_t>();
@@ -7182,7 +7182,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 // 			client->m_sY);
 
 
-		RemoveFromDelayEventList(client.get(), NULL);
+		RemoveFromDelayEventList(client.get(), 0);
 	}
 
 
@@ -8248,7 +8248,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 			nattacker->SetMagicFlag(MAGICTYPE_INVISIBILITY, false);
 
 			RemoveFromDelayEventList(attacker, MAGICTYPE_INVISIBILITY);
-			nattacker->m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] = NULL;
+			nattacker->m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] = 0;
 		}
 
 
@@ -9193,7 +9193,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 						ctarget->SetStatusFlag(STATUS_DEFENSESHIELD, false);
 						break;
 					}
-					ctarget->m_cMagicEffectStatus[MAGICTYPE_PROTECT] = NULL;
+					ctarget->m_cMagicEffectStatus[MAGICTYPE_PROTECT] = 0;
 					RemoveFromDelayEventList(target, MAGICTYPE_PROTECT);
 				}
 
@@ -9212,13 +9212,13 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 						ctarget->SetStatusFlag(STATUS_POISON, true);
 						SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTON, MAGICTYPE_POISON, ctarget->m_iPoisonLevel, 0);
 #ifdef TAIWANLOG
-						_bItemLog(ITEMLOG_POISONED, sTargetH, (char *)NULL, NULL);
+						_bItemLog(ITEMLOG_POISONED, sTargetH, (char *)0, 0);
 #endif
 					}
 				}
 #ifdef Showdmg
 				gserver->m_pClientList[sTargetH]->m_iHP -= iAP_SM;
-				if (gserver->m_pClientList[sAttackerH] != NULL){
+				if (gserver->m_pClientList[sAttackerH] != 0){
 					if (gserver->m_pClientList[sAttackerH]->iDmgShowon == 1){
 						ZeroMemory(cDamageMod, sizeof(cDamageMod));
 						//wsprintf(cDamageMod ,"You did [%d] Damage to Character [%s] Remaining Life [%d]", iAP_SM,g_game->m_pClientList[sTargetH]->m_cCharName,g_game->m_pClientList[sTargetH]->m_iHP);
@@ -9561,7 +9561,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 			//}
 #else
 			ntarget->ReduceHP(iDamage);
-			SendEventToNearClient_TypeA(target, MSGID_MOTION_DAMAGE, iDamage, sAttackerWeapon, NULL);
+			SendEventToNearClient_TypeA(target, MSGID_MOTION_DAMAGE, iDamage, sAttackerWeapon, 0);
 			
 #endif
 			if (ntarget->m_iHP == 0) {
@@ -10691,7 +10691,7 @@ bool GServer::bAnalyzeCriminalAction(Client * client, short dX, short dY, bool b
 			tY = (int)client->m_sY;
 
 			shared_ptr<Npc> guard = CreateNpc(cNpcName, client->pMap, 0, MOVETYPE_RANDOM,
-									 &tX, &tY, (Side)-1, cNpcWaypoint, NULL, NULL, false, true);
+									 &tX, &tY, (Side)-1, cNpcWaypoint, 0, 0, false, true);
 
 			if (guard)
 			{
