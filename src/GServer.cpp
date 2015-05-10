@@ -5885,7 +5885,10 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 				iDamage = 175; // Player Damage Spike Field xRisenx
 
 				if (!client->IsInvincible()){
-					client->m_iHP -= iDamage;
+					if (client->m_iHP <= iDamage)
+						client->m_iHP = 0;
+					else
+						client->m_iHP -= iDamage;
 					client->m_lastDamageTime = dwTime;
 				}
 			}
@@ -5947,8 +5950,6 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 		}
 		//
 		*/
-
-		if (client->m_iHP <= 0) client->m_iHP = 0;
 
 		StreamWrite sw(100);
 
@@ -8337,7 +8338,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 		break;
 	case OWNERTYPE_NPC:
 	{
-		if (ntarget->m_iHP <= 0) return 0;
+		if (ntarget->m_iHP == 0) return 0;
 
 		//if ((g_npcList[sTargetH]->m_sX != tdX) || (g_npcList[sTargetH]->m_sY != tdY)) return 0; // Fix for cannot hit moving targets with meele weps xRisenx // Anti Hack vs Criting hack
 
@@ -9222,10 +9223,13 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 					}
 				}
 #else
-				ctarget->m_iHP -= iAP_SM;
+				if (ctarget->m_iHP <= iAP_SM)
+					ctarget->m_iHP = 0;
+				else
+					ctarget->m_iHP -= iAP_SM;
 #endif
 				ctarget->m_lastDamageTime = dwTime;
-				if (ctarget->m_iHP <= 0) {
+				if (ctarget->m_iHP == 0) {
 
 					if (attacker->m_sType == OWNERTYPE_PLAYER)
 						bAnalyzeCriminalAction(cattacker, ctarget->m_sX, ctarget->m_sY);
@@ -9556,9 +9560,12 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 			SendEventToNearClient_TypeA(target, MSGID_MOTION_DAMAGE, iDamage, sAttackerWeapon, NULL);
 			
 #endif
-			if (ntarget->m_iHP <= 0) {
+			if (ntarget->m_iHP == 0) {
 				ntarget->m_iHP = 0;
-				NpcKilledHandler(static_cast<Client*>(attacker)->self.lock(), static_cast<Npc*>(target)->self.lock(), iDamage);
+				if (attacker->m_ownerType == OWNERTYPE_PLAYER)
+					NpcKilledHandler(static_cast<Client*>(attacker)->self.lock(), static_cast<Npc*>(target)->self.lock(), iDamage);
+				else
+					NpcKilledHandler(static_cast<Npc*>(attacker)->self.lock(), static_cast<Npc*>(target)->self.lock(), iDamage);
 
 				bKilled = true;
 				iKilledDice = static_cast<Npc*>(target)->m_iHitDice;

@@ -2729,7 +2729,10 @@ void Npc::ReduceHP(uint64_t value)
 	case 0:
 	case 3:
 	case 5:
-		m_iHP -= value;
+		if (m_iHP <= value)
+			m_iHP = 0;
+		else
+			m_iHP -= value;
 		break;
 	}
 
