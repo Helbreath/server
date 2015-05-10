@@ -7029,50 +7029,50 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 		client->m_iLockedMapTime = rs.value("lockmaptime").convert<uint64_t>();
 		client->m_cProfile = rs.value("profile").convert<string>();
 		client->m_iGuildRank = rs.value("guildrank").convert<int8_t>();
-		client->m_iHP = rs.value("hp").convert<uint32_t>();
-		client->m_iMP = rs.value("mp").convert<uint32_t>();
-		client->m_iSP = rs.value("sp").convert<uint32_t>();
-		client->m_iEnemyKillCount = rs.value("ek").convert<uint32_t>();
-		client->m_iPKCount = rs.value("pk").convert<uint32_t>();
-		client->m_iLevel = rs.value("level").convert<uint16_t>();
+		client->m_iHP = rs.value("hp").convert<uint64_t>();
+		client->m_iMP = rs.value("mp").convert<uint64_t>();
+		client->m_iSP = rs.value("sp").convert<uint64_t>();
+		client->m_iEnemyKillCount = rs.value("ek").convert<int32_t>();
+		client->m_iPKCount = rs.value("pk").convert<int32_t>();
+		client->m_iLevel = rs.value("level").convert<uint32_t>();
 		client->m_iExp = rs.value("exp").convert<uint64_t>();
-		client->_str = rs.value("strength").convert<uint16_t>();
-		client->_vit = rs.value("vitality").convert<uint16_t>();
-		client->_dex = rs.value("dexterity").convert<uint16_t>();
-		client->_int = rs.value("intelligence").convert<uint16_t>();
-		client->_mag = rs.value("magic").convert<uint16_t>();
-		client->_agi = rs.value("agility").convert<uint16_t>();
+		client->_str = rs.value("strength").convert<int32_t>();
+		client->_vit = rs.value("vitality").convert<int32_t>();
+		client->_dex = rs.value("dexterity").convert<int32_t>();
+		client->_int = rs.value("intelligence").convert<int32_t>();
+		client->_mag = rs.value("magic").convert<int32_t>();
+		client->_agi = rs.value("agility").convert<int32_t>();
 		client->m_iLuck = rs.value("luck").convert<uint16_t>();
-		client->m_iRewardGold = rs.value("rewardgold").convert<uint16_t>();
-		client->m_iHungerStatus = rs.value("hunger").convert<uint16_t>();
-		client->m_iAdminUserLevel = rs.value("adminlevel").convert<uint16_t>();
+		client->m_iRewardGold = rs.value("rewardgold").convert<int32_t>();
+		client->m_iHungerStatus = rs.value("hunger").convert<int32_t>();
+		client->m_iAdminUserLevel = rs.value("adminlevel").convert<int32_t>();
 		client->m_iTimeLeft_ShutUp = rs.value("leftshutuptime").convert<uint64_t>();
 		client->m_iTimeLeft_Rating = rs.value("leftpoptime").convert<uint64_t>();
-		client->m_reputation = rs.value("popularity").convert<uint16_t>();
-		client->m_iGuildGUID = rs.value("guildid").convert<int16_t>();
+		client->m_reputation = rs.value("popularity").convert<int32_t>();
+		client->m_iGuildGUID = rs.value("guildid").convert<uint64_t>();
 		//client->m_iDownSkillIndex = rs.value("DownSkillID").convert<int16_t>();//use?
-		client->m_charID = rs.value("charid").convert<uint32_t>();
-		client->m_sCharIDnum1 = rs.value("id1").convert<uint32_t>();
-		client->m_sCharIDnum2 = rs.value("id2").convert<uint32_t>();
-		client->m_sCharIDnum3 = rs.value("id3").convert<uint32_t>();
-		client->m_iQuest = rs.value("questnum").convert<uint32_t>();
-		client->m_iCurQuestCount = rs.value("questcount").convert<uint32_t>();
-		client->m_iQuestRewardType = rs.value("questrewardtype").convert<uint32_t>();
-		client->m_iQuestRewardAmount = rs.value("questrewardamount").convert<uint32_t>();
-		client->m_iContribution = rs.value("contribution").convert<uint32_t>();
-		client->m_iQuestID = rs.value("questid").convert<uint32_t>();
+		client->m_charID = rs.value("charid").convert<uint64_t>();
+		client->m_sCharIDnum1 = rs.value("id1").convert<int16_t>();
+		client->m_sCharIDnum2 = rs.value("id2").convert<int16_t>();
+		client->m_sCharIDnum3 = rs.value("id3").convert<int16_t>();
+		client->m_iQuest = rs.value("questnum").convert<int32_t>();
+		client->m_iCurQuestCount = rs.value("questcount").convert<int32_t>();
+		client->m_iQuestRewardType = rs.value("questrewardtype").convert<int32_t>();
+		client->m_iQuestRewardAmount = rs.value("questrewardamount").convert<int32_t>();
+		client->m_iContribution = rs.value("contribution").convert<int32_t>();
+		client->m_iQuestID = rs.value("questid").convert<int32_t>();
 		client->m_bIsQuestCompleted = rs.value("questcompleted").convert<bool>();
-		client->m_iTimeLeft_ForceRecall = rs.value("leftforcerecalltime").convert<uint32_t>();
-		client->m_iTimeLeft_FirmStamina = rs.value("leftfirmstaminatime").convert<uint32_t>();
-		client->m_iSpecialEventID = rs.value("eventid").convert<uint32_t>();
-		client->m_iSuperAttackLeft = rs.value("leftsac").convert<uint32_t>();
-		client->m_iFightzoneNumber = rs.value("fightnum").convert<uint32_t>();
+		client->m_iTimeLeft_ForceRecall = rs.value("leftforcerecalltime").convert<uint64_t>();
+		client->m_iTimeLeft_FirmStamina = rs.value("leftfirmstaminatime").convert<uint64_t>();
+		client->m_iSpecialEventID = rs.value("eventid").convert<int32_t>();
+		client->m_iSuperAttackLeft = rs.value("leftsac").convert<int32_t>();
+		client->m_iFightzoneNumber = rs.value("fightnum").convert<int32_t>();
 		client->m_iReserveTime = rs.value("fightdate").convert<uint64_t>();
-		client->m_iFightZoneTicketNumber = rs.value("fightticket").convert<uint32_t>();
+		client->m_iFightZoneTicketNumber = rs.value("fightticket").convert<int32_t>();
 		client->m_iSpecialAbilityTime = rs.value("leftspectime").convert<uint64_t>();
-		client->m_iWarContribution = rs.value("warcon").convert<uint32_t>();
-		client->m_iCrusadeDuty = rs.value("crujob").convert<uint32_t>();
-		client->m_iConstructionPoint = rs.value("cruconstructpoint").convert<uint32_t>();
+		client->m_iWarContribution = rs.value("warcon").convert<int32_t>();
+		client->m_iCrusadeDuty = rs.value("crujob").convert<int32_t>();
+		client->m_iConstructionPoint = rs.value("cruconstructpoint").convert<int32_t>();
 		client->m_dwCrusadeGUID = rs.value("cruid").convert<uint64_t>();
 		client->m_iDeadPenaltyTime = rs.value("leftdeadpenaltytime").convert<uint64_t>();
 		uint64_t partyid = rs.value("partyid").convert<uint64_t>();
@@ -7081,9 +7081,9 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 		// 						client->SetParty(partyMgr.GetParty(partyid));
 		// 
 		// 					}
-		client->m_iGizonItemUpgradeLeft = rs.value("gizonitemupgradeleft").convert<uint32_t>();
-		client->m_elo = rs.value("elo").convert<uint32_t>();
-		client->m_iEnemyKillTotalCount = rs.value("totalek").convert<uint32_t>();
+		client->m_iGizonItemUpgradeLeft = rs.value("gizonitemupgradeleft").convert<int32_t>();
+		client->m_elo = rs.value("elo").convert<int32_t>();
+		client->m_iEnemyKillTotalCount = rs.value("totalek").convert<int32_t>();
 		//client->m_iLucky = rs.value("Lucky").convert<uint32_t>();//not in DB
 		//client->m_iMonsterCount = rs.value("MonsterCount").convert<uint32_t>();//not in DB
 
@@ -9265,7 +9265,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 								}
 							}
 						}
-						SendNotifyMsg(nullptr, ctarget, NOTIFY_HP, 0, 0, 0, 0);
+						//SendNotifyMsg(nullptr, ctarget, NOTIFY_HP, 0, 0, 0, 0);
 
 						if (attacker->m_ownerType == OWNERTYPE_PLAYER)
 							sAttackerWeapon = ((cattacker->m_sAppr2 & 0x0FF0) >> 4);

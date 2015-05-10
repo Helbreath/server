@@ -99,7 +99,7 @@ public:
 
 	bool m_bIsApocalypseMap;
 	ApocMobGenType m_iApocalypseMobGenType;
-	int m_iApocalypseBossMobNpcID;
+	int32_t m_iApocalypseBossMobNpcID;
 	rect	m_sApocalypseBossMobRect;
 
 	char  m_cDynamicGateType;
