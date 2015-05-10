@@ -322,4 +322,3 @@ case 8:  "Hi-Explosive"
 	int		m_iCropsSkillLV;
 };
 
-typedef std::auto_ptr<Npc> NpcPtr;

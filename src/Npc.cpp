@@ -754,7 +754,7 @@ void Npc::behavior_attack()
  	}
 
  	int iStX, iStY;
- 	if (pMap != NULL) {
+ 	if (pMap != nullptr) {
  		iStX = m_sX / 20;
  		iStY = m_sY / 20;
 // 		pMap->m_stTempSectorInfo[iStX+iStY].iMonsterActivity++;
@@ -824,12 +824,12 @@ void Npc::behavior_attack()
 
  	if ((abs(sX - dX) <= 1) && (abs(sY - dY) <= 1)) {
 
-		//cDir = gserver->cGetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);//gserver->cGetNextMoveDir(sX, sY, dX, dY);
-		m_cDir=GetNextMoveDir(sX, sY, dX, dY,pMap,m_cTurn,&m_tmp_iError) +1;
- 		//if (cDir == 0) return;
- 		//m_cDir = cDir;
+		cDir = CMisc::cGetNextMoveDir(sX, sY, dX, dY);//gserver->cGetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);//gserver->cGetNextMoveDir(sX, sY, dX, dY);
+		//m_cDir=GetNextMoveDir(sX, sY, dX, dY,pMap,m_cTurn,&m_tmp_iError);
+ 		if (cDir == 0) return;
+ 		m_cDir = cDir;
 
-		gserver->consoleLogger->information(Poco::format("NPC::Attack() - dir: %d", (int)m_cDir));
+		gserver->consoleLogger->information(Poco::format("NPC::Attack() - dir: %d", (int)cDir));
 
  		if (m_cActionLimit == 5) {
  			switch (m_sType) {
@@ -893,7 +893,8 @@ void Npc::behavior_attack()
  		}
  	}
  	else {
-		cDir = GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);//gserver->cGetNextMoveDir(sX, sY, dX, dY);
+		cDir = CMisc::cGetNextMoveDir(sX, sY, dX, dY);
+		//cDir = GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);//gserver->cGetNextMoveDir(sX, sY, dX, dY);
  		if (cDir == 0) return;
  		m_cDir = cDir;
 
@@ -1120,7 +1121,7 @@ void Npc::behavior_attack()
  		if ((m_iAttackRange > 1) &&
  			(abs(sX - dX) <= m_iAttackRange) && (abs(sY - dY) <= m_iAttackRange)) {
 
-			cDir =GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);//gserver->cGetNextMoveDir(sX, sY, dX, dY);
+			cDir = CMisc::cGetNextMoveDir(sX, sY, dX, dY);//GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);//gserver->cGetNextMoveDir(sX, sY, dX, dY);
  				if (cDir == 0) return;
  				m_cDir = cDir;
 
@@ -1220,7 +1221,7 @@ void Npc::behavior_attack()
  		m_iAttackCount = 0;
 
  		{
- 			cDir =GetNextMoveDir(sX, sY, dX, dY,pMap, m_cTurn, &m_tmp_iError);
+			cDir = CMisc::cGetNextMoveDir(sX, sY, dX, dY);// GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);
  			if (cDir == 0) {
  				return;
  			}
