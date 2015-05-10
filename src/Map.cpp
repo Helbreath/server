@@ -122,7 +122,7 @@ void Map::SetOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 
 	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
 	pTile->owner      = sOwner;
-	pTile->m_cOwnerClass = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
+	pTile->m_cOwnerType = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
 }
 
 
@@ -134,7 +134,7 @@ void Map::SetDeadOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 
 	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
 	pTile->deadowner      = sOwner;
-	pTile->m_cDeadOwnerClass = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
+	pTile->m_cDeadOwnerType = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
 }
 
 shared_ptr<Unit> Map::GetOwner(short sX, short sY)
@@ -190,7 +190,7 @@ std::list<shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2
  		{
  			pTile = (Tile *)(m_pTile + x + y*m_sSizeY);
  
- 			switch(pTile->m_cOwnerClass)
+ 			switch(pTile->m_cOwnerType)
  			{
  			case OWNERTYPE_PLAYER:
  				owners.push_back(pTile->owner);
@@ -281,7 +281,7 @@ void Map::ClearOwner(short sX, short sY)
 
 	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
 	pTile->owner      = 0;
-	pTile->m_cOwnerClass = 0;
+	pTile->m_cOwnerType = 0;
 }
 
 void Map::ClearDeadOwner(short sX, short sY)
@@ -292,7 +292,7 @@ void Map::ClearDeadOwner(short sX, short sY)
 
 	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
 	pTile->deadowner      = 0;
-	pTile->m_cDeadOwnerClass = 0;
+	pTile->m_cDeadOwnerType = 0;
 }
 
 bool Map::bSetItem(short sX, short sY, Item * pItem)

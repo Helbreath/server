@@ -5228,7 +5228,7 @@ int GServer::getPlayerNum(Map * pMap, short dX, short dY, char cRadius)
 			}
 			else {
 				pTile = (class Tile *)(pMap->m_pTile + x + y*pMap->m_sSizeY);
-				if ((pTile->owner != NULL) && (pTile->m_cOwnerClass == OWNERTYPE_PLAYER))
+				if ((pTile->owner != NULL) && (pTile->m_cOwnerType == OWNERTYPE_PLAYER))
 					ret++;
 			}
 		}
@@ -6763,7 +6763,7 @@ bool GServer::WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, u
 
 		if ((ucHeader & 0x01) != 0)
 		{
-			switch (pTile->m_cOwnerClass)
+			switch (pTile->owner->m_ownerType)
 			{
 			case OWNERTYPE_PLAYER:
 				{
@@ -6819,11 +6819,11 @@ bool GServer::WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, u
 
 		if ((ucHeader & 0x02) != 0)
 		{
-			switch (pTile->deadowner->m_sType) 
+			switch (pTile->deadowner->m_ownerType)
 			{
 			case OWNERTYPE_PLAYER:
 				{
-					Client * object = static_cast<Client*>(pTile->owner.get());
+					Client * object = static_cast<Client*>(pTile->deadowner.get());
 					// Object ID number(Player) : 1~10000
 					sw.WriteShort(uint16_t(object->m_handle));
 					// object type
@@ -6857,7 +6857,7 @@ bool GServer::WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, u
 
 			case OWNERTYPE_NPC:
 				{
-					Npc * object = static_cast<Npc*>(pTile->owner.get());
+					Npc * object = static_cast<Npc*>(pTile->deadowner.get());
 					// Object ID number(NPC) : 10000	~
 					sw.WriteShort(uint16_t(object->m_handle + 10000));
 					// object type
