@@ -63,7 +63,7 @@ void connection::stop()
 	if (client->m_handle > 0)
 	{
 		server.currentplayersonline--;
-		server.logger->information(Poco::format("Client disconnected: %s", client->m_cCharName));
+		server.logger->information(Poco::format("Client disconnected: %s", client->name));
 	}
 	//TODO: record last online time
 	server.currentconnections--;

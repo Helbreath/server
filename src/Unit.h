@@ -62,6 +62,8 @@ public:
 	int8_t m_sOriginalType;
 	int8_t m_ownerType;
 
+	string name;
+
 	int8_t  m_cMagicEffectStatus[MAXMAGICEFFECTS];
 
 	uint64_t m_iGuildGUID;

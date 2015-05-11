@@ -665,7 +665,7 @@ void LServer::SocketThread()
 									if (maptest)
 									{
 										client->currentstatus = 2;
-										client->m_cCharName = playername;
+										client->name = playername;
 										//pgs->clientlist.push_back(client);
 										//clientlist.remove(client);
 
@@ -717,7 +717,7 @@ void LServer::SocketThread()
 								if (maptest)
 								{
 									client->currentstatus = 2;
-									client->m_cCharName = playername;
+									client->name = playername;
 									pgs->clientlist.push_back(client);
 									clientlist.remove(client);
 									client->gserver = pgs;

@@ -81,9 +81,9 @@ bool Npc::initNpcAttr(string & pNpcName, char cSA)
 	for (i = 0; i < MAXNPCTYPES; i++)
 	{
 		if (gserver->m_npcConfigList[i] != 0) {
-			if (pNpcName == gserver->m_npcConfigList[i]->m_cNpcName)
+			if (pNpcName == gserver->m_npcConfigList[i]->name)
 			{
-				m_cNpcName = gserver->m_npcConfigList[i]->m_cNpcName;
+				name = gserver->m_npcConfigList[i]->name;
 
 				m_sType  = gserver->m_npcConfigList[i]->m_sType;
 

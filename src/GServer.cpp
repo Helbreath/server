@@ -598,7 +598,7 @@ bool GServer::Init()
 				Npc * npc = new Npc(0, this);
 				lua_pushinteger(L, 1);
 				lua_gettable(L, -2);
-				npc->m_cNpcName = lua_tostring(L, -1);
+				npc->name = lua_tostring(L, -1);
 				lua_pop(L, 1);
 				lua_pushinteger(L, 2);
 				lua_gettable(L, -2);
@@ -1132,7 +1132,7 @@ void GServer::ParseChat(Client * client, string message)
 							pItem = nullptr;
 						}
 
-						logger->information(Poco::format("GM Order(%s): Create ItemName(%s)", client->m_cCharName, tokens[1]));
+						logger->information(Poco::format("GM Order(%s): Create ItemName(%s)", client->name, tokens[1]));
 						return;
 					}
 					else
@@ -1183,7 +1183,7 @@ void GServer::ParseChat(Client * client, string message)
 				{
 					//TODO: tokenize to get client name and such
 					client->m_iWhisperPlayerIndex = this->clientlist.back().get();
-					SendNotifyMsg(0, client, NOTIFY_WHISPERMODEON, 0, 0, 0, client->m_iWhisperPlayerIndex->m_cCharName);
+					SendNotifyMsg(0, client, NOTIFY_WHISPERMODEON, 0, 0, 0, client->m_iWhisperPlayerIndex->name);
 					return;
 				}
 				break;
@@ -1220,7 +1220,7 @@ void GServer::ParseChat(Client * client, string message)
 		sw.WriteShort(uint16_t(client->m_handle));
 		sw.WriteShort(client->m_sX);
 		sw.WriteShort(client->m_sY);
-		sw.WriteString(client->m_cCharName, 10);
+		sw.WriteString(client->name, 10);
 		sw.WriteByte(sendmode);
 		sw.WriteString(message, message.length() + 1);
 
@@ -5301,7 +5301,7 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 			sw.WriteShort(player->m_sY);
 			sw.WriteShort(player->m_sType);
 			sw.WriteByte(owner->m_cDir);
-			sw.WriteString(player->m_cCharName, 10);
+			sw.WriteString(player->name, 10);
 
 			sw.WriteShort(player->m_sAppr1);
 			sw.WriteShort(player->m_sAppr2);
@@ -5578,7 +5578,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 		if (client->m_dwAttackLAT != 0)
 		{			//68059813-68020153=39660
 			if ((dwTime - client->m_dwAttackLAT) < 12) {
-				logger->information(Poco::format("(!) Speed hack suspect(%s) - attack-lat(%?d)", client->m_cCharName, dwTime - client->m_dwAttackLAT));
+				logger->information(Poco::format("(!) Speed hack suspect(%s) - attack-lat(%?d)", client->name, dwTime - client->m_dwAttackLAT));
 				DeleteClient(client->self.lock(), true, true);
 				return 0;
 			}
@@ -5796,7 +5796,7 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 			
 				if ((dwTime - client->m_dwMoveLAT) < (72*8*7 -3000)) {
 					consoleLogger->information(Poco::format("(!) Speed hack suspect(%s) - move-lat(%?d)",
-						(string)client->m_cCharName, dwTime - client->m_dwMoveLAT)); 
+						(string)client->name, dwTime - client->m_dwMoveLAT)); 
 					DeleteClient(client, true, false);
 					return 0;
 				}
@@ -6042,7 +6042,7 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 		sw.WriteShort(client->m_sY);
 		sw.WriteShort(client->m_sType);
 		sw.WriteByte(cDir);
-		sw.WriteString(client->m_cCharName, 10);
+		sw.WriteString(client->name, 10);
 		sw.WriteShort(client->m_sAppr1);
 		sw.WriteShort(client->m_sAppr2);
 		sw.WriteShort(client->m_sAppr3);
@@ -6799,7 +6799,7 @@ bool GServer::WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, u
 						sw.WriteInt(object->m_iStatus);
 
 					// Name
-					sw.WriteString(object->m_cCharName, 10);
+					sw.WriteString(object->name, 10);
 				}
 				break;
 
@@ -6855,7 +6855,7 @@ bool GServer::WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, u
 						sw.WriteInt(object->m_iStatus);
 
 					// Name
-					sw.WriteString(object->m_cCharName, 10);
+					sw.WriteString(object->name, 10);
 				}
 				break;
 
@@ -6914,7 +6914,7 @@ void GServer::RequestFullObjectData(shared_ptr<Client> client, Unit * target)
 			sw.WriteShort(object->m_sY);
 			sw.WriteShort(object->m_sType);
 			sw.WriteByte(object->m_cDir);
-			sw.WriteString(object->m_cCharName, 10);
+			sw.WriteString(object->name, 10);
 			sw.WriteShort(object->m_sAppr1);
 			sw.WriteShort(object->m_sAppr2);
 			sw.WriteShort(object->m_sAppr3);
@@ -6999,7 +6999,7 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 	{
 		Session ses(sqlpool->get());
 		Statement select(ses);
-		select << "SELECT * FROM char_database WHERE account_name=? AND char_name=? AND servername=?;", use(client->account), use(client->m_cCharName), use(servername), now;
+		select << "SELECT * FROM char_database WHERE account_name=? AND char_name=? AND servername=?;", use(client->account), use(client->name), use(servername), now;
 		RecordSet rs(select);
 
 		rs.moveFirst();
@@ -7171,7 +7171,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 			if (target->m_iWhisperPlayerIndex == client.get())
 			{
 				target->m_iWhisperPlayerIndex = 0;
-				SendNotifyMsg(0, target.get(), NOTIFY_WHISPERMODEOFF, 0, 0, 0, client->m_cCharName);
+				SendNotifyMsg(0, target.get(), NOTIFY_WHISPERMODEOFF, 0, 0, 0, client->name);
 				break;
 			}
 		}
@@ -7389,11 +7389,11 @@ bool GServer::bCheckClientAttackFrequency(Client * client)
 
 #ifndef NO_MSGSPEEDCHECK_ATTACK
 		if (dwTimeGap < 320) {
-			logger->information(Poco::format("(!) Speed hack suspect(%s) - attack(%?d)", client->m_cCharName, dwTimeGap));
+			logger->information(Poco::format("(!) Speed hack suspect(%s) - attack(%?d)", client->name, dwTimeGap));
 			return false;
 		}
 		else if (dwTimeGap < 240) {
-			logger->information(Poco::format("(!) Speed hack suspect(%s) - attack(%?d). Disconnected", client->m_cCharName, dwTimeGap));
+			logger->information(Poco::format("(!) Speed hack suspect(%s) - attack(%?d). Disconnected", client->name, dwTimeGap));
 			DeleteClient(client->self.lock(), true, true);
 			return false;
 		}
@@ -7422,12 +7422,12 @@ bool GServer::bCheckClientMagicFrequency(Client * client)
 
 #ifndef NO_MSGSPEEDCHECK_MAGIC
 		if (dwTimeGap < 1200) {
-			logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - magic(%?d). Disconnected", client->m_cCharName, dwTimeGap));
+			logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - magic(%?d). Disconnected", client->name, dwTimeGap));
 			DeleteClient(client->self.lock(), true, true);
 			return false;
 		}
 		else if (dwTimeGap < 1600) {
-			logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - magic(%?d)", client->m_cCharName, dwTimeGap));
+			logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - magic(%?d)", client->name, dwTimeGap));
 			return false;
 		}
 #endif
@@ -7476,14 +7476,14 @@ bool GServer::bCheckClientMoveFrequency(Client * client, bool running)
 
 			if (sum < 210 * SPEEDCHECKTURNS)
 			{
-				logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - run-avg(%?d). BI banned", client->m_cCharName, sum / SPEEDCHECKTURNS));
+				logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - run-avg(%?d). BI banned", client->name, sum / SPEEDCHECKTURNS));
 
 				DeleteClient(client->self.lock(), true, true);
 				return false;
 			}
 			else if (sum < 230 * SPEEDCHECKTURNS)
 			{
-				logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - run-avg(%?d)", client->m_cCharName, sum / SPEEDCHECKTURNS));
+				logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - run-avg(%?d)", client->name, sum / SPEEDCHECKTURNS));
 
 				++client->m_runTurn %= SPEEDCHECKTURNS;
 				return false;
@@ -7507,7 +7507,7 @@ bool GServer::bCheckClientMoveFrequency(Client * client, bool running)
 			return false;
 			}else */if (sum < 350 * SPEEDCHECKTURNS)
 			{
-				logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - move-avg(%?d)", client->m_cCharName, sum / SPEEDCHECKTURNS));
+				logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - move-avg(%?d)", client->name, sum / SPEEDCHECKTURNS));
 
 				++client->m_moveTurn %= SPEEDCHECKTURNS;
 				return false;
@@ -8159,7 +8159,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 		}
 
 		cAttackerDir = cattacker->m_cDir;
-		AttackerName = cattacker->m_cCharName;
+		AttackerName = cattacker->name;
 
 		bIsAttackerBerserk = cattacker->IsBerserked();
 
@@ -8264,7 +8264,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 		iAttackerHitRatio = nattacker->m_iHitRatio;
 
 		cAttackerDir = nattacker->m_cDir;
-		AttackerName = nattacker->m_cNpcName;
+		AttackerName = nattacker->name;
 
 		if (nattacker->IsBerserked())
 			bIsAttackerBerserk = true;

@@ -219,10 +219,10 @@ void Gate::stop(connection_ptr c)
 		//fyi, client_ should always be set, the question is whether m_handle is set (indicates actually made it in game)
 		if (client->m_handle > 0)
 		{
-			consoleLogger->error(Poco::format("<%?d> Client Disconnected! (%s) (%s)", client->m_handle, client->m_cCharName, c->address));
+			consoleLogger->error(Poco::format("<%?d> Client Disconnected! (%s) (%s)", client->m_handle, client->name, c->address));
 			if ((unixtime() - client->m_dwLogoutHackCheck) < 10000)
 			{
-				consoleLogger->error(Poco::format("Logout Hack: (%s) Player: (%s) - disconnected within 10 seconds of most recent damage. Hack? Lag?", c->address, client->m_cCharName));
+				consoleLogger->error(Poco::format("Logout Hack: (%s) Player: (%s) - disconnected within 10 seconds of most recent damage. Hack? Lag?", c->address, client->name));
 			}
 		}
 		else

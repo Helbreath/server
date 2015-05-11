@@ -216,8 +216,6 @@ public:
 	void AddHP(uint64_t value);
 	void ReduceHP(uint64_t value);
 
-	string m_cNpcName;
-
 	short m_dX, m_dY;
 	short m_vX, m_vY;
 	int   m_tmp_iError;

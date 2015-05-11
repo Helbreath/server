@@ -203,7 +203,6 @@ public:
 
 	bool m_bActive;
 
-	string m_cCharName;
 	string account;
 	string password;
 
