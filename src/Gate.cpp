@@ -203,6 +203,11 @@ void Gate::start(connection_ptr c)
 
 void Gate::stop(connection_ptr c)
 {
+	if (c == nullptr)
+	{
+		consoleLogger->trace("Invalid socket being closed");
+		return;
+	}
 	shared_ptr<Client> client = c->client_.lock();
 	if (!client)
 	{
