@@ -1378,8 +1378,12 @@ void GServer::ActionThread()
 						continue;
 					}
 				InitPlayerData(client);
-
 				break;
+
+			case MSGID_REQUEST_RESTART:
+				RequestRestartHandler(client);
+				break;
+
             default:
                 consoleLogger->error(Poco::format("Unknown packet received from client - 0x%.4X", msgid));
 				//DeleteClient(msg->client, false, true);
@@ -11120,6 +11124,8 @@ void GServer::RequestRestartHandler(shared_ptr<Client> player)
 	player->m_bIsKilled = false;
 	player->m_iHP = player->GetMaxHP();
 	player->m_iHungerStatus = 100;
+
+	player->pMap->ClearDeadOwner(player->m_sX, player->m_sY);
 
 	RequestTeleportHandler(player.get(), 2, player->m_cMapName);
 }
