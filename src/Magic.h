@@ -96,17 +96,19 @@ public:
 	Magic();
 	virtual ~Magic();
 
+	uint16_t num;
+
 	string m_cName;
 
-	short m_sType;
-	uint32_t m_dwDelayTime, m_dwLastTime;
-	short m_manaCost;
-	char m_hRange, m_vRange;
-	short m_sValue[8];
-	short m_sIntLimit;
-	int   m_iGoldCost;
+	uint16_t m_sType;
+	uint64_t m_dwDelayTime, m_dwLastTime;
+	uint16_t m_manaCost;
+	uint8_t m_hRange, m_vRange;
+	uint16_t m_sValue[9];
+	uint16_t m_sIntLimit;
+	int32_t   m_iGoldCost;
 
-	char  m_cCategory;
+	uint8_t  m_cCategory;
 	Element m_element;
 
 	void Effect_RecSP(Unit * caster, Unit * target, uint32_t dthrow, uint32_t droll, uint32_t dbonus);

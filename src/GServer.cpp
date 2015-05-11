@@ -234,6 +234,10 @@ GServer::GServer(string servername, string config)
 	for (int i = 0; i <= 100; i++) {
 		m_iSkillSSNpoint[i] = _iCalcSkillSSNpoint(i);
 	}
+	for (int i = 0; i < MAXMAGICTYPE; ++i)
+	{
+		m_pMagicConfigList[i] = 0;
+	}
 
 // 	GSID = -1;
 // 	m_bIsGameServerRegistered = false;
@@ -857,6 +861,137 @@ bool GServer::Init()
 				if (!m_pItemConfigList[item->m_sIDnum])
 				{
 					m_pItemConfigList[item->m_sIDnum] = item;
+				}
+				lua_pop(L, 1);
+			}
+		}
+		lua_pop(L, 1);
+
+
+		consoleLogger->information("Loading Magic.");
+		if (luaL_dofile(L, "magic.lua") != 0)
+		{
+			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L, -1)));
+			return false;
+		}
+		lua_getglobal(L, "magic");
+
+		if (lua_istable(L, -1))
+		{
+			lua_pushnil(L);
+			while (lua_next(L, -2))
+			{
+				uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
+				Magic * magic = new Magic();
+
+				lua_pushinteger(L, 1);
+				lua_gettable(L, -2);
+				magic->num = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 2);
+				lua_gettable(L, -2);
+				magic->m_cName = lua_tostring(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 3);
+				lua_gettable(L, -2);
+				magic->m_sType = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 4);
+				lua_gettable(L, -2);
+				magic->m_dwDelayTime = (uint64_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 5);
+				lua_gettable(L, -2);
+				magic->m_dwLastTime = (uint64_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 6);
+				lua_gettable(L, -2);
+				magic->m_manaCost = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 7);
+				lua_gettable(L, -2);
+				magic->m_hRange = (uint8_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 8);
+				lua_gettable(L, -2);
+				magic->m_vRange = (uint8_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 9);
+				lua_gettable(L, -2);
+				magic->m_sValue[0] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 10);
+				lua_gettable(L, -2);
+				magic->m_sValue[1] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 11);
+				lua_gettable(L, -2);
+				magic->m_sValue[2] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 12);
+				lua_gettable(L, -2);
+				magic->m_sValue[3] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 13);
+				lua_gettable(L, -2);
+				magic->m_sValue[4] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 14);
+				lua_gettable(L, -2);
+				magic->m_sValue[5] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 15);
+				lua_gettable(L, -2);
+				magic->m_sValue[6] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 16);
+				lua_gettable(L, -2);
+				magic->m_sValue[7] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 17);
+				lua_gettable(L, -2);
+				magic->m_sValue[8] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 18);
+				lua_gettable(L, -2);
+				magic->m_sIntLimit = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 19);
+				lua_gettable(L, -2);
+				magic->m_iGoldCost = (int32_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 20);
+				lua_gettable(L, -2);
+				magic->m_cCategory = (uint8_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 21);
+				lua_gettable(L, -2);
+				magic->m_element = (Element)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				if (!m_pMagicConfigList[magic->num])
+				{
+					m_pMagicConfigList[magic->num] = magic;
 				}
 				lua_pop(L, 1);
 			}
