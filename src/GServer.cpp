@@ -5092,7 +5092,7 @@ void GServer::DeleteNpc(shared_ptr<Npc> npc)
 	iItemID = 0; // No current item
 
 	SendEventToNearClient_TypeA(npc.get(), MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
-	npc->pMap->ClearOwner(npc->m_sX, npc->m_sY);
+	npc->pMap->ClearDeadOwner(npc->m_sX, npc->m_sY);
 
 	npc->pMap->m_iTotalActiveObject--;
 
@@ -5843,7 +5843,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 						}
 
 						maptarget = client->pMap->GetOwner(dX, dY);
-						if (iExp == 0 && cOwnerType == OWNERTYPE_NPC && dice(1, 2) == 1) {
+						if (iExp == 0 && maptarget->m_ownerType == OWNERTYPE_NPC && dice(1, 2) == 1) {
 							iExp += CalculateAttackEffect(maptarget.get(), client.get(), dX, dY, wType, bNearAttack, bIsDash);
 						}
 						iExp += CalculateAttackEffect(maptarget.get(), client.get(), dX, dY, wType, bNearAttack, bIsDash);
