@@ -1344,7 +1344,7 @@ void GServer::ActionThread()
 			uint32_t msgid = sr.ReadInt();
 			uint32_t cmd = sr.ReadShort();
 
-			consoleLogger->error(Poco::format("Packet received from client - 0x%.4X - 0x%.2X", msgid, cmd));
+			//consoleLogger->error(Poco::format("Packet received from client - 0x%.4X - 0x%.2X", msgid, cmd));
 
 			if(msgid & MSGIDTYPE_MOTION)
 			{
