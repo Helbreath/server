@@ -1307,11 +1307,11 @@ void Client::SWrite(StreamWrite & sw)
 	socket->write(sw);
 }
 //TODO: let client class send packets directly?
-void Client::Notify(int iFromH, uint16_t wMsgType, uint32_t sV1, uint32_t sV2, uint32_t sV3, char * pString, 
-	uint32_t sV4, uint32_t sV5, uint32_t sV6, uint32_t sV7, uint32_t sV8, uint32_t sV9, char * pString2) const
+void Client::Notify(Client * from, uint16_t wMsgType, uint32_t sV1, uint32_t sV2, uint32_t sV3, string pString, 
+	uint32_t sV4, uint32_t sV5, uint32_t sV6, uint32_t sV7, uint32_t sV8, uint32_t sV9, string pString2)
 {
-// 	gserver->SendNotifyMsg(iFromH, this->m_handle, wMsgType, sV1, sV2, sV3, pString, 
-// 		sV4, sV5, sV6, sV7, sV8, sV9, pString2);
+	gserver->SendNotifyMsg(from, this, wMsgType, sV1, sV2, sV3, pString,
+ 		sV4, sV5, sV6, sV7, sV8, sV9, pString2);
 }
 
 void Client::NotifyGuildInfo(bool memberList) const

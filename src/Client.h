@@ -170,9 +170,10 @@ public:
 
 	void Save();
 	void SWrite(StreamWrite & sw);
-	void Notify(int iFromH, uint16_t wMsgType, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, char * pString = 0,
+
+	void Notify(Client * from, uint16_t wMsgType, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, string pString = "",
 		uint32_t sV4 = 0, uint32_t sV5 = 0, uint32_t sV6 = 0, uint32_t sV7 = 0, uint32_t sV8 = 0, uint32_t sV9 = 0,
-		char * pString2 = 0) const;
+		string pString2 = "");
 	void NotifyGuildInfo(bool memberList = false) const;
 	void NotifyGuildsmanStatus(Client const * const player, bool online = true) const;
 	void NotifyGuildSummons(Client const * const player) const;
