@@ -7474,49 +7474,56 @@ bool GServer::bCheckClientMoveFrequency(Client * client, bool running)
 			if (dwTimeGap < 30) dwTimeGap = 300;
 			client->m_runTime[client->m_runTurn] = dwTimeGap;
 
-			uint64_t sum = 0;
-			for (int i = 0; i < SPEEDCHECKTURNS; i++)
-				sum += client->m_runTime[i];
+#ifdef DOSPEEDCHECK
+			if (client->m_iAdminUserLevel == 0) {
+				uint64_t sum = 0;
+				for (int i = 0; i < SPEEDCHECKTURNS; i++)
+					sum += client->m_runTime[i];
 
-			if (sum < 210 * SPEEDCHECKTURNS)
-			{
-				logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - run-avg(%?d). BI banned", client->name, sum / SPEEDCHECKTURNS));
+				if (sum < 210 * SPEEDCHECKTURNS)
+				{
+					logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - run-avg(%?d). BI banned", client->name, sum / SPEEDCHECKTURNS));
 
-				DeleteClient(client->self.lock(), true, true);
-				return false;
-			}
-			else if (sum < 230 * SPEEDCHECKTURNS)
-			{
-				logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - run-avg(%?d)", client->name, sum / SPEEDCHECKTURNS));
+					DeleteClient(client->self.lock(), true, true);
+					return false;
+				}
+				else if (sum < 230 * SPEEDCHECKTURNS)
+				{
+					logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - run-avg(%?d)", client->name, sum / SPEEDCHECKTURNS));
 
+					++client->m_runTurn %= SPEEDCHECKTURNS;
+					return false;
+				}
 				++client->m_runTurn %= SPEEDCHECKTURNS;
-				return false;
 			}
-			++client->m_runTurn %= SPEEDCHECKTURNS;
+#endif
 		}
 		else{
 			if (dwTimeGap < 30) dwTimeGap = 540;
 			client->m_moveTime[client->m_moveTurn] = dwTimeGap;
+#ifdef DOSPEEDCHECK
+			if (client->m_iAdminUserLevel == 0) {
+				uint64_t sum = 0;
+				for (int i = 0; i < SPEEDCHECKTURNS; i++)
+					sum += client->m_moveTime[i];
 
-			uint64_t sum = 0;
-			for (int i = 0; i < SPEEDCHECKTURNS; i++)
-				sum += client->m_moveTime[i];
+				/*if(sum < 330*SPEEDCHECKTURNS)
+				{
+				wsprintf(g_cTxt, "(-~-HACKING-~-) Speed hacker detected(%s) - move-avg(%i). BI banned", player->m_cCharName, sum/SPEEDCHECKTURNS);
+				PutLogList(g_cTxt);
 
-			/*if(sum < 330*SPEEDCHECKTURNS)
-			{
-			wsprintf(g_cTxt, "(-~-HACKING-~-) Speed hacker detected(%s) - move-avg(%i). BI banned", player->m_cCharName, sum/SPEEDCHECKTURNS);
-			PutLogList(g_cTxt);
-
-			DeleteClient(iClientH, true, true, true, true);
-			return false;
-			}else */if (sum < 350 * SPEEDCHECKTURNS)
-			{
-				logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - move-avg(%?d)", client->name, sum / SPEEDCHECKTURNS));
-
-				++client->m_moveTurn %= SPEEDCHECKTURNS;
+				DeleteClient(iClientH, true, true, true, true);
 				return false;
+				}else */if (sum < 350 * SPEEDCHECKTURNS)
+				{
+					logger->information(Poco::format("(-~-HACKING-~-) Speed hack suspect(%s) - move-avg(%?d)", client->name, sum / SPEEDCHECKTURNS));
+
+					++client->m_moveTurn %= SPEEDCHECKTURNS;
+					return false;
+				}
+				++client->m_moveTurn %= SPEEDCHECKTURNS;
 			}
-			++client->m_moveTurn %= SPEEDCHECKTURNS;
+#endif
 		}
 	}
 

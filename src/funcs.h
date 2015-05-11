@@ -27,7 +27,12 @@
 //#include <math.h>
 
 //TODO: need a new way to detect speed hacking and not "you can speed hack 10 steps then slow down"
+#ifdef _DEBUG
+#define SPEEDCHECKTURNS 1
+#else
+#define DOSPEEDCHECK
 #define SPEEDCHECKTURNS 10
+#endif
 
 #define MAXCRUSADESTRUCTURES		300
 #define MAXAGRICULTURE				200
