@@ -251,6 +251,7 @@ public:
 	Map * GetMap(string name);
 	uint8_t iSetSide(Client * client);
 	void RequestHuntmode(Client * client);
+	void RequestRestartHandler(shared_ptr<Client> player);
 	void SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint64_t sV1 = 0, uint64_t sV2 = 0, uint64_t sV3 = 0, string pString = "", 
 		uint64_t sV4 = 0, uint64_t sV5 = 0, uint64_t sV6 = 0, uint64_t sV7 = 0, uint64_t sV8 = 0, 
 		uint64_t sV9 = 0, string pString2 = "");

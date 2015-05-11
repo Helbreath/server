@@ -11043,3 +11043,83 @@ char GServer::cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * 
 
 	return 0;
 }
+
+void GServer::RequestRestartHandler(shared_ptr<Client> player)
+{
+	// Gladiator Arena xRisenx
+	//if (strcmp(cTmpMap, cArenaMap) == 0)
+	//{
+	//  //strcpy(m_pClientList[iClientH]->m_cMapName, cArenaMap);
+	//strcpy(player->m_cMapName, cArenaMap);
+	//}
+	// Gladiator Arena xRisenx
+
+	string tempmap;
+	if (!player->m_bIsKilled) return;
+	tempmap = player->m_cMapName;
+	if (player->m_cMagicEffectStatus[MAGICTYPE_CONFUSE] != 0)
+		player->RemoveMagicEffect(MAGICTYPE_CONFUSE);
+
+	switch (player->m_side)
+	{
+	case ARESDEN:
+		if ((tempmap == sideMap[ELVINE]) && !player->IsGM()){
+			//strcpy(player->m_cLockedMapName, sideMapJail[ELVINE]);
+			player->m_cLockedMapName = sideMap[ELVINE];
+			player->m_iLockedMapTime = 60 * 3;
+			//strcpy(player->m_cMapName, sideMapJail[ELVINE]);
+			player->m_cMapName = sideMap[ELVINE];
+		}/*else if (strcmp(cTmpMap, sideMap[ISTRIA]) == 0){ // Commented out 3rd faction xRisenx
+		 strcpy(player->m_cLockedMapName, sideMapJail[ISTRIA]);
+		 player->m_iLockedMapTime = 60*3;
+		 strcpy(player->m_cMapName, sideMapJail[ISTRIA]);
+		 }*/else if (player->m_iLevel > 80)
+		 //strcpy(player->m_cMapName, sideMapRes[ARESDEN]);
+		 player->m_cMapName = sideMap[ARESDEN];
+		 else
+			 //strcpy(player->m_cMapName, sideMapFarm[ARESDEN]);
+			 player->m_cMapName = sideMap[ARESDEN];
+		break;
+	case ELVINE:
+		if (tempmap == sideMap[ARESDEN] && !player->IsGM()){
+			//strcpy(player->m_cLockedMapName, sideMapJail[ARESDEN]);
+			player->m_cLockedMapName = sideMap[ARESDEN];
+			player->m_iLockedMapTime = 60 * 3;
+			//strcpy(player->m_cMapName, sideMapJail[ARESDEN]);
+			player->m_cMapName = sideMap[ARESDEN];
+		}/*else if (strcmp(cTmpMap, sideMap[ISTRIA]) == 0){ // Commented out 3rd faction xRisenx
+		 strcpy(player->m_cLockedMapName, sideMapJail[ISTRIA]);
+		 player->m_iLockedMapTime = 60*3;
+		 strcpy(player->m_cMapName, sideMapJail[ISTRIA]);
+		 }*/else if (player->m_iLevel > 80)
+		 //strcpy(player->m_cMapName, sideMapRes[ELVINE]);
+		 player->m_cMapName = sideMap[ELVINE];
+		 else
+			 //strcpy(player->m_cMapName, sideMapFarm[ELVINE]);
+			 player->m_cMapName = sideMap[ELVINE];
+		break;
+		/*case ISTRIA: // Commented out 3rd faction xRisenx
+		if ((strcmp(cTmpMap, sideMap[ARESDEN]) == 0) && !player->IsGM()){
+		strcpy(player->m_cLockedMapName, sideMapJail[ARESDEN]);
+		player->m_iLockedMapTime = 60*3;
+		strcpy(player->m_cMapName, sideMapJail[ARESDEN]);
+		}else if ((strcmp(cTmpMap, sideMap[ELVINE]) == 0) && !player->IsGM()){
+		strcpy(player->m_cLockedMapName, sideMapJail[ELVINE]);
+		player->m_iLockedMapTime = 60*3;
+		strcpy(player->m_cMapName, sideMapJail[ELVINE]);
+		}else if (player->m_iLevel > 80)
+		strcpy(player->m_cMapName, sideMapRes[ISTRIA]);
+		else
+		strcpy(player->m_cMapName, sideMapFarm[ISTRIA]);
+		break;*/
+	case NEUTRAL:
+		player->m_cMapName = sideMap[NEUTRAL];
+		break;
+	}
+
+	player->m_bIsKilled = false;
+	player->m_iHP = player->GetMaxHP();
+	player->m_iHungerStatus = 100;
+
+	RequestTeleportHandler(player.get(), 2, player->m_cMapName);
+}
