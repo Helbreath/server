@@ -8705,7 +8705,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 	}
 	if (iAttackerHitRatio < 0)   iAttackerHitRatio = 0;
 
-	switch (target->m_sType)
+	switch (target->m_ownerType)
 	{
 	case OWNERTYPE_PLAYER:
 		cProtect = ctarget->m_cMagicEffectStatus[MAGICTYPE_PROTECT];
@@ -8801,7 +8801,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 		}
 	}
 
-	if (attacker->m_sType == OWNERTYPE_PLAYER) {
+	if (attacker->m_ownerType == OWNERTYPE_PLAYER) {
 		iAP_SM += cattacker->m_iAddPhysicalDamage;
 		iAP_L += cattacker->m_iAddPhysicalDamage;
 	}
@@ -8811,7 +8811,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 		iAP_L = iAP_L / 2;
 	}
 
-	if (target->m_sType == OWNERTYPE_PLAYER) {
+	if (target->m_ownerType == OWNERTYPE_PLAYER) {
 		iAP_SM -= (dice(1, ctarget->m_iVit / 10) - 1);
 		iAP_L -= (dice(1, ctarget->m_iVit / 10) - 1);
 	}
@@ -8962,7 +8962,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 		case OWNERTYPE_PLAYER:
 			ClearSkillUsingStatus(ctarget);
 
-			if ((dwTime -ctarget->m_dwTime) > RAGPROTECTIONTIME) {
+			if ((dwTime -ctarget->m_dwTime) < RAGPROTECTIONTIME) {
 
 				return 0;
 			}
@@ -9235,7 +9235,7 @@ int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int 
 				ctarget->m_lastDamageTime = dwTime;
 				if (ctarget->m_iHP == 0) {
 
-					if (attacker->m_sType == OWNERTYPE_PLAYER)
+					if (attacker->m_ownerType == OWNERTYPE_PLAYER)
 						bAnalyzeCriminalAction(cattacker, ctarget->m_sX, ctarget->m_sY);
 
 					ctarget->KilledHandler(attacker, iAP_SM);
