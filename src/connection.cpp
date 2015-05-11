@@ -76,9 +76,9 @@ void connection::write(const char * data, const uint64_t size)
 	try {
 	    uint16_t tsize = uint16_t(size) + 3;
 		*(int16_t*)csize = tsize;
-	    socket_.write_some(boost::asio::buffer(ckey));
-	    socket_.write_some(boost::asio::buffer(csize));
-		socket_.write_some(boost::asio::buffer(data, size));
+		boost::asio::write(socket_, boost::asio::buffer(ckey, 1));
+		boost::asio::write(socket_, boost::asio::buffer(csize, 2));
+		boost::asio::write(socket_, boost::asio::buffer(data, size));
 	}
 	catch (std::exception& e)
 	{
@@ -93,9 +93,9 @@ void connection::write(StreamWrite & sw)
 	try {
 		uint16_t tsize = uint16_t(sw.size) + 3;
 		*(int16_t*)csize = tsize;
-		socket_.write_some(boost::asio::buffer(ckey));
-		socket_.write_some(boost::asio::buffer(csize));
-		socket_.write_some(boost::asio::buffer(sw.data, sw.size));
+		boost::asio::write(socket_, boost::asio::buffer(ckey, 1));
+		boost::asio::write(socket_, boost::asio::buffer(csize, 2));
+		boost::asio::write(socket_, boost::asio::buffer(sw.data, sw.size));
 	}
 	catch (std::exception& e)
 	{

@@ -5478,8 +5478,8 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 		for (shared_ptr<Client> client : clientlist)
 		{
 			if ((client->m_handle != player->m_handle) && (client->m_bIsInitComplete) && (player->pMap == client->pMap)
-				&& ((client->m_sX > player->m_sX - 13) && (client->m_sX < player->m_sX + 13)//screen res location
-				  && (client->m_sY > player->m_sY - 11) && (client->m_sY < player->m_sY + 11)))
+				&& ((client->m_sX > player->m_sX - 15) && (client->m_sX < player->m_sX + 15)//screen res location
+				  && (client->m_sY > player->m_sY - 13) && (client->m_sY < player->m_sY + 13)))
 			{
 				client->mutsocket.lock();
 				if(_bGetIsPlayerHostile(player,client.get()) && client->m_iAdminUserLevel == 0)
@@ -5546,8 +5546,8 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 		for (shared_ptr<Client> client : clientlist)
 		{
 			if (/*(client->m_handle != npc->m_handle) && */(client->m_bIsInitComplete) && (npc->pMap == client->pMap)
-				&& ((client->m_sX > npc->m_sX - 13) && (client->m_sX < npc->m_sX + 13)//screen res location
-				&& (client->m_sY > npc->m_sY - 11) && (client->m_sY < npc->m_sY + 11)))
+				&& ((client->m_sX > npc->m_sX - 15) && (client->m_sX < npc->m_sX + 15)//screen res location
+				&& (client->m_sY > npc->m_sY - 12) && (client->m_sY < npc->m_sY + 12)))
 			{
 				client->mutsocket.lock();
 // 				if(_bGetIsPlayerHostile(player,client.get()) && client->m_iAdminUserLevel == 0)//can add flag modifiers here
@@ -5597,8 +5597,8 @@ void GServer::SendEventToNearClient_TypeB(uint32_t msgid, uint16_t msgtype, Map 
 	for (shared_ptr<Client> client : clientlist)
 	{
 		if ((client->m_bIsInitComplete) && (client->pMap == mapIndex)
-			&& ((client->m_sX > sX - 13) && (client->m_sX < sX + 13)//screen res location
-			&& (client->m_sY > sY - 11) && (client->m_sY < sY + 11)))
+			&& ((client->m_sX > sX - 15) && (client->m_sX < sX + 15)//screen res location
+			&& (client->m_sY > sY - 13) && (client->m_sY < sY + 13)))
 		{
 			client->mutsocket.lock();
 			if (client->socket)
