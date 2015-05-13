@@ -7,7 +7,7 @@
 #include "netmessages.h"
 #include "Misc.h"
 #include "DelayEvent.h"
-
+using namespace Poco::JSON;
 
 #pragma region movedirection
 //#ifndef 800x600
@@ -230,6 +230,12 @@ GServer::GServer(string servername, string config)
 		m_npcConfigList[i] = 0;
 	for (int i = 0; i < MAXITEMTYPES; ++i)
 		m_pItemConfigList[i] = 0;
+
+	for (int i = 0; i < MAXNPCTYPES; ++i) {
+		for (int j = 0; j < MAXITEMTYPES; ++j) {
+			m_npcDropData[i][j] = 0;
+		}
+	}
 
 	for (int i = 0; i <= 100; i++) {
 		m_iSkillSSNpoint[i] = _iCalcSkillSSNpoint(i);
@@ -862,6 +868,81 @@ bool GServer::Init()
 			}
 		}
 		lua_pop(L, 1);
+
+		
+		consoleLogger->information("Loading Drop Rate JSON.");
+		Poco::JSON::Parser * parser = new Poco::JSON::Parser();
+		std::ifstream dropJson("droplist.json");
+		Poco::Dynamic::Var parsed = parser->parse(dropJson);
+		Poco::Dynamic::Var parsedResult = parser->result();
+
+		Array::Ptr npcList = parsedResult.extract<Array::Ptr>();
+		int npcCount = npcList->size();
+		if (npcList && npcCount) {
+			for (int ni = 0; ni < npcCount; ni++) {
+				Object::Ptr npcRow = npcList->getObject(ni);
+				if (npcRow) {
+					Npc * npc = 0;
+					string npcName = "";
+					int npcID = 0;
+					if (npcRow->has("id")) {
+						Poco::Dynamic::Var npcIDVar = npcRow->get("id");
+						npcIDVar.convert(npcID);
+					}
+					if (npcRow->has("_name")) {
+						Poco::Dynamic::Var npcNameVar = npcRow->get("_name");
+						npcName = npcNameVar.convert<std::string>();
+					}
+					if (npcRow->has("items")) {
+						Array::Ptr npcItems = npcRow->getArray("items");
+						if (npcID != 0) {
+							npc = m_npcConfigList[npcID];
+						}
+						else if (npcName != "") {
+							npc = GetNpcByName(npcName);
+						}
+						if (npc != 0) {
+							logger->information("Processing items for NPC: %?d", npc->m_sType);
+							for (int ii = 0; ii < npcItems->size(); ii++) {
+								Object::Ptr itemRow = npcItems->getObject(ii);
+								if (itemRow) {
+									Item * item = 0;
+									int itemProb = 0;
+									int itemID = 0;
+									string itemName = "";
+									if (itemRow->has("id")) {
+										Poco::Dynamic::Var itemIDVar = itemRow->get("id");
+										itemID = itemIDVar.convert<int>();
+									}
+									if (itemRow->has("_name")) {
+										Poco::Dynamic::Var itemNameVar = itemRow->get("_name");
+										itemNameVar.convert<std::string>(itemName);
+									}
+									if (itemRow->has("prob")) {
+										Poco::Dynamic::Var itemProbVar = itemRow->get("prob");
+										itemProbVar.convert<int>(itemProb);
+									}
+									if (itemProb == 0) {
+										itemProb = 1;
+									}
+									if (itemID != 0) {
+										item = m_pItemConfigList[itemID];
+									}
+									else if(itemName != "") {
+										item = GetItemByName(itemName);
+									}
+									if (item != 0) {
+										logger->information("Setting drop data; NPC: %?d, Item: %?d, Probability: %?d", npc->m_sType, item->m_sIDnum, itemProb);
+										m_npcDropData[npc->m_sType][item->m_sIDnum] = itemProb;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			logger->information("Done");
+		}		
 	}
 	catch (std::exception& e)
 	{
@@ -888,6 +969,35 @@ bool GServer::Init()
 
 	return true;
 }
+
+Npc * GServer::GetNpcByName(string name)
+{
+	for (int x = 0; x < MAXNPCTYPES; x++)
+	{
+		if (m_npcConfigList[x]) {
+			Npc * npc = m_npcConfigList[x];
+			if (npc->name == name) {
+				return npc;
+			}
+		}
+	}
+	return 0;
+}
+
+Item * GServer::GetItemByName(string name)
+{
+	if (name == "nothing") return 0;
+	for (int x = 0; x < MAXITEMTYPES; x++)
+	{
+		Item * item = m_pItemConfigList[x];
+		if (item && item->m_cName == name) {
+			return item;
+		}
+	}
+	logger->information("Could not find item %s", name);
+	return 0;
+}
+
 
 uint64_t GServer::iGetLevelExp(uint16_t iLevel)
 {
@@ -10823,6 +10933,80 @@ void GServer::RemoveFromTarget(shared_ptr<Unit> target, int iCode)
 				break;
 			}
 		}
+	}
+}
+
+void GServer::NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc)
+{
+	if (!npc || !attacker) return;
+	if (!m_npcDropData[npc->m_sType]) {
+		logger->information("NPC has no drop data: %d", npc->m_sType);
+	}
+	uint32_t dwTime = unixtime();
+	srand(time(0));
+	// Select a random item
+	int baseChance = rand() % 1000;
+	int currentChance = baseChance;
+	int tierMultiplier = 10000;
+	int rareChance = rand() % 10;
+	int epicChance = rand() % 100;
+	int godChance = rand() % 1000;
+	if (rareChance == 10) {
+		currentChance += 10000;
+	}
+	if (epicChance == 100) {
+		currentChance += 20000;
+	}
+	if (godChance == 1000) {
+		currentChance += 30000;
+	}
+
+	srand(time(0));
+	int awarded = rand() % 3 + 1;
+	int aKey = 0;
+	int aItem = 0;
+	int aProb = 0;
+	int ai = 0;
+
+	int npcItems[MAXITEMTYPES];
+	int npcItemCount = 0;
+	for (int ni = 0; ni < MAXITEMTYPES; ni++) {
+		npcItems[ni] = 0;
+	}
+	for (int ni = 0; ni < MAXITEMTYPES; ni++) {
+		if (m_npcDropData[npc->m_sType][ni] != 0) {
+			npcItems[npcItemCount] = ni;
+			npcItemCount++;
+		}
+	}
+	random_shuffle(std::begin(npcItems), std::end(npcItems));
+	logger->information("Current chance: %d, awarded items: %d", currentChance, awarded);
+
+	while (ai < awarded) {
+		for (int ii = 0; ii <= npcItemCount; ii++) {
+			if (ai > awarded) { break; }
+			aProb = m_npcDropData[npc->m_sType][npcItems[ii]];
+			if (aProb < currentChance) {
+				int npcID = npcItems[ii];
+				// Winner, winner, chicken dinner
+				Item * newItem = new Item(npcID, m_pItemConfigList);
+				if (newItem->m_sIDnum && newItem->m_cName != "") {
+					currentChance -= aProb;
+					npc->pMap->bSetItem(npc->m_sX, npc->m_sY, newItem);
+
+					logger->information("Dropping item #%?d for player #%?d", npcID, attacker->m_uid);
+					SendEventToNearClient_TypeB(
+						MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, attacker->pMap,
+						npc->m_sX, npc->m_sY, newItem->m_sSprite, newItem->m_sSpriteFrame, newItem->m_ItemColor
+					);
+
+					SendNotifyMsg(nullptr, (GetClient(attacker->m_handle)).get(), NOTIFY_DROPITEMFIN_COUNTCHANGED, npcID, 1, 0);
+					ai++;
+				}
+				if (ai > awarded) { break; }
+			}
+		}
+		ai++;
 	}
 }
 

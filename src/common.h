@@ -16,6 +16,7 @@ using namespace std;
 #define DEFAULTBANKSIZE 20
 #define MAXITEMTYPES			2000 // 1500->2000 xRisenx
 #define MAXNPCTYPES			200
+#define MAXNPCTIERS			10
 #define MAXPARTYMEMBERS		40
 #define MAXSIDES				4
 #define MAXBANKITEMS			120 // 120->300 xRisenx

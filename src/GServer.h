@@ -6,6 +6,9 @@
 #include "Party.h"
 #include "streams.h"
 #include "DelayEvent.h"
+#include "Poco/JSON/Json.h"
+#include "Poco/JSON/Parser.h"
+#include "Poco/Dynamic/Var.h"
 
 #pragma region wtfdefines
 
@@ -285,6 +288,7 @@ public:
 	void NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16_t damage);
 	void NpcBehavior_Flee(shared_ptr<Npc> npc);
 	void NpcBehavior_Dead(shared_ptr<Npc> npc);
+	void NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc);
 
 	void DeleteNpc(shared_ptr<Npc> npc);
 	
@@ -320,6 +324,8 @@ public:
 
 	shared_ptr<Client> GetClient(uint64_t ObjectID);
 	shared_ptr<Npc> GetNpc(uint64_t ObjectID);
+	Npc * GetNpcByName(string name);
+	Item * GServer::GetItemByName(string name);
 
 	void ParseChat(Client * client, string message);
 
@@ -354,6 +360,7 @@ public:
 	bool			m_bIsGameStarted;
 	Item   * m_pItemConfigList[MAXITEMTYPES];
 	Npc    * m_npcConfigList[MAXNPCTYPES];
+	int	     m_npcDropData[MAXNPCTYPES][MAXITEMTYPES];
 	Magic  * m_pMagicConfigList[MAXMAGICTYPE];
 	Skill  * m_pSkillConfigList[MAXSKILLTYPE];
 	Quest  * m_pQuestConfigList[MAXQUESTTYPE];

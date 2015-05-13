@@ -2750,7 +2750,8 @@ void Npc::behavior_death(shared_ptr<Unit> attacker, int16_t dmg)
  	if(attacker && attacker->IsPlayer())
  	{
 		m_killer = attacker;
- 		sAttackerWeapon = ((static_cast<Client*>(attacker.get()))->m_sAppr2 & 0x0FF0) >> 4;
+		sAttackerWeapon = ((static_cast<Client*>(attacker.get()))->m_sAppr2 & 0x0FF0) >> 4;
+		gserver->NpcDeadItemGenerator(attacker, this->self.lock());
  	}
 
  	m_bIsKilled = true;
@@ -3045,8 +3046,6 @@ void Npc::SetTarget(shared_ptr<Unit> target, bool isperm)
 void Npc::behavior_dead()
 {
 	uint64_t dwTime;
-
-	
 
 	dwTime = unixtime();
 	m_sBehaviorTurnCount++;
