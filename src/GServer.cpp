@@ -5083,7 +5083,6 @@ void GServer::DeleteNpc(shared_ptr<Npc> npc)
 	uint32_t dwCount, dwTime;
 	Point ItemPositions[MAX_NPCITEMDROP];
 	char cTemp[256];
-	SYSTEMTIME SysTime;
 
 	dwTime = unixtime();
 
@@ -10831,7 +10830,7 @@ bool GServer::bAnalyzeCriminalAction(Client * client, short dX, short dY, bool b
 			else
 				return false;
 
-			ZeroMemory(cNpcWaypoint, sizeof(cNpcWaypoint));
+			memset(cNpcWaypoint, 0, sizeof(cNpcWaypoint));
 
 			tX = (int)client->m_sX;
 			tY = (int)client->m_sY;
