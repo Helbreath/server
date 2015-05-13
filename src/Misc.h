@@ -9,9 +9,7 @@
 #pragma once
 #endif // _MSC_VER >= 1000
 
-#include <windows.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "funcs.h"
 
 class CMisc  						    
 {
@@ -24,7 +22,6 @@ public:
 	static void GetPoint2(int x0, int y0, int x1, int y1, int * pX, int * pY, int * pError, int iCount);
 	static void GetPoint(int x0, int y0, int x1, int y1, int * pX, int * pY, int * pError);
 	static char cGetNextMoveDir(short sX, short sY, short dX, short dY);
-	static void GetMyCursorPos(short * pX, short * pY);
 	CMisc();
 	virtual ~CMisc();
 

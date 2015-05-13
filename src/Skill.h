@@ -9,7 +9,7 @@
 #pragma once
 #endif // _MSC_VER >= 1000
 
-#include <windows.h>
+#include "funcs.h"
 
 
 #define SKILLEFFECTTYPE_GET			    1

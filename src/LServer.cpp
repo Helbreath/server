@@ -462,6 +462,7 @@ void LServer::SocketThread()
 				}
 				break;
 			case MSGID_REQUEST_CREATENEWACCOUNT:
+			{
 				// cannot be called
 				sw.WriteInt(MSGID_RESPONSE_LOG);
 				sw.WriteShort(LOGRESMSGTYPE_ALREADYEXISTINGACCOUNT);
@@ -469,8 +470,10 @@ void LServer::SocketThread()
 				if (client->socket)
 					client->socket->write(sw.data, sw.position);
 				client->mutsocket.unlock();
+			}
 				break;
 			case MSGID_REQUEST_DELETECHARACTER:
+			{
 				try
 				{
 					string playername = sr.ReadString(10);
@@ -528,16 +531,18 @@ void LServer::SocketThread()
 					}
 				}
 				SQLCATCH(DeleteClient(client, true));
-
+			}
 				break;
 			case MSGID_REQUEST_CHANGEPASSWORD:
 				// cannot be called
+			{
 				sw.WriteInt(MSGID_RESPONSE_LOG);
 				sw.WriteShort(LOGRESMSGTYPE_PASSWORDCHANGEFAIL);
 				client->mutsocket.lock();
 				if (client->socket)
 					client->socket->write(sw.data, sw.position);
 				client->mutsocket.unlock();
+			}
 				break;
 			case MSGID_REQUEST_ENTERGAME:
 				try
@@ -546,6 +551,48 @@ void LServer::SocketThread()
 					uint16_t entertype = sr.ReadShort();
 					string worldname = sr.ReadString(30);
 					string commandline = sr.ReadString(120);
+
+					//client is requesting to disconnect currently connected player
+					if (entertype == ENTERGAMEMSGTYPE_NOENTER_FORCEDISCONN)
+					{
+						//send disconnect to all online servers
+						for (auto gs : gate->gameserver)
+						{
+							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+							sw.WriteShort(ENTERGAMERESTYPE_FORCEDISCONN);
+							client->mutsocket.lock();
+							if (client->socket)
+								client->socket->write(sw.data, sw.position);
+							client->mutsocket.unlock();
+
+							//check if client is even in game
+							shared_ptr<Client> clientfound;
+
+							gate->mutclientlist.lock_shared();
+
+							bool accountfound = false;
+							for (shared_ptr<Client> & clnt : gs->clientlist)
+							{
+								if (clnt->account == client->account)
+								{
+									//account found
+									accountfound = true;
+									clientfound = clnt;
+									break;
+								}
+							}
+
+							gate->mutclientlist.unlock_shared();
+
+							//client found? send force disconnect if so
+
+							if (clientfound != nullptr)
+							{
+								clientfound->Notify(nullptr, NOTIFY_FORCEDISCONN);
+							}
+						}
+						break;
+					}
 
 					worldname = "Xtreme";
 
@@ -560,6 +607,7 @@ void LServer::SocketThread()
 					{
 						sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 						sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+						sw.WriteByte(4);
 						client->mutsocket.lock();
 						if (client->socket)
 							client->socket->write(sw.data, sw.position);
@@ -584,6 +632,7 @@ void LServer::SocketThread()
 							//server not up?
 							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 							sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+							sw.WriteByte(5);
 							client->mutsocket.lock();
 							if (client->socket)
 								client->socket->write(sw.data, sw.position);
@@ -684,6 +733,7 @@ void LServer::SocketThread()
 									{
 										sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 										sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+										sw.WriteByte(5);
 										client->mutsocket.lock();
 										if (client->socket)
 											client->socket->write(sw.data, sw.position);

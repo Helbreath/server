@@ -240,6 +240,10 @@ GServer::GServer(string servername, string config)
 	for (int i = 0; i <= 100; i++) {
 		m_iSkillSSNpoint[i] = _iCalcSkillSSNpoint(i);
 	}
+	for (int i = 0; i < MAXMAGICTYPE; ++i)
+	{
+		m_pMagicConfigList[i] = 0;
+	}
 
 // 	GSID = -1;
 // 	m_bIsGameServerRegistered = false;
@@ -869,6 +873,137 @@ bool GServer::Init()
 		}
 		lua_pop(L, 1);
 
+
+		consoleLogger->information("Loading Magic.");
+		if (luaL_dofile(L, "magic.lua") != 0)
+		{
+			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L, -1)));
+			return false;
+		}
+		lua_getglobal(L, "magic");
+
+		if (lua_istable(L, -1))
+		{
+			lua_pushnil(L);
+			while (lua_next(L, -2))
+			{
+				uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
+				Magic * magic = new Magic();
+
+				lua_pushinteger(L, 1);
+				lua_gettable(L, -2);
+				magic->num = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 2);
+				lua_gettable(L, -2);
+				magic->m_cName = lua_tostring(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 3);
+				lua_gettable(L, -2);
+				magic->m_sType = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 4);
+				lua_gettable(L, -2);
+				magic->m_dwDelayTime = (uint64_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 5);
+				lua_gettable(L, -2);
+				magic->m_dwLastTime = (uint64_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 6);
+				lua_gettable(L, -2);
+				magic->m_manaCost = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 7);
+				lua_gettable(L, -2);
+				magic->m_hRange = (uint8_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 8);
+				lua_gettable(L, -2);
+				magic->m_vRange = (uint8_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 9);
+				lua_gettable(L, -2);
+				magic->m_sValue[0] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 10);
+				lua_gettable(L, -2);
+				magic->m_sValue[1] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 11);
+				lua_gettable(L, -2);
+				magic->m_sValue[2] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 12);
+				lua_gettable(L, -2);
+				magic->m_sValue[3] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 13);
+				lua_gettable(L, -2);
+				magic->m_sValue[4] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 14);
+				lua_gettable(L, -2);
+				magic->m_sValue[5] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 15);
+				lua_gettable(L, -2);
+				magic->m_sValue[6] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 16);
+				lua_gettable(L, -2);
+				magic->m_sValue[7] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 17);
+				lua_gettable(L, -2);
+				magic->m_sValue[8] = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 18);
+				lua_gettable(L, -2);
+				magic->m_sIntLimit = (uint16_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 19);
+				lua_gettable(L, -2);
+				magic->m_iGoldCost = (int32_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 20);
+				lua_gettable(L, -2);
+				magic->m_cCategory = (uint8_t)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				lua_pushinteger(L, 21);
+				lua_gettable(L, -2);
+				magic->m_element = (Element)lua_tointeger(L, -1);
+				lua_pop(L, 1);
+
+				if (!m_pMagicConfigList[magic->num])
+				{
+					m_pMagicConfigList[magic->num] = magic;
+				}
+				lua_pop(L, 1);
+			}
+		}
+		lua_pop(L, 1);
+
 		
 		consoleLogger->information("Loading Drop Rate JSON.");
 		Poco::JSON::Parser * parser = new Poco::JSON::Parser();
@@ -1488,8 +1623,12 @@ void GServer::ActionThread()
 						continue;
 					}
 				InitPlayerData(client);
-
 				break;
+
+			case MSGID_REQUEST_RESTART:
+				RequestRestartHandler(client);
+				break;
+
             default:
                 consoleLogger->error(Poco::format("Unknown packet received from client - 0x%.4X", msgid));
 				//DeleteClient(msg->client, false, true);
@@ -5054,7 +5193,6 @@ void GServer::DeleteNpc(shared_ptr<Npc> npc)
 	uint32_t dwCount, dwTime;
 	Point ItemPositions[MAX_NPCITEMDROP];
 	char cTemp[256];
-	SYSTEMTIME SysTime;
 
 	dwTime = unixtime();
 
@@ -5063,7 +5201,7 @@ void GServer::DeleteNpc(shared_ptr<Npc> npc)
 	iItemID = 0; // No current item
 
 	SendEventToNearClient_TypeA(npc.get(), MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
-	npc->pMap->ClearOwner(npc->m_sX, npc->m_sY);
+	npc->pMap->ClearDeadOwner(npc->m_sX, npc->m_sY);
 
 	npc->pMap->m_iTotalActiveObject--;
 
@@ -5449,8 +5587,8 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 		for (shared_ptr<Client> client : clientlist)
 		{
 			if ((client->m_handle != player->m_handle) && (client->m_bIsInitComplete) && (player->pMap == client->pMap)
-				&& ((client->m_sX > player->m_sX - 13) && (client->m_sX < player->m_sX + 13)//screen res location
-				  && (client->m_sY > player->m_sY - 11) && (client->m_sY < player->m_sY + 11)))
+				&& ((client->m_sX > player->m_sX - 15) && (client->m_sX < player->m_sX + 15)//screen res location
+				  && (client->m_sY > player->m_sY - 13) && (client->m_sY < player->m_sY + 13)))
 			{
 				client->mutsocket.lock();
 				if(_bGetIsPlayerHostile(player,client.get()) && client->m_iAdminUserLevel == 0)
@@ -5517,8 +5655,8 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 		for (shared_ptr<Client> client : clientlist)
 		{
 			if (/*(client->m_handle != npc->m_handle) && */(client->m_bIsInitComplete) && (npc->pMap == client->pMap)
-				&& ((client->m_sX > npc->m_sX - 13) && (client->m_sX < npc->m_sX + 13)//screen res location
-				&& (client->m_sY > npc->m_sY - 11) && (client->m_sY < npc->m_sY + 11)))
+				&& ((client->m_sX > npc->m_sX - 15) && (client->m_sX < npc->m_sX + 15)//screen res location
+				&& (client->m_sY > npc->m_sY - 12) && (client->m_sY < npc->m_sY + 12)))
 			{
 				client->mutsocket.lock();
 // 				if(_bGetIsPlayerHostile(player,client.get()) && client->m_iAdminUserLevel == 0)//can add flag modifiers here
@@ -5568,8 +5706,8 @@ void GServer::SendEventToNearClient_TypeB(uint32_t msgid, uint16_t msgtype, Map 
 	for (shared_ptr<Client> client : clientlist)
 	{
 		if ((client->m_bIsInitComplete) && (client->pMap == mapIndex)
-			&& ((client->m_sX > sX - 13) && (client->m_sX < sX + 13)//screen res location
-			&& (client->m_sY > sY - 11) && (client->m_sY < sY + 11)))
+			&& ((client->m_sX > sX - 15) && (client->m_sX < sX + 15)//screen res location
+			&& (client->m_sY > sY - 13) && (client->m_sY < sY + 13)))
 		{
 			client->mutsocket.lock();
 			if (client->socket)
@@ -5814,7 +5952,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 						}
 
 						maptarget = client->pMap->GetOwner(dX, dY);
-						if (iExp == 0 && cOwnerType == OWNERTYPE_NPC && dice(1, 2) == 1) {
+						if (iExp == 0 && maptarget->m_ownerType == OWNERTYPE_NPC && dice(1, 2) == 1) {
 							iExp += CalculateAttackEffect(maptarget.get(), client.get(), dX, dY, wType, bNearAttack, bIsDash);
 						}
 						iExp += CalculateAttackEffect(maptarget.get(), client.get(), dX, dY, wType, bNearAttack, bIsDash);
@@ -10802,7 +10940,7 @@ bool GServer::bAnalyzeCriminalAction(Client * client, short dX, short dY, bool b
 			else
 				return false;
 
-			ZeroMemory(cNpcWaypoint, sizeof(cNpcWaypoint));
+			memset(cNpcWaypoint, 0, sizeof(cNpcWaypoint));
 
 			tX = (int)client->m_sX;
 			tY = (int)client->m_sY;
@@ -11311,6 +11449,8 @@ void GServer::RequestRestartHandler(shared_ptr<Client> player)
 	player->m_bIsKilled = false;
 	player->m_iHP = player->GetMaxHP();
 	player->m_iHungerStatus = 100;
+
+	player->pMap->ClearDeadOwner(player->m_sX, player->m_sY);
 
 	RequestTeleportHandler(player.get(), 2, player->m_cMapName);
 }

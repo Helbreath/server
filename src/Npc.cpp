@@ -517,7 +517,7 @@ void Npc::behavior_move()
 
  					if(IsDead())
  					{
- 						//gserver->NpcKilledHandler(NULL, NULL, m_handle, 0);
+ 						gserver->NpcKilledHandler(nullptr, self.lock(), 0);
  						return;
  					}
 					else

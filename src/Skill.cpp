@@ -11,7 +11,7 @@
 
 CSkill::CSkill()
 {
-	ZeroMemory(m_cName, sizeof(m_cName));
+	memset(m_cName, 0, sizeof(m_cName));
 }
 
 CSkill::~CSkill()
