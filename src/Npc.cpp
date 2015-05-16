@@ -1468,7 +1468,7 @@ shared_ptr<Unit> Npc::TargetSearch()
 	{
 	
 		if (owner == nullptr) continue;
- 		if (owner == this->self.lock())
+ 		if (owner.get() == this)
  			continue;
 
  		iPKCount = 0;
@@ -1478,7 +1478,7 @@ shared_ptr<Unit> Npc::TargetSearch()
  //			if(gserver->GetClient(owner->m_handle)->IsNoAggro() || iSearchType == 1)
  //				continue;
 
- 			iPKCount    = gserver->GetClient(owner->m_handle)->m_iPKCount;
+ 			iPKCount    = static_cast<Client*>(owner.get())->m_iPKCount;
  			break;
 
  		case OWNERTYPE_NPC:
