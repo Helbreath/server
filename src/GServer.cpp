@@ -2706,6 +2706,12 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		to->SWrite(sw);
 		break;
 
+	case NOTIFY_KILLED:
+
+		sw.WriteString(pString, 20);//ActiveTitle
+
+		to->SWrite(sw);
+		break;
 
 // 	case NOTIFY_UPDATETITLELIST:
 // 
@@ -4138,13 +4144,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 10);
 		break;
 
-	case NOTIFY_KILLED:
 
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 26);
-		break;
 
 
 

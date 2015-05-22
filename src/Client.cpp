@@ -782,7 +782,7 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 
 	attackername = attacker->name;
 
-	Notify(nullptr, NOTIFY_HP, 0, 0, 0);
+	//Notify(nullptr, NOTIFY_HP, 0, 0, 0);
 	Notify(nullptr, NOTIFY_KILLED, 0, 0, 0, attackername);
 	if (attacker->m_ownerType == OWNERTYPE_PLAYER) {
 		sAttackerWeapon = ((static_cast<Client*>(attacker)->m_sAppr2 & 0x0FF0) >> 4);
