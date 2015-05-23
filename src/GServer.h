@@ -325,7 +325,7 @@ public:
 	shared_ptr<Client> GetClient(uint64_t ObjectID);
 	shared_ptr<Npc> GetNpc(uint64_t ObjectID);
 	Npc * GetNpcByName(string name);
-	Item * GServer::GetItemByName(string name);
+	Item * GetItemByName(string name);
 
 	void ParseChat(Client * client, string message);
 

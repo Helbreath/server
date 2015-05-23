@@ -5,10 +5,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "Gate.h"
 #include "LServer.h"
 #include "GServer.h"
 #include "Server.h"
-#include "Gate.h"
 
 Gate * gateserver = 0;
 

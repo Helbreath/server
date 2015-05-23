@@ -6657,16 +6657,12 @@ bool GServer::_bAddClientItemList(shared_ptr<Client> client, Item * pItem, int *
 
 	if ((pItem->m_cItemType == ITEMTYPE_CONSUME) || (pItem->m_cItemType == ITEMTYPE_ARROW)) {
 		for (i = 0; i < client->m_pItemList.size(); i++)
-			if ( (client->m_pItemList[i] != 0) && 
-				(client->m_pItemList[i]->_item->m_cName == pItem->m_cName) ) {
-
-					client->m_pItemList[i]->_item->m_dwCount += pItem->m_dwCount;
-					//delete pItem;
-					*pDelReq = 1;
-
-					iCalcTotalWeight(client);
-
-					return true;
+			if (client->m_pItemList[i] != 0 && client->m_pItemList[i]->_item != 0 && client->m_pItemList[i]->_item->m_cName == pItem->m_cName) {
+				client->m_pItemList[i]->_item->m_dwCount += pItem->m_dwCount;
+				//delete pItem;
+				*pDelReq = 1;
+				iCalcTotalWeight(client);
+				return true;
 			}
 	}
 
@@ -11083,12 +11079,12 @@ void GServer::NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> np
 	uint32_t dwTime = unixtime();
 	srand(time(0));
 	// Select a random item
-	int baseChance = rand() % 1000;
+	int baseChance = rand() % 9999 + 1;
 	int currentChance = baseChance;
 	int tierMultiplier = 10000;
-	int rareChance = rand() % 10;
-	int epicChance = rand() % 100;
-	int godChance = rand() % 1000;
+	int rareChance = rand() % 10 + 1;
+	int epicChance = rand() % 100 + 1;
+	int godChance = rand() % 1000 + 1;
 	if (rareChance == 10) {
 		currentChance += 10000;
 	}
@@ -11099,52 +11095,38 @@ void GServer::NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> np
 		currentChance += 30000;
 	}
 
-	srand(time(0));
-	int awarded = rand() % 3 + 1;
-	int aKey = 0;
-	int aItem = 0;
-	int aProb = 0;
-	int ai = 0;
-
 	int npcItems[MAXITEMTYPES];
-	int npcItemCount = 0;
 	for (int ni = 0; ni < MAXITEMTYPES; ni++) {
 		npcItems[ni] = 0;
 	}
-	for (int ni = 0; ni < MAXITEMTYPES; ni++) {
-		if (m_npcDropData[npc->m_sType][ni] != 0) {
-			npcItems[npcItemCount] = ni;
+	int npcItemCount = 0;
+	for (int nif = 0; nif < MAXITEMTYPES; nif++) {
+		if (m_npcDropData[npc->m_sType][nif] != 0) {
+			npcItems[npcItemCount] = nif;
 			npcItemCount++;
 		}
 	}
-	random_shuffle(std::begin(npcItems), std::end(npcItems));
-	logger->information("Current chance: %d, awarded items: %d", currentChance, awarded);
-
-	while (ai < awarded) {
-		for (int ii = 0; ii <= npcItemCount; ii++) {
-			if (ai > awarded) { break; }
-			aProb = m_npcDropData[npc->m_sType][npcItems[ii]];
+	logger->information("Item drop rolling. Chance: %d, Items: %d", currentChance, npcItemCount);
+	for (int ii = 0; ii <= npcItemCount; ii++) {
+		if (m_pItemConfigList[npcItems[ii]] != 0) {
+			int aProb = m_npcDropData[npc->m_sType][npcItems[ii]];
 			if (aProb < currentChance) {
-				int npcID = npcItems[ii];
+				int itemID = npcItems[ii];
 				// Winner, winner, chicken dinner
-				Item * newItem = new Item(npcID, m_pItemConfigList);
-				if (newItem->m_sIDnum && newItem->m_cName != "") {
-					currentChance -= aProb;
+				if (m_pItemConfigList[itemID] != 0 && m_pItemConfigList[itemID]->m_cName != "") {
+					Item * newItem = new Item(itemID, m_pItemConfigList);
 					npc->pMap->bSetItem(npc->m_sX, npc->m_sY, newItem);
-
-					logger->information("Dropping item #%?d for player #%?d", npcID, attacker->m_uid);
+					logger->information("Dropping %s for player #%?d", m_pItemConfigList[npcItems[ii]]->m_cName, attacker->m_uid);
 					SendEventToNearClient_TypeB(
 						MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, attacker->pMap,
 						npc->m_sX, npc->m_sY, newItem->m_sSprite, newItem->m_sSpriteFrame, newItem->m_ItemColor
-					);
+						);
 
-					SendNotifyMsg(nullptr, (GetClient(attacker->m_handle)).get(), NOTIFY_DROPITEMFIN_COUNTCHANGED, npcID, 1, 0);
-					ai++;
+					SendNotifyMsg(nullptr, (GetClient(attacker->m_handle)).get(), NOTIFY_DROPITEMFIN_COUNTCHANGED, itemID, 1, 0);
+					return;
 				}
-				if (ai > awarded) { break; }
 			}
 		}
-		ai++;
 	}
 }
 
