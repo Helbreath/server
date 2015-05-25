@@ -2816,6 +2816,12 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		to->SWrite(sw);
 		break;
 
+	case NOTIFY_KILLED:
+
+		sw.WriteString(pString, 20);//ActiveTitle
+
+		to->SWrite(sw);
+		break;
 
 // 	case NOTIFY_UPDATETITLELIST:
 // 
@@ -4248,13 +4254,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 10);
 		break;
 
-	case NOTIFY_KILLED:
 
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 26);
-		break;
 
 
 
@@ -6657,12 +6657,16 @@ bool GServer::_bAddClientItemList(shared_ptr<Client> client, Item * pItem, int *
 
 	if ((pItem->m_cItemType == ITEMTYPE_CONSUME) || (pItem->m_cItemType == ITEMTYPE_ARROW)) {
 		for (i = 0; i < client->m_pItemList.size(); i++)
-			if (client->m_pItemList[i] != 0 && client->m_pItemList[i]->_item != 0 && client->m_pItemList[i]->_item->m_cName == pItem->m_cName) {
-				client->m_pItemList[i]->_item->m_dwCount += pItem->m_dwCount;
-				//delete pItem;
-				*pDelReq = 1;
-				iCalcTotalWeight(client);
-				return true;
+			if ( (client->m_pItemList[i] != 0) && 
+				(client->m_pItemList[i]->_item->m_cName == pItem->m_cName) ) {
+
+					client->m_pItemList[i]->_item->m_dwCount += pItem->m_dwCount;
+					//delete pItem;
+					*pDelReq = 1;
+
+					iCalcTotalWeight(client);
+
+					return true;
 			}
 	}
 
