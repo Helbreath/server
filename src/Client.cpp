@@ -1623,3 +1623,55 @@ uint16_t Client::ArcaneResist()
 
 	return _ArcaneResist;
 }
+
+int8_t Client::ChangeCurrency(int8_t id, int64_t amount)
+{
+	for (stCurrency & c : _currency)
+	{
+		if (c._id == id)
+		{
+			if (c._count + amount > c._max)
+			{
+				c._count = c._max;
+				return 2;
+			}
+			else if (c._count + amount < c._min)
+			{
+				c._count = c._min;
+				return 2;
+			}
+			else
+			{
+				c._count += amount;
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+int8_t Client::SetCurrency(int8_t id, int64_t amount)
+{
+	for (stCurrency & c : _currency)
+	{
+		if (c._id == id)
+		{
+			if (amount > c._max)
+			{
+				c._count = c._max;
+				return 2;
+			}
+			else if (amount < c._min)
+			{
+				c._count = c._min;
+				return 2;
+			}
+			else
+			{
+				c._count = amount;
+				return 1;
+			}
+		}
+	}
+	return 0;
+}

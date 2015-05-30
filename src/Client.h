@@ -190,6 +190,32 @@ public:
 
 	bool ResizeInventory(uint16_t newsize);
 
+	// Change currency by amount - _count += amount
+	// Returns:
+	//		0 - nonexistent currency
+	//		1 - success
+	//		2 - limits were broken and not all of amount was applied
+	int8_t ChangeCurrency(int8_t id, int64_t amount);
+
+	// Set currency to amount - _count = amount
+	// Returns:
+	//		0 - nonexistent currency
+	//		1 - success
+	//		2 - limits were broken and not all of amount was applied
+	int8_t SetCurrency(int8_t id, int64_t amount);
+
+	struct stCurrency
+	{
+		stCurrency() { _id = 0; _count = _min = _max = 0; }
+		stCurrency(stCurrency&c) { _id = c._id; _count = c._count; _min = c._min; _max = c._max; }
+		int8_t  _id;
+		int64_t _count;
+		int64_t _min;
+		int64_t _max;
+	};
+
+	std::list<stCurrency> _currency;
+
 	uint16_t _IceResist;
 	uint16_t _ParalyzeResist;
 	uint16_t _FireResist;

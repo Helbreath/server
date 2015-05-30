@@ -7346,6 +7346,26 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 		client->m_sAppr1 = (client->m_cHairStyle << 8) | (client->haircolor << 4) | client->underwearcolor;
 		
 
+		Session ses(sqlpool->get());
+		Statement select(ses);
+		select << "SELECT currency_id,count FROM char_currency WHERE char_id=?;", use(client->m_charID), now;
+		RecordSet rs(select);
+
+		uint32_t rowcount = rs.rowCount();
+
+		if (rowcount > 0)
+		{
+			rs.moveFirst();
+			Client::stCurrency currency;
+
+			while (rs.moveNext())
+			{
+				currency._id = rs.value("currency_id").convert<int64_t>();
+				currency._count = rs.value("count").convert<int64_t>();
+				client->_currency.push_back(currency);
+			}
+		}
+
 		return true;
 	}
 	SQLCATCH(/*DeleteClient(client, true);*/ return false)
@@ -7353,6 +7373,7 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 	{
 		poco_error(*logger, "SessionPoolExhaustedException - CheckLogin()");
 	}
+	return false;
 }
 //how to delete client?
 //void Server::DeleteClient(Client * client,
