@@ -207,7 +207,7 @@ public:
 	struct stCurrency
 	{
 		stCurrency() { _id = 0; _count = _min = _max = 0; }
-		stCurrency(stCurrency&c) { _id = c._id; _count = c._count; _min = c._min; _max = c._max; }
+		stCurrency(const stCurrency&c) { _id = c._id; _count = c._count; _min = c._min; _max = c._max; }
 		int8_t  _id;
 		int64_t _count;
 		int64_t _min;
