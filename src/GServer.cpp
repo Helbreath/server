@@ -7245,124 +7245,128 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 {
 	try
 	{
-		Session ses(sqlpool->get());
-		Statement select(ses);
-		select << "SELECT * FROM char_database WHERE account_name=? AND char_name=? AND servername=?;", use(client->account), use(client->name), use(servername), now;
-		RecordSet rs(select);
-
-		rs.moveFirst();
-		
-		client->m_handle = rs.value("charid").convert<uint64_t>();
-		client->m_cMapName = rs.value("maploc").convert<string>();
-		client->m_sX = rs.value("locx").convert<int16_t>();
-		client->m_sY = rs.value("locy").convert<int16_t>();
-		client->m_cSex = rs.value("gender").convert<uint8_t>();
-		client->skincolor = rs.value("skin").convert<uint8_t>();
-		client->m_cHairStyle = rs.value("hairstyle").convert<uint8_t>();
-		client->haircolor = rs.value("haircolor").convert<uint32_t>();
-		client->underwearcolor = rs.value("underwear").convert<uint32_t>();
-		client->m_cGuildName = rs.value("guildname").convert<string>();
-		string temp = rs.value("magicmastery").convert<string>();
-		for (int i = 0; i < temp.length(); ++i)
 		{
-			client->m_cMagicMastery[i] = (temp[i]=='1')?1:0;
-		}
-		//memcpy(client->m_cMagicMastery, rs.value("magicmastery").convert<string>().c_str(), rs.value("magicmastery").convert<string>().length());//fix. each should be 0x00, not (char)'0'
-		string side = rs.value("nation").convert<string>();
-		/*if (side == "NONE")
-			side = Side::NEUTRAL;
-		else if (side == "Aresden")
-			side = Side::ARESDEN;
-		else if (side == "Elvine")
-			side = Side::ELVINE;*/
-		client->m_cLocation = side;
-		//client->m_cMapName = rs.value("BlockDate").convert<string>();
-		client->m_cLockedMapName = rs.value("lockmapname").convert<string>();
-		client->m_iLockedMapTime = rs.value("lockmaptime").convert<uint64_t>();
-		client->m_cProfile = rs.value("profile").convert<string>();
-		client->m_iGuildRank = rs.value("guildrank").convert<int8_t>();
-		client->m_iHP = rs.value("hp").convert<uint64_t>();
-		client->m_iMP = rs.value("mp").convert<uint64_t>();
-		client->m_iSP = rs.value("sp").convert<uint64_t>();
-		client->m_iEnemyKillCount = rs.value("ek").convert<int32_t>();
-		client->m_iPKCount = rs.value("pk").convert<int32_t>();
-		client->m_iLevel = rs.value("level").convert<uint32_t>();
-		client->m_iExp = rs.value("exp").convert<uint64_t>();
-		client->_str = rs.value("strength").convert<int32_t>();
-		client->_vit = rs.value("vitality").convert<int32_t>();
-		client->_dex = rs.value("dexterity").convert<int32_t>();
-		client->_int = rs.value("intelligence").convert<int32_t>();
-		client->_mag = rs.value("magic").convert<int32_t>();
-		client->_agi = rs.value("agility").convert<int32_t>();
-		client->m_iLuck = rs.value("luck").convert<uint16_t>();
-		client->m_iRewardGold = rs.value("rewardgold").convert<int32_t>();
-		client->m_iHungerStatus = rs.value("hunger").convert<int32_t>();
-		client->m_iAdminUserLevel = rs.value("adminlevel").convert<int32_t>();
-		client->m_iTimeLeft_ShutUp = rs.value("leftshutuptime").convert<uint64_t>();
-		client->m_iTimeLeft_Rating = rs.value("leftpoptime").convert<uint64_t>();
-		client->m_reputation = rs.value("popularity").convert<int32_t>();
-		client->m_iGuildGUID = rs.value("guildid").convert<uint64_t>();
-		//client->m_iDownSkillIndex = rs.value("DownSkillID").convert<int16_t>();//use?
-		client->m_charID = rs.value("charid").convert<uint64_t>();
-		client->m_sCharIDnum1 = rs.value("id1").convert<int16_t>();
-		client->m_sCharIDnum2 = rs.value("id2").convert<int16_t>();
-		client->m_sCharIDnum3 = rs.value("id3").convert<int16_t>();
-		client->m_iQuest = rs.value("questnum").convert<int32_t>();
-		client->m_iCurQuestCount = rs.value("questcount").convert<int32_t>();
-		client->m_iQuestRewardType = rs.value("questrewardtype").convert<int32_t>();
-		client->m_iQuestRewardAmount = rs.value("questrewardamount").convert<int32_t>();
-		client->m_iContribution = rs.value("contribution").convert<int32_t>();
-		client->m_iQuestID = rs.value("questid").convert<int32_t>();
-		client->m_bIsQuestCompleted = rs.value("questcompleted").convert<bool>();
-		client->m_iTimeLeft_ForceRecall = rs.value("leftforcerecalltime").convert<uint64_t>();
-		client->m_iTimeLeft_FirmStamina = rs.value("leftfirmstaminatime").convert<uint64_t>();
-		client->m_iSpecialEventID = rs.value("eventid").convert<int32_t>();
-		client->m_iSuperAttackLeft = rs.value("leftsac").convert<int32_t>();
-		client->m_iFightzoneNumber = rs.value("fightnum").convert<int32_t>();
-		client->m_iReserveTime = rs.value("fightdate").convert<uint64_t>();
-		client->m_iFightZoneTicketNumber = rs.value("fightticket").convert<int32_t>();
-		client->m_iSpecialAbilityTime = rs.value("leftspectime").convert<uint64_t>();
-		client->m_iWarContribution = rs.value("warcon").convert<int32_t>();
-		client->m_iCrusadeDuty = rs.value("crujob").convert<int32_t>();
-		client->m_iConstructionPoint = rs.value("cruconstructpoint").convert<int32_t>();
-		client->m_dwCrusadeGUID = rs.value("cruid").convert<uint64_t>();
-		client->m_iDeadPenaltyTime = rs.value("leftdeadpenaltytime").convert<uint64_t>();
-		uint64_t partyid = rs.value("partyid").convert<uint64_t>();
-		// 					if (partyid && partyMgr.PartyExists(partyid))
-		// 					{
-		// 						client->SetParty(partyMgr.GetParty(partyid));
-		// 
-		// 					}
-		client->m_iGizonItemUpgradeLeft = rs.value("gizonitemupgradeleft").convert<int32_t>();
-		client->m_elo = rs.value("elo").convert<int32_t>();
-		client->m_iEnemyKillTotalCount = rs.value("totalek").convert<int32_t>();
-		//client->m_iLucky = rs.value("Lucky").convert<uint32_t>();//not in DB
-		//client->m_iMonsterCount = rs.value("MonsterCount").convert<uint32_t>();//not in DB
+			Session ses(sqlpool->get());
+			Statement select(ses);
+			select << "SELECT * FROM char_database WHERE account_name=? AND char_name=? AND servername=?;", use(client->account), use(client->name), use(servername), now;
+			RecordSet rs(select);
 
-
-		if (client->m_cSex == MALE) client->m_sType = 1;
-		else if (client->m_cSex == FEMALE) client->m_sType = 4;
-		client->m_sType += client->skincolor-1;
-		client->m_sAppr1 = (client->m_cHairStyle << 8) | (client->haircolor << 4) | client->underwearcolor;
-		
-
-		Session ses(sqlpool->get());
-		Statement select(ses);
-		select << "SELECT currency_id,count FROM char_currency WHERE char_id=?;", use(client->m_charID), now;
-		RecordSet rs(select);
-
-		uint32_t rowcount = rs.rowCount();
-
-		if (rowcount > 0)
-		{
 			rs.moveFirst();
-			Client::stCurrency currency;
 
-			while (rs.moveNext())
+			client->m_handle = rs.value("charid").convert<uint64_t>();
+			client->m_cMapName = rs.value("maploc").convert<string>();
+			client->m_sX = rs.value("locx").convert<int16_t>();
+			client->m_sY = rs.value("locy").convert<int16_t>();
+			client->m_cSex = rs.value("gender").convert<uint8_t>();
+			client->skincolor = rs.value("skin").convert<uint8_t>();
+			client->m_cHairStyle = rs.value("hairstyle").convert<uint8_t>();
+			client->haircolor = rs.value("haircolor").convert<uint32_t>();
+			client->underwearcolor = rs.value("underwear").convert<uint32_t>();
+			client->m_cGuildName = rs.value("guildname").convert<string>();
+			string temp = rs.value("magicmastery").convert<string>();
+			for (int i = 0; i < temp.length(); ++i)
 			{
-				currency._id = rs.value("currency_id").convert<int64_t>();
-				currency._count = rs.value("count").convert<int64_t>();
-				client->_currency.push_back(currency);
+				client->m_cMagicMastery[i] = (temp[i] == '1') ? 1 : 0;
+			}
+			//memcpy(client->m_cMagicMastery, rs.value("magicmastery").convert<string>().c_str(), rs.value("magicmastery").convert<string>().length());//fix. each should be 0x00, not (char)'0'
+			string side = rs.value("nation").convert<string>();
+			/*if (side == "NONE")
+				side = Side::NEUTRAL;
+				else if (side == "Aresden")
+				side = Side::ARESDEN;
+				else if (side == "Elvine")
+				side = Side::ELVINE;*/
+			client->m_cLocation = side;
+			//client->m_cMapName = rs.value("BlockDate").convert<string>();
+			client->m_cLockedMapName = rs.value("lockmapname").convert<string>();
+			client->m_iLockedMapTime = rs.value("lockmaptime").convert<uint64_t>();
+			client->m_cProfile = rs.value("profile").convert<string>();
+			client->m_iGuildRank = rs.value("guildrank").convert<int8_t>();
+			client->m_iHP = rs.value("hp").convert<uint64_t>();
+			client->m_iMP = rs.value("mp").convert<uint64_t>();
+			client->m_iSP = rs.value("sp").convert<uint64_t>();
+			client->m_iEnemyKillCount = rs.value("ek").convert<int32_t>();
+			client->m_iPKCount = rs.value("pk").convert<int32_t>();
+			client->m_iLevel = rs.value("level").convert<uint32_t>();
+			client->m_iExp = rs.value("exp").convert<uint64_t>();
+			client->_str = rs.value("strength").convert<int32_t>();
+			client->_vit = rs.value("vitality").convert<int32_t>();
+			client->_dex = rs.value("dexterity").convert<int32_t>();
+			client->_int = rs.value("intelligence").convert<int32_t>();
+			client->_mag = rs.value("magic").convert<int32_t>();
+			client->_agi = rs.value("agility").convert<int32_t>();
+			client->m_iLuck = rs.value("luck").convert<uint16_t>();
+			client->m_iRewardGold = rs.value("rewardgold").convert<int32_t>();
+			client->m_iHungerStatus = rs.value("hunger").convert<int32_t>();
+			client->m_iAdminUserLevel = rs.value("adminlevel").convert<int32_t>();
+			client->m_iTimeLeft_ShutUp = rs.value("leftshutuptime").convert<uint64_t>();
+			client->m_iTimeLeft_Rating = rs.value("leftpoptime").convert<uint64_t>();
+			client->m_reputation = rs.value("popularity").convert<int32_t>();
+			client->m_iGuildGUID = rs.value("guildid").convert<uint64_t>();
+			//client->m_iDownSkillIndex = rs.value("DownSkillID").convert<int16_t>();//use?
+			client->m_charID = rs.value("charid").convert<uint64_t>();
+			client->m_sCharIDnum1 = rs.value("id1").convert<int16_t>();
+			client->m_sCharIDnum2 = rs.value("id2").convert<int16_t>();
+			client->m_sCharIDnum3 = rs.value("id3").convert<int16_t>();
+			client->m_iQuest = rs.value("questnum").convert<int32_t>();
+			client->m_iCurQuestCount = rs.value("questcount").convert<int32_t>();
+			client->m_iQuestRewardType = rs.value("questrewardtype").convert<int32_t>();
+			client->m_iQuestRewardAmount = rs.value("questrewardamount").convert<int32_t>();
+			client->m_iContribution = rs.value("contribution").convert<int32_t>();
+			client->m_iQuestID = rs.value("questid").convert<int32_t>();
+			client->m_bIsQuestCompleted = rs.value("questcompleted").convert<bool>();
+			client->m_iTimeLeft_ForceRecall = rs.value("leftforcerecalltime").convert<uint64_t>();
+			client->m_iTimeLeft_FirmStamina = rs.value("leftfirmstaminatime").convert<uint64_t>();
+			client->m_iSpecialEventID = rs.value("eventid").convert<int32_t>();
+			client->m_iSuperAttackLeft = rs.value("leftsac").convert<int32_t>();
+			client->m_iFightzoneNumber = rs.value("fightnum").convert<int32_t>();
+			client->m_iReserveTime = rs.value("fightdate").convert<uint64_t>();
+			client->m_iFightZoneTicketNumber = rs.value("fightticket").convert<int32_t>();
+			client->m_iSpecialAbilityTime = rs.value("leftspectime").convert<uint64_t>();
+			client->m_iWarContribution = rs.value("warcon").convert<int32_t>();
+			client->m_iCrusadeDuty = rs.value("crujob").convert<int32_t>();
+			client->m_iConstructionPoint = rs.value("cruconstructpoint").convert<int32_t>();
+			client->m_dwCrusadeGUID = rs.value("cruid").convert<uint64_t>();
+			client->m_iDeadPenaltyTime = rs.value("leftdeadpenaltytime").convert<uint64_t>();
+			uint64_t partyid = rs.value("partyid").convert<uint64_t>();
+			// 					if (partyid && partyMgr.PartyExists(partyid))
+			// 					{
+			// 						client->SetParty(partyMgr.GetParty(partyid));
+			// 
+			// 					}
+			client->m_iGizonItemUpgradeLeft = rs.value("gizonitemupgradeleft").convert<int32_t>();
+			client->m_elo = rs.value("elo").convert<int32_t>();
+			client->m_iEnemyKillTotalCount = rs.value("totalek").convert<int32_t>();
+			//client->m_iLucky = rs.value("Lucky").convert<uint32_t>();//not in DB
+			//client->m_iMonsterCount = rs.value("MonsterCount").convert<uint32_t>();//not in DB
+
+
+			if (client->m_cSex == MALE) client->m_sType = 1;
+			else if (client->m_cSex == FEMALE) client->m_sType = 4;
+			client->m_sType += client->skincolor - 1;
+			client->m_sAppr1 = (client->m_cHairStyle << 8) | (client->haircolor << 4) | client->underwearcolor;
+		}
+		
+
+		{
+			Session ses(sqlpool->get());
+			Statement select(ses);
+			select << "SELECT currency_id,count FROM char_currency WHERE char_id=?;", use(client->m_charID), now;
+			RecordSet rs(select);
+
+			uint32_t rowcount = rs.rowCount();
+
+			if (rowcount > 0)
+			{
+				rs.moveFirst();
+				Client::stCurrency currency;
+
+				while (rs.moveNext())
+				{
+					currency._id = rs.value("currency_id").convert<int64_t>();
+					currency._count = rs.value("count").convert<int64_t>();
+					client->_currency.push_back(currency);
+				}
 			}
 		}
 
