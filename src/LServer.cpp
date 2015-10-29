@@ -311,6 +311,12 @@ void LServer::SocketThread()
 					sw.WriteShort(0);//dates /\
 
 					SendCharList(client, sw);
+					sw.WriteInt(500);
+					sw.WriteInt(500);
+					client->mutsocket.lock();
+					if (client->socket)
+						client->socket->write(sw.data, sw.position);
+					client->mutsocket.unlock();
 				}
 				break;
 			case MSGID_REQUEST_CREATENEWCHARACTER:
@@ -658,6 +664,7 @@ void LServer::SocketThread()
 							{
 								if (clnt->account == client->account)
 								{
+									//BUG: potential bug point if charID == 0 - only occurs on unsuccessful login
 									//account found
 									accountfound = true;
 									if (clnt->m_charID == charid)
@@ -696,7 +703,7 @@ void LServer::SocketThread()
 
 									//since nothing is technically associated with this client, just remove it from the list to force it to delete
 
-									gate->clientlist.remove(client);
+									pgs->clientlist.remove(client);
 
 									client = clientfound;
 
@@ -927,7 +934,7 @@ void LServer::SendCharList(shared_ptr<Client> client, StreamWrite & sw)
 				sw.WriteShort(character.get<9>());//gender
 				sw.WriteShort(character.get<10>());//skin
 				sw.WriteShort(character.get<11>());//level
-				sw.WriteInt(character.get<12>());//exp
+				sw.WriteInt64(character.get<12>());//exp
 				sw.WriteShort(0);//strength
 				sw.WriteShort(0);//vitality
 				sw.WriteShort(0);//dexterity
@@ -943,10 +950,10 @@ void LServer::SendCharList(shared_ptr<Client> client, StreamWrite & sw)
 				sw.WriteString(character.get<14>(), 10);//char name
 			}
 		}
-		client->mutsocket.lock();
-		if (client->socket)
-			client->socket->write(sw.data, sw.position);
-		client->mutsocket.unlock();
+// 		client->mutsocket.lock();
+// 		if (client->socket)
+// 			client->socket->write(sw.data, sw.position);
+// 		client->mutsocket.unlock();
 		//need a way to "organize"? outgoing packets
 	}
 	SQLCATCH(DeleteClient(client, true))
