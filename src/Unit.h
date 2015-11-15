@@ -48,8 +48,8 @@ public:
 	uint64_t m_handle;
 	
 	int16_t m_sX, m_sY;
-	uint64_t m_iHP;
-	uint64_t m_iMP;
+	int64_t m_iHP;
+	int64_t m_iMP;
 	uint64_t  m_iExp;
 	Side m_side;
 	uint32_t m_iStatus;
