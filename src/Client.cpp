@@ -780,11 +780,12 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 
 	gserver->RemoveFromTarget(self.lock());
 
-	attackername = attacker->name;
+	if (attacker)
+		attackername = attacker->name;
 
 	Notify(nullptr, NOTIFY_HP, 0, 0, 0);
 	Notify(nullptr, NOTIFY_KILLED, 0, 0, 0, attackername);
-	if (attacker->m_ownerType == OWNERTYPE_PLAYER) {
+	if (attacker->IsPlayer()) {
 		sAttackerWeapon = ((static_cast<Client*>(attacker)->m_sAppr2 & 0x0FF0) >> 4);
 	}
 	else sAttackerWeapon = 1;

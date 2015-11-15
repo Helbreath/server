@@ -4997,7 +4997,7 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 			SendObjectMotionRejectMsg(client.get());
 		}
 
-		if ((client->m_iHP <= 0)) client->KilledHandler(nullptr, 1); 
+		if ((client->m_iHP <= 0)) client->KilledHandler(nullptr, 1);
 		break;
 
 	case MSGID_MOTION_DAMAGEMOVE:
@@ -5154,7 +5154,6 @@ void GServer::NpcProcess()
 			dwActionTime = npc->m_dwActionTime;
 			break;
 		}
-
 
 		if (npc->m_cMagicEffectStatus[MAGICTYPE_ICE] != 0)
 			dwActionTime += (dwActionTime / 2);
@@ -7890,7 +7889,7 @@ bool GServer::CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int i
 
 	if (target == nullptr)
 		return false;
-	if (target->m_sType == OWNERTYPE_PLAYER)
+	if (target->IsPlayer())
 	{
 		Client * client = static_cast<Client *>(target);
 		if (client->IsInvincible()) return true;
@@ -7905,7 +7904,7 @@ bool GServer::CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int i
 		cProtect = client->m_cMagicEffectStatus[MAGICTYPE_PROTECT];
 		if ((client->m_iStatus & STATUS_REDSLATE) != 0) return true;
 	}
-	else if (target->m_sType == OWNERTYPE_NPC)
+	else
 	{
 		Npc * npc = static_cast<Npc *>(target);
 		cTargetDir = npc->m_cDir;
@@ -7937,7 +7936,7 @@ bool GServer::CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int i
 	if (iResult <= iDestHitRatio) return false;
 
 	// Resisting Magic
-	if (target->m_sType == OWNERTYPE_PLAYER)
+	if (target->IsPlayer())
 		CalculateSSN_SkillIndex(static_cast<Client *>(target), SKILL_MAGICRES, 1);
 
 	return true;

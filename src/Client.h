@@ -226,7 +226,7 @@ public:
 	InventoryMgr invbank;
 	InventoryMgr invself;
 
-	bool m_bIsHunter;
+	bool m_bIsHunter;//TODO: either remove or redo the whole 17 year old civilian system
 
 	bool m_bActive;
 

@@ -35,7 +35,7 @@ public:
 	bool IsBerserked()	const { return m_cMagicEffectStatus[MAGICTYPE_BERSERK] ? true : false; }
 	bool IsInvisible()	const { return m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] ? true : false; }
 
-	bool IsPlayer()	const	{ return (m_ownerType == OWNERTYPE_PLAYER) ? true : false; }
+	bool IsPlayer()	const	{ return (m_ownerType == OWNERTYPE_PLAYER) ? true : false; }//TODO: go through old code and update
 	bool IsNPC() 		const	{ return (m_ownerType == OWNERTYPE_NPC) ? true : false; }
 	bool IsNeutral()	const	{ return (m_side == NEUTRAL) ? true : false; }
 	bool IsAres()		const	{ return (m_side == ARESDEN) ? true : false; }

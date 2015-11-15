@@ -1443,6 +1443,7 @@ Unit * Npc::TargetSearch(uint8_t dX,uint8_t dY,uint8_t Radius)
 }*/
 shared_ptr<Unit> Npc::TargetSearch()
 {
+
  	int ix, iy, iPKCount;
  	short sX, sY, rX, rY;
  	short sDistance, sTempDistance;
