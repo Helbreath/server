@@ -196,7 +196,7 @@ public:
 	//Unit * TargetSearch(uint8_t dX, uint8_t dY, uint8_t Radius);
 	shared_ptr<Unit> TargetSearch();
 	int getDangerValue(short dX, short dY);
-	void magicHandler(short dX, short dY, short sType);
+	void magicHandler(Unit * unit, short dX, short dY, short magicType);
 	int GetGenLevel();
 
 	void Cast(shared_ptr<Unit> target, short spell);

@@ -837,7 +837,7 @@ void Npc::behavior_attack()
  				if(m_cTargetType == OWNERTYPE_PLAYER) {
  				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  				m_iMagicHitRatio = 1000;
- 				magicHandler(dX, dY, 61);
+ 				magicHandler(target.get(), dX, dY, 61);
  					}
  				}
  				break;
@@ -857,7 +857,7 @@ void Npc::behavior_attack()
  			case 37: // Cannon Guard Tower:
  				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  				m_iMagicHitRatio = 1000;
- 				magicHandler(dX, dY, 61);
+				magicHandler(target.get(), dX, dY, 61);
  				break;
 			}
  		}
@@ -866,7 +866,7 @@ void Npc::behavior_attack()
  			if (m_cMagicLevel == 11) {
  				gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, m_sX, m_sY, 1);
  				m_iMagicHitRatio = 1000;
- 				magicHandler(m_sX, m_sY, 75);
+				magicHandler(target.get(), m_sX, m_sY, 75);
  			} else
  			{
  				gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, 0,0, 1);
@@ -900,7 +900,7 @@ void Npc::behavior_attack()
  		if ((m_cMagicLevel > 0) && (dice(1,2) == 1) &&
  			(abs(sX - dX) <= 9) && (abs(sY - dY) <= 7)) {
  				iMagicType = -1;
-				return;//TODO : Fix because Magic is currently broken;
+				//return;//TODO : Fix because Magic is currently broken;
 				switch (m_cMagicLevel)
  				{
  				case 1:
@@ -990,8 +990,8 @@ void Npc::behavior_attack()
  					goto NBA_CHASE;
  					break;
  				case 12: // Wyvern
- 					if ((gserver->m_pMagicConfigList[98]->m_manaCost <= m_iMP) && (dice(1,3) == 2))
- 						iMagicType = 98;
+ 					if ((gserver->m_pMagicConfigList[91]->m_manaCost <= m_iMP) && (dice(1,3) == 2))
+ 						iMagicType = 91;//blizzard
  					else if (gserver->m_pMagicConfigList[63]->m_manaCost <= m_iMP)
  						iMagicType = 63;
  					break;
@@ -1016,8 +1016,8 @@ void Npc::behavior_attack()
  						iMagicType = 83;
  					break;
  				case 16: // Fire Wyvern
- 					if ((gserver->m_pMagicConfigList[97]->m_manaCost <= m_iMP) && (dice(1,3) == 2))
- 						iMagicType = 97;
+ 					if ((gserver->m_pMagicConfigList[61]->m_manaCost <= m_iMP) && (dice(1,3) == 2))
+ 						iMagicType = 61;
  					else if (gserver->m_pMagicConfigList[81]->m_manaCost <= m_iMP)
  						iMagicType = 81;
  					break;
@@ -1094,7 +1094,7 @@ void Npc::behavior_attack()
  					}
 
  					gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, m_sX + _tmp_cTmpDirX[cDir], m_sY + _tmp_cTmpDirY[cDir], 1);
- 					magicHandler(dX, dY, iMagicType);
+					magicHandler(this, dX, dY, iMagicType);
  					m_dwTime = dwTime;
  					return;
  				}
@@ -1111,7 +1111,7 @@ void Npc::behavior_attack()
 					iMagicType = 0;
  				if (iMagicType != -1) {
 					gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, m_sX + _tmp_cTmpDirX[cDir], m_sY + _tmp_cTmpDirY[cDir], 1);
- 					magicHandler(dX, dY, iMagicType);
+					magicHandler(target.get(), dX, dY, iMagicType);
  					m_dwTime = dwTime;
  					return;
  				}
@@ -1124,35 +1124,34 @@ void Npc::behavior_attack()
  				if (cDir == 0) return;
  				m_cDir = cDir;
 
- 				if (m_cActionLimit == 5) {
+ 				if (m_cActionLimit == 5)
+				{
  					switch (m_sType) {
- 				case 89:  //AGT
- 						if (target) {
- 						if(m_cTargetType == OWNERTYPE_PLAYER) {
-							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
- 						m_iMagicHitRatio = 1000;
- 						magicHandler(dX, dY, 61);
+ 						case 89:  //AGT
+							if (target && target->IsPlayer())
+							{
+								gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
+								m_iMagicHitRatio = 1000;
+								magicHandler(target.get(), dX, dY, 61);
+							}
+ 							break;
+ 						case 87: // CT
+ 							if (target && target->IsPlayer())
+							{
+								gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
+								gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
  							}
- 						}
- 					break;
- 				case 87: // CT
- 						if (target) {
- 						if(m_cTargetType == OWNERTYPE_PLAYER) {
+ 							break;
+ 						case 36: // Crossbow Guard Tower
 							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
 							gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
- 							}
- 						}
- 					break;
- 					case 36: // Crossbow Guard Tower
-							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
-							gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
- 					break;
+ 						break;
 
- 					case 37://  Cannon Guard Tower
+ 						case 37://  Cannon Guard Tower
 							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  							m_iMagicHitRatio = 1000;
- 							magicHandler(dX, dY, 61);
- 					break;
+ 							magicHandler(target.get(), dX, dY, 61);
+ 						break;
  					}
  				}
  				else {
@@ -1160,7 +1159,7 @@ void Npc::behavior_attack()
  					case 51:
  						gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  						m_iMagicHitRatio = 1000;
- 						magicHandler(dX, dY, 61);
+ 						magicHandler(target.get(), dX, dY, 61);
  						break;
 
  					case 54:  //Dark Elf
@@ -1189,8 +1188,9 @@ void Npc::behavior_attack()
 
  					default:
  						gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 20);
-						gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
- 						break;
+						//gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
+						magicHandler(m_iTargetIndex.get(), dX, dY, 0);//test
+						break;
  					}
  				}
  				m_iAttackCount++;
@@ -1584,78 +1584,89 @@ int Npc::getDangerValue(short dX, short dY)
 // 	return iDangerValue;
 }
 
-void Npc::magicHandler(short dX, short dY, short sType) // magicHandler
+void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 {
-// 	short  sOwnerH;
-// 	char   cOwnerType;
-// 	Magic * spell;
+	Magic * spell;
+
+	if ((dX < 0) || (dX >= pMap->m_sSizeX) ||
+		(dY < 0) || (dY >= pMap->m_sSizeY)) return;
+
+ 	const int crossPnts[5][2] = {{0,0},{-1,0},{1,0},{0,-1},{0,1}};
+ 	uint32_t  dwTime = unixtime();
+	int32_t damage = 0, magicResist = 0;
 // 	int i, iErr, ix, iy, sX, sY, tX, tY, iResult, iWeatherBonus;
-// 	const int crossPnts[5][2] = {{0,0},{-1,0},{1,0},{0,-1},{0,1}};
-// 	uint32_t  dwTime = unixtime();
-//
-// 	if ((dX < 0) || (dX >= pMap->m_sSizeX) ||
-// 		(dY < 0) || (dY >= pMap->m_sSizeY)) return;
-//
-// 	if ((sType < 0) || (sType >= 100))     return;
-// 	if (gserver->m_pMagicConfigList[sType] == NULL) return;
-//
-// 	if (g_mapList[ m_cMapIndex ]->m_bIsAttackEnabled == false) return;
-//
-// 	iResult = m_iMagicHitRatio;
-//
-//
-// 	spell = gserver->m_pMagicConfigList[sType];
-//
-// 	iWeatherBonus = gserver->iGetWeatherMagicBonusEffect(spell, pMap->m_weather);
-//
-//
-// 	Unit * target = pMap->GetOwner(dX, dY);
-//
-// 	if (spell->m_dwDelayTime == 0) {
-// 		switch (spell->m_sType)
-// 		{
-// 		case MAGICTYPE_CANCELLATION:
-// 			if(target){
-// 				target->RemoveMagicEffect(MAGICTYPE_INVISIBILITY);
-// 				target->RemoveMagicEffect(MAGICTYPE_PROTECT);
-// 				target->RemoveMagicEffect(MAGICTYPE_HOLDOBJECT);
-// 				target->RemoveMagicEffect(MAGICTYPE_CONFUSE);
-// 				target->RemoveMagicEffect(MAGICTYPE_BERSERK);
-// 				target->RemoveMagicEffect(MAGICTYPE_ICE);
-// 				target->RemoveMagicEffect(MAGICTYPE_POLYMORPH);
-// 				target->RemoveMagicEffect(MAGICTYPE_INHIBITION);
-// 			}
-// 			break;
-//
-// 		case MAGICTYPE_INVISIBILITY:
-// 			switch (spell->m_sValue[MAGICV_TYPE])
-// 			{
-// 			case 1: // Invis
-// 				if (!target || !target->AddMagicEffect(spell->m_sType, spell->m_dwLastTime)) goto NMH_NOEFFECT;
-// 				break;
-//
-// 			case 2: // Detect Invis
-// 				for (ix = dX - 8; ix <= dX + 8; ix++)
-// 					for (iy = dY - 8; iy <= dY + 8; iy++){
-// 						target = pMap->GetOwner(ix, iy);
-// 						if (target){
-// 							target->RemoveMagicEffect(spell->m_sType);
-// 							gserver->RemoveFromTarget(target);
-// 						}
-// 					}
-// 				break;
-// 			}
-// 			break;
-//
-// 		case MAGICTYPE_HOLDOBJECT:
-// 			if (target && CheckResistingMagicSuccess(m_cDir, target->m_handle, target->m_ownerType, iResult) == false) {
-// 				if(target->IsNPC() && g_npcList[target->m_handle]->m_cMagicLevel >= 6)
-// 						break;
-// 				if (!target->AddMagicEffect(spell->m_sType, spell->m_dwLastTime))
-// 						break;
-// 			}
-// 			break;
-//
+
+	if ((magicType < 0) || (magicType >= 100))     return;
+	if (gserver->m_pMagicConfigList[magicType] == nullptr) return;
+
+	if (unit->IsPlayer())
+	{
+		if (unit->pMap->m_bIsAttackEnabled == false) return;
+		//TODO: Calculate player magic hit ratio (or go ahead as planned and remove it early)
+	}
+	else
+	{
+		magicResist = ((Npc*)unit)->m_iMagicHitRatio;
+	}
+
+	//TODO: Implement old weather effects?
+	// 	iWeatherBonus = gserver->iGetWeatherMagicBonusEffect(spell, pMap->m_weather);
+
+	spell = gserver->m_pMagicConfigList[magicType];
+
+	Unit * target = pMap->GetOwner(dX, dY).get();
+
+
+
+	if (spell->m_dwDelayTime == 0) {
+		switch (spell->m_sType)
+		{
+		case MAGICTYPE_CANCELLATION:
+			if (target){
+				target->RemoveMagicEffect(MAGICTYPE_INVISIBILITY);
+				target->RemoveMagicEffect(MAGICTYPE_PROTECT);
+				target->RemoveMagicEffect(MAGICTYPE_HOLDOBJECT);
+				target->RemoveMagicEffect(MAGICTYPE_CONFUSE);
+				target->RemoveMagicEffect(MAGICTYPE_BERSERK);
+				target->RemoveMagicEffect(MAGICTYPE_ICE);
+				target->RemoveMagicEffect(MAGICTYPE_POLYMORPH);
+				target->RemoveMagicEffect(MAGICTYPE_INHIBITION);
+			}
+			break;
+
+		case MAGICTYPE_INVISIBILITY:
+			switch (spell->m_sValue[MAGICV_TYPE])
+			{
+			case 1: // Invis
+				//if (!target || !target->AddMagicEffect(spell->m_sType, spell->m_dwLastTime)) goto NMH_NOEFFECT;
+				break;
+
+			case 2: // Detect Invis
+				//TODO: increase or decrease detect invis radius to compensate larger resolution
+				for (short ix = dX - 8; ix <= dX + 8; ix++)
+				{
+					for (short iy = dY - 8; iy <= dY + 8; iy++){
+						target = pMap->GetOwner(ix, iy).get();
+						if (target){
+							target->RemoveMagicEffect(spell->m_sType);
+							gserver->RemoveFromTarget(shared_ptr<Unit>(target));
+						}
+					}
+				}
+				break;
+			}
+			break;
+
+		case MAGICTYPE_HOLDOBJECT:
+			if (target && gserver->CheckResistingMagicSuccess(m_cDir, target, magicResist) == false) {
+				if (target->IsNPC() && ((Npc*)target)->m_cMagicLevel >= 6)
+					break;
+				if (!target->AddMagicEffect(spell->m_sType, spell->m_dwLastTime))
+					break;
+			}
+			break;
+
+
 // 		case MAGICTYPE_DAMAGE_LINEAR:
 // 			sX = m_sX;
 // 			sY = m_sY;
@@ -1799,18 +1810,22 @@ void Npc::magicHandler(short dX, short dY, short sType) // magicHandler
 // 			break;
 //
 //
-// 		case MAGICTYPE_DAMAGE_SPOT:
-// 			pMap->GetOwner(&sOwnerH, &cOwnerType, dX, dY);
-// 			if (CheckResistingMagicSuccess(m_cDir, sOwnerH, cOwnerType, iResult) == false)
-// 				gserver->Effect_Damage_Spot(m_handle, OWNERTYPE_NPC, sOwnerH, cOwnerType, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + iWeatherBonus, true, spell->m_element);
-//
-// 			pMap->GetDeadOwner(&sOwnerH, &cOwnerType, dX, dY);
-// 			if ( (cOwnerType == OWNERTYPE_PLAYER) && (g_clientList[sOwnerH] != NULL) &&
-// 				(g_clientList[sOwnerH]->m_iHP > 0) ) {
-// 					if (CheckResistingMagicSuccess(m_cDir, sOwnerH, cOwnerType, iResult) == false)
-// 						gserver->Effect_Damage_Spot(m_handle, OWNERTYPE_NPC, sOwnerH, cOwnerType, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + iWeatherBonus, true, spell->m_element);
-// 			}
-// 			break;
+		case MAGICTYPE_DAMAGE_SPOT:
+			//test
+			target = pMap->GetOwner(dX, dY).get();
+			if (target && target->IsPlayer()) gserver->SendNotifyMsg(0, (Client*)target, NOTIFY_NOTICEMSG, 0, 0, 0, "Magic cast");
+			if (target && gserver->CheckResistingMagicSuccess(m_cDir, target, magicResist) == false)
+				gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
+
+			target = pMap->GetDeadOwner(dX, dY).get();
+			if (target && target->IsPlayer() && target->m_iHP > 0 ) {
+				if (gserver->CheckResistingMagicSuccess(m_cDir, target, magicResist) == false)
+					gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
+			}
+			break;
+
+		}
+	}
 //
 // 		case MAGICTYPE_HPUP_SPOT:
 // 			pMap->GetOwner(&sOwnerH, &cOwnerType, dX, dY);
@@ -2617,12 +2632,11 @@ void Npc::magicHandler(short dX, short dY, short sType) // magicHandler
 //
 // NMH_NOEFFECT:;
 //
-// 	m_iMP -= spell->m_manaCost;
-// 	if (m_iMP < 0)
-// 		m_iMP = 0;
-//
-// 	gserver->SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, m_cMapIndex,
-// 		m_sX, m_sY, dX, dY, (sType+100), m_sType);
+	m_iMP -= spell->m_manaCost;
+	if (m_iMP < 0)
+		m_iMP = 0;
+
+	gserver->SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, pMap, m_sX, m_sY, dX, dY, (magicType+100), m_sType);
 
 }
 

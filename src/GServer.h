@@ -304,6 +304,7 @@ public:
 	void CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue);
 	int CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack = false, bool bIsDash = false);
 	void EnduStrippingDamage(Unit * target, Unit * attacker, int item, int higherStripEndu, bool shield = false);
+	void Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, int32_t attr);
 
 	int _iCalcSkillSSNpoint(int iLevel);
 

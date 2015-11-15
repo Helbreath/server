@@ -7879,7 +7879,87 @@ void GServer::ClearSkillUsingStatus(Client * client)
 // 	}
 }
 
+void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, int32_t attr)
+{
+	int32_t damage = dice(sV1, sV2) + sV3;
+	int64_t dwtime = unixtime();
+	if (damage < 0) damage = 0;
 
+	if (attacker->IsPlayer())
+	{
+		Client * player = (Client*)attacker;
+		if (!m_bIsCrusadeMode && player->m_bIsHunter && target->IsPlayer()) return;//no damage to civilians outside of crusade (default)
+		//TODO: player damage calculations here
+	}
+	else
+	{
+		//TODO: for sake of testing
+
+	}
+
+	if (target->IsPlayer())
+	{
+		Client * player = (Client*)target;
+		if (!player->m_bIsInitComplete) return; //cannot attack players not fully loaded in
+		if (player->m_bIsKilled) return;
+
+		if (!m_bIsCrusadeMode && player->m_iPKCount == 0 && player->m_bIsHunter && attacker->IsPlayer()) return;
+
+		ClearSkillUsingStatus(player);
+
+		//TODO: elemental absorption code that was never actually fully implemented
+		/*switch (attr)
+		{
+		case 1:
+			if (m_pClientList[sTargetH]->m_iAddAbsEarth != 0) {
+				dTmp1 = (double)iDamage;
+				dTmp2 = (double)m_pClientList[sTargetH]->m_iAddAbsEarth;
+				dTmp3 = (dTmp2 / 100.0f)*dTmp1;
+				iDamage = iDamage - (int)(dTmp3);
+				if (iDamage < 0) iDamage = 0;
+			}
+			break;
+
+		case 2:
+			if (m_pClientList[sTargetH]->m_iAddAbsAir != 0) {
+				dTmp1 = (double)iDamage;
+				dTmp2 = (double)m_pClientList[sTargetH]->m_iAddAbsAir;
+				dTmp3 = (dTmp2 / 100.0f)*dTmp1;
+				iDamage = iDamage - (int)(dTmp3);
+				if (iDamage < 0) iDamage = 0;
+			}
+			break;
+
+		case 3:
+			if (m_pClientList[sTargetH]->m_iAddAbsFire != 0) {
+				dTmp1 = (double)iDamage;
+				dTmp2 = (double)m_pClientList[sTargetH]->m_iAddAbsFire;
+				dTmp3 = (dTmp2 / 100.0f)*dTmp1;
+				iDamage = iDamage - (int)(dTmp3);
+				if (iDamage < 0) iDamage = 0;
+			}
+			break;
+
+		case 4:
+			if (m_pClientList[sTargetH]->m_iAddAbsWater != 0) {
+				dTmp1 = (double)iDamage;
+				dTmp2 = (double)m_pClientList[sTargetH]->m_iAddAbsWater;
+				dTmp3 = (dTmp2 / 100.0f)*dTmp1;
+				iDamage = iDamage - (int)(dTmp3);
+				if (iDamage < 0) iDamage = 0;
+			}
+			break;
+		}*/
+
+		damage -= dice(1, player->m_iVit / 10) - 1;
+		if (damage < 0) damage = 0;
+
+		player->m_iHP -= damage;
+	}
+	else
+	{
+	}
+}
 
 bool GServer::CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int iHitRatio)
 {
