@@ -225,7 +225,7 @@ void Gate::stop(connection_ptr c)
 		if (client->m_handle > 0)
 		{
 			consoleLogger->error(Poco::format("<%?d> Client Disconnected! (%s) (%s)", client->m_handle, client->name, c->address));
-			if ((unixtime() - client->m_dwLogoutHackCheck) < 10000)
+			if ((unixtime() - client->logoutHackCheck) < 10000)
 			{
 				consoleLogger->error(Poco::format("Logout Hack: (%s) Player: (%s) - disconnected within 10 seconds of most recent damage. Hack? Lag?", c->address, client->name));
 			}
@@ -608,16 +608,16 @@ void Gate::TimerThread()
 					}
 
 					//check connections for recent data (ghost sockets)
-					if (client->disconnecttime == 0 && client->lastpackettime + 30000 < ltime && (client->currentstatus != 1))
-					{
-						//socket idle for 30 seconds (should never happen unless disconnected)
-						poco_information(*logger, Poco::format("Client Timeout! <%s>", client->address));
-						DeleteClient(clnt, false, true);
-						mutclientlist.unlock_upgrade_and_lock();
-						iter = clientlist.erase(iter);
-						mutclientlist.unlock_and_lock_upgrade();
-						continue;
-					}
+// 					if (client->disconnecttime == 0 && client->lastpackettime + 30000 < ltime && (client->currentstatus != 1))
+// 					{
+// 						//socket idle for 30 seconds (should never happen unless disconnected)
+// 						poco_information(*logger, Poco::format("Client Timeout! <%s>", client->address));
+// 						DeleteClient(clnt, true, true);
+// 						mutclientlist.unlock_upgrade_and_lock();
+// 						iter = clientlist.erase(iter);
+// 						mutclientlist.unlock_and_lock_upgrade();
+// 						continue;
+// 					}
 					++iter;
 				}
 				mutclientlist.unlock_upgrade();
@@ -713,10 +713,10 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 		//need to perform client removal
 		//remove from map
-		if (client->m_bIsKilled)
-			client->pMap->ClearDeadOwner(client->m_sX, client->m_sY);
+		if (client->dead)
+			client->pMap->ClearDeadOwner(client->x, client->y);
 		else
-			client->pMap->ClearOwner(client->m_sX, client->m_sY);
+			client->pMap->ClearOwner(client->x, client->y);
 
 		//let npcs know it's an invalid target
 		client->m_bActive = false;
@@ -727,14 +727,14 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 		if (save)
 		{
-			if (player->m_bIsKilled)
+			if (player->dead)
 			{
-				player->m_sX = -1;
-				player->m_sY = -1;
+				player->x = -1;
+				player->y = -1;
 
 				if (player->IsNeutral())
 				{
-					player->m_cMapName = sideMap[NEUTRAL];
+					player->mapName = sideMap[NEUTRAL];
 				}
 				else
 				{
@@ -742,8 +742,8 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 					{
 						if (player->m_iDeadPenaltyTime > 0)
 						{
-							player->m_cLockedMapName = sideMap[player->m_side];
-							player->m_iLockedMapTime = 60*5;
+							player->lockedMapName = sideMap[player->side];
+							player->lockedMapTime = 60*5;
 							player->m_iDeadPenaltyTime = 60*10;
 						}
 						else
@@ -751,47 +751,47 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 					}
 
-					if (player->m_side == ARESDEN)
+					if (player->side == ARESDEN)
 					{
-						if ((player->m_cMapName == sideMap[ELVINE]) && !player->IsGM())
+						if ((player->mapName == sideMap[ELVINE]) && !player->IsGM())
 						{
-							player->m_cLockedMapName = sideMapJail[ELVINE];
-							player->m_iLockedMapTime = 60*3;
+							player->lockedMapName = sideMapJail[ELVINE];
+							player->lockedMapTime = 60*3;
 						}
-						else if (player->m_iLevel > 80)
+						else if (player->level > 80)
 						{
-							player->m_cMapName = "resurr1";
+							player->mapName = "resurr1";
 						}
 						else
 						{
-							player->m_cMapName = "aresden";
+							player->mapName = "aresden";
 						}
 					}
 					else// if (player->m_side == ELVINE)
 					{
-						if ((player->m_cMapName == sideMap[ARESDEN]) && !player->IsGM())
+						if ((player->mapName == sideMap[ARESDEN]) && !player->IsGM())
 						{
-							player->m_cLockedMapName = sideMapJail[ARESDEN];
-							player->m_iLockedMapTime = 60*3;
+							player->lockedMapName = sideMapJail[ARESDEN];
+							player->lockedMapTime = 60*3;
 						}
-						else if (player->m_iLevel > 80)
+						else if (player->level > 80)
 						{
-							player->m_cMapName = "resurr2";
+							player->mapName = "resurr2";
 						}
 						else
 						{
-							player->m_cMapName = "elvine";
+							player->mapName = "elvine";
 						}
 					}
 				}
 			}
 
 
-			if (player->m_bIsObserverMode)
+			if (player->observerMode)
 			{
-				player->m_sX = -1;
-				player->m_sY = -1;
-				player->m_cMapName = sideMap[player->m_side];
+				player->x = -1;
+				player->y = -1;
+				player->mapName = sideMap[player->side];
 			}
 
 			if (player->m_bIsInitComplete)

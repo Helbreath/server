@@ -40,10 +40,10 @@ Client::Client()
 
 	memset(m_iSkillSSN, 0, sizeof(m_iSkillSSN));
 
-	m_dwLogoutHackCheck = m_dwWarBeginTime = 0;
-	m_dwPoisonTime = 0;
+	logoutHackCheck = crusadeBeginTime = 0;
+	_poisonTime = 0;
 
-	iReturnID = iNumPoints = iRank = iCrusadeJob = iTitleIndex = iNextRankPoints = 0;
+	iReturnID = iNumPoints = iRank = iTitleIndex = iNextRankPoints = 0;
 
 	m_iCustomItemValue_Attack = m_iCustomItemValue_Defense = 0;
 
@@ -57,7 +57,7 @@ Client::Client()
 	m_dwAttackLAT = 0;
 	m_specialAbilityLastSec = m_specialAbilityStartTime = 0;
 
-	m_bIsWarLocation = false;
+	crusadeLocation = false;
 
 	m_bIsHunter = false;
 
@@ -71,30 +71,30 @@ Client::Client()
 
 	for (int i = 0; i < DEFAULTBAGSIZE; ++i)
 	{
-		m_pItemList.push_back(new ItemWrap);
+		itemList.push_back(new ItemWrap);
 	}
 	for (int i = 0; i < DEFAULTBANKSIZE; ++i)
 	{
-		m_pItemInBankList.push_back(new ItemWrap);
+		itemListBank.push_back(new ItemWrap);
 	}
 
 	//handle of 0 assumed. 0 = invalid and is not usable for an object in game - this value would be set when obtaining character data from the db assuming login is successful
 	m_handle = 0;
-	m_ownerType = OWNERTYPE_PLAYER;
+	SetOwnerType(OWNERTYPE_PLAYER);
 	m_bIsBeingResurrected = false;
 
-	m_cProfile = "__________";
-	skincolor = haircolor = underwearcolor = 0xFFFFFFFF;
+	profile = "__________";
+	colorSkin = colorHair = colorUnderwear = 0xFFFFFFFF;
 
-	m_cLocation = "NONE";
-	m_iGuildRank = GUILDRANK_NONE;
-	m_iGuildGUID = -1;
-	m_guild = 0;
-	m_gldSummonsTime = 0;
+	faction = "NONE";
+	guildRank = GUILDRANK_NONE;
+	guildGUID = -1;
+	guild = 0;
+	guildSummonsTime = 0;
 
 	m_bIsInitComplete = false;
 
-	m_charID = 0;
+	charid = 0;
 
 	_str = _int = _dex = _mag = _vit = _agi = 0;
 
@@ -103,18 +103,18 @@ Client::Client()
 
 	m_iEnemyKillCount = 0;
 	m_iEnemyKillTotalCount = 0;
-	m_iPKCount = 0;
+	playerKillCount = 0;
 	m_iRewardGold = 0;
 	m_iCurWeightLoad = 0;
 #ifdef Showdmg
 	iDmgShowon = 0;
 #endif
 
-	m_bIsSafeAttackMode  = false;
+	safeAttackMode  = false;
 
 
 	for (i = 0; i < MAXITEMEQUIPPOS; i++) 
-		m_sItemEquipmentStatus[i] = -1;
+		itemEquipStatus[i] = -1;
 
 	Equipped.Head = nullptr;
 	Equipped.Chest = nullptr;
@@ -128,23 +128,23 @@ Client::Client()
 	Equipped.LeftHand = nullptr;
 	Equipped.RightHand = nullptr;
 	Equipped.Necklace = nullptr;
-	Equipped.pArrow = nullptr;
+	Equipped.Arrow = nullptr;
 	Equipped.TwoHand = nullptr;
 	for (i = 0; i < MAXMAGICTYPE; i++)
-		m_cMagicMastery[i] = 0;
+		magicMastery[i] = 0;
 
 	for (i = 0; i < MAXSKILLTYPE; i++)
 		m_cSkillMastery[i] = 0;
 
 	for (i = 0; i < MAXSKILLTYPE; i++) {
-		m_bSkillUsingStatus[i] = false;
-		m_iSkillUsingTimeID[i] = 0;
+		skillInUse[i] = false;
+		skillInUseTime[i] = 0;
 	}
 
-	m_sX = -1;
-	m_sY = -1;
-	m_cDir = 5;
-	m_sType   = 0;
+	x = -1;
+	y = -1;
+	direction = 5;
+	SetType(0);
 	m_sAppr1  = 0;
 	m_sAppr2  = 0;
 	m_sAppr3  = 0;
@@ -155,11 +155,8 @@ Client::Client()
 	m_sArmApprValue  = 0;
 	m_sLegApprValue  = 0;
 
-	m_cSex  = NONE;
-	m_cSkin = 0;
+	gender  = NONE;
 	m_cHairStyle  = 0;
-	m_cHairColor  = 0;
-	m_cUnderwear  = 0;
 
 	m_cAttackDiceThrow_SM = 0;
 	m_cAttackDiceRange_SM = 0;
@@ -168,7 +165,7 @@ Client::Client()
 	m_cAttackBonus_SM    = 0;
 	m_cAttackBonus_L     = 0;
 
-	m_side = NEUTRAL;
+	side = NEUTRAL;
 
 	m_iHitRatio = 0;
 	m_iDefenseRatio = 0;
@@ -181,16 +178,14 @@ Client::Client()
 	m_iHPStatic_stock = 0 ;
 
 	for (i = 0; i < MAXMAGICEFFECTS; i++) 
-		m_cMagicEffectStatus[i]	= 0;
-
-	m_iWhisperPlayerIndex = 0;
+		magicEffectStatus[i]	= 0;
 
 	m_iHungerStatus  = 100;  
 
-	m_bIsWarLocation = false;
+	crusadeLocation = false;
 
-	m_bIsPoisoned    = false;
-	m_iPoisonLevel   = 0;
+	_poison    = false;
+	_poisonLevel   = 0;
 
 	m_iAdminUserLevel  = 0;
 	m_GMFlags = 0;
@@ -200,7 +195,7 @@ Client::Client()
 	m_iTimeLeft_Rating = 0;
 	m_iTimeLeft_ForceRecall  = 0;
 	m_iTimeLeft_FirmStamina = 0;
-	m_dwLogoutHackCheck = 0;
+	logoutHackCheck = 0;
 	m_lastDamageTime = 0;
 	m_iLucky = 0;
 
@@ -213,8 +208,8 @@ Client::Client()
 
 	m_bIsOnWaitingProcess = false;
 
-	m_iSuperAttackLeft  = 0;
-	m_iSuperAttackCount = 0;
+	superAttack  = 0;
+	superAttackMax = 0;
 
 	m_sUsingWeaponSkill = SKILL_HANDATTACK; 
 	m_iMPSaveRatio   = 0;
@@ -244,14 +239,14 @@ Client::Client()
 	m_iAddCrafting = 0;
 	m_iAddFishing = 0;
 
-	m_iReserveTime = m_iFightZoneTicketNumber = m_iFightzoneNumber = 0 ;
+	arenaReserveTime = arenaTicketNumber = arenaNumber = 0 ;
 
 	m_iPenaltyBlockYear = m_iPenaltyBlockMonth = m_iPenaltyBlockDay = 0; 
 
-	m_isExchangeMode = false;
-	m_isExchangeConfirm = false;
-	m_exchangeH = 0;
-	m_exchangeCount = 0;
+	exchangeMode = false;
+	exchangeConfirm = false;
+	exchangePlayer = 0;
+	exchangeCount = 0;
 	
 	for(i = 0; i < 4; i++){
 		m_exchangeItems[i].itemAmount = 0;
@@ -265,12 +260,12 @@ Client::Client()
 	m_iQuestRewardType	 = 0;
 	m_iQuestRewardAmount = 0;
 
-	m_iContribution = 0;
+	contribution = 0;
 	m_bQuestMatchFlag_Loc = false;  
 	m_bIsQuestCompleted   = false;
 
-	m_bIsNeutral      = false;
-	m_bIsObserverMode = false;
+	neutral      = false;
+	observerMode = false;
 
 
 	m_iSpecialEventID = 200081;
@@ -297,35 +292,35 @@ Client::Client()
 	m_iAlterItemDropIndex = -1;
 
 	m_iAutoExpAmount = 0;
-	m_iWarContribution = 0;
+	crusadeContribution = 0;
 
 	m_dwMoveLAT = m_dwRunLAT = m_dwAttackLAT = 0;
 
 	m_dwInitCCTimeRcv = 0;
 	m_dwInitCCTime = 0;
 
-	m_cLockedMapName = "NONE";
-	m_iLockedMapTime   = 0;
+	lockedMapName = "NONE";
+	lockedMapTime   = 0;
 	m_iDeadPenaltyTime = 0;
 
-	m_iCrusadeDuty  = 0;
-	m_dwCrusadeGUID = 0;
+	crusadeDuty  = 0;
+	crusadeGUID = 0;
 
 	for (i = 0; i < MAXCRUSADESTRUCTURES; i++) {
-		m_stCrusadeStructureInfo[i].cType = 0;
-		m_stCrusadeStructureInfo[i].cSide = 0;
-		m_stCrusadeStructureInfo[i].sX = 0;
-		m_stCrusadeStructureInfo[i].sY = 0;
+		crusadeStructureInfo[i]._type = 0;
+		crusadeStructureInfo[i]._side = 0;
+		crusadeStructureInfo[i].x = 0;
+		crusadeStructureInfo[i].y = 0;
 	}
 	m_iCSIsendPoint = 0;
 
 	m_bIsSendingMapStatus = false;
 
-	m_iConstructionPoint = 0;
+	crusadePoint = 0;
 
-	m_iConstructLocX = m_iConstructLocY = -1;
+	crusadeX = crusadeY = -1;
 
-	m_dwFightzoneDeadTime = 0;
+	arenaDeadTime = 0;
 
 	_party = 0;
 	_partyStatus = PS_NOTINPARTY;
@@ -345,13 +340,13 @@ Client::Client()
 		m_runTime[i] = 300; 
 	m_runTurn = 0; 
 
-	m_bIsBankModified = false ;
+	bankModified = false ;
 
 	m_iGizonItemUpgradeLeft = 0;
 
 	m_dwAttackFreqTime = m_dwMagicFreqTime = m_dwMoveFreqTime = 0;
 	m_resetMoveFreq = false;
-	m_rejectedMove = false; 
+	rejectedMove = false; 
 	m_bIsAttackModeChange = false; 
 	m_bIsOnTown = false;
 	m_bIsOnShop = false ; 
@@ -374,63 +369,74 @@ Client::Client()
 
 Client::~Client()
 {
-	for(int i = 0; i < m_pItemList.size(); i++)
+	for(int i = 0; i < itemList.size(); i++)
 	{
-		delete m_pItemList[i];
+		delete itemList[i];
 	}
-	for (int i = 0; i < m_pItemInBankList.size(); i++)
+	for (int i = 0; i < itemListBank.size(); i++)
 	{
-		delete m_pItemInBankList[i];
+		delete itemListBank[i];
 	}
 }
 
 //TODO: do we want clients invoking packets being sent? or should the server know to send them when this function is called?
 //these functions aren't called that often - only on level up stat change or resetting of stats
 // ultimately, will the client class itself be accessing the server class?
+//^ ideally no, need a way for the server to update the client data. Make encaps server function to handle these?
 void Client::SetStr(int str, bool check) 
 {
-// 	_str = str;
-// 	if(check)
-// 	{
-// 		if(m_iHP > GetMaxHP())
-// 		{
-// 			m_iHP = GetMaxHP();
-// 			Notify(NULL, NOTIFY_HP, NULL, NULL, NULL, NULL);
-// 		}
-// 		if(m_iSP > GetMaxSP())
-// 		{
-// 			m_iSP = GetMaxSP();
-// 			Notify(NULL, NOTIFY_SP, NULL, NULL, NULL, NULL);
-// 		}
-// 	}
+	_str = str;
+	if(check)
+	{
+		if(health > GetMaxHP())
+		{
+			health = GetMaxHP();
+			Notify(NULL, NOTIFY_HP, NULL, NULL, NULL, NULL);
+		}
+		if(m_iSP > GetMaxSP())
+		{
+			m_iSP = GetMaxSP();
+			Notify(NULL, NOTIFY_SP, NULL, NULL, NULL, NULL);
+		}
+	}
 }
 
 void Client::SetMag(int mag)
 {
-//	_mag = mag;
-// 	if(m_iMP > GetMaxMP())
-// 	{
-// 		m_iMP = GetMaxMP();
-// 		Notify(NULL, NOTIFY_MP, NULL, NULL, NULL, NULL);
-// 	}
+	_mag = mag;
+	if(mana > GetMaxMP())
+	{
+		mana = GetMaxMP();
+		Notify(NULL, NOTIFY_MP, NULL, NULL, NULL, NULL);
+	}
 }
 
 void Client::SetInt(int __int, bool check)
 {
-// 	_int = __int;
-// 	if(check)
-// 	{
-// 		if(m_iMP > GetMaxMP())
-// 		{
-// 			m_iMP = GetMaxMP();
-// 			Notify(NULL, NOTIFY_MP, NULL, NULL, NULL, NULL);
-// 		}
-// 	}
+	_int = __int;
+	if(check)
+	{
+		if(mana > GetMaxMP())
+		{
+			mana = GetMaxMP();
+			Notify(NULL, NOTIFY_MP, NULL, NULL, NULL, NULL);
+		}
+	}
 }
 
 void Client::SetDex(int dex)
 {
 	_dex = dex;
+}
+
+void Client::SetVit(int vit)
+{
+	_vit = vit;
+}
+
+void Client::SetAgi(int agi)
+{
+	_agi = agi;
 }
 
 void Client::SetAngelStr(int str)
@@ -662,21 +668,21 @@ int Client::GetPlayerRelationship(Client * target) const
 
 	iRet = 0;
 
-	if (m_iPKCount != 0) {
-		if ((m_side == target->m_side) &&
-			(m_side != NEUTRAL) && (target->m_side != NEUTRAL))
+	if (playerKillCount != 0) {
+		if ((side == target->side) &&
+			(side != NEUTRAL) && (target->side != NEUTRAL))
 			iRet = 7;
 		else iRet = 2; 
 	}
-	else if (target->m_iPKCount != 0) {
-		if ((m_side == target->m_side) &&
-			(m_side != NEUTRAL) && (target->m_side != NEUTRAL))
+	else if (target->playerKillCount != 0) {
+		if ((side == target->side) &&
+			(side != NEUTRAL) && (target->side != NEUTRAL))
 			iRet = 6;
 		else iRet = 2;
 	}
 	else {
-		if (m_side != target->m_side) {
-			if ((m_side != NEUTRAL) && (target->m_side != NEUTRAL)) {
+		if (side != target->side) {
+			if ((side != NEUTRAL) && (target->side != NEUTRAL)) {
 				// (Traveler)
 				iRet = 2;
 			}
@@ -685,17 +691,17 @@ int Client::GetPlayerRelationship(Client * target) const
 			}
 		}
 		else {
-			if ((m_cGuildName == target->m_cGuildName) &&
-				(m_cGuildName != "NONE")) {
-				if (target->m_iGuildRank == GUILDRANK_MASTER)
+			if ((guildName == target->guildName) &&
+				(guildName != "NONE")) {
+				if (target->guildRank == GUILDRANK_MASTER)
 						iRet = 5;
 					else iRet = 3;
 			}
 			else 
-				if ((m_side == target->m_side) &&
-					(m_cGuildName != "NONE") &&
-					(target->m_cGuildName != "NONE") &&
-					(m_cGuildName != target->m_cGuildName)) {
+				if ((side == target->side) &&
+					(guildName != "NONE") &&
+					(target->guildName != "NONE") &&
+					(guildName != target->guildName)) {
 						iRet = 4;
 				}
 				else iRet = 1;
@@ -710,7 +716,7 @@ int Client::GetMaxHP() const
 	int iRet;
 
 	//iRet = m_iVit*3 + m_iLevel*2 + (GetStr())/2;
-	iRet = m_iVit*8 + m_iLevel*8 + (GetStr())*2 + (GetInt())*2; // HP System xRisenx
+	iRet = m_iVit*8 + level*8 + (GetStr())*2 + (GetInt())*2; // HP System xRisenx
 	/*iRet =  (m_pClientList[iClientH]->m_iVit * 12) + (m_pClientList[iClientH]->m_iLevel * 5) 
 		+ ((m_pClientList[iClientH]->m_iStr + m_pClientList[iClientH]->m_iAngelicStr) * 6
 		+ (m_pClientList[iClientH]->m_iMag * 8));*/
@@ -725,7 +731,7 @@ int Client::GetMaxMP() const
 {
 	int iRet;
 
-	iRet = (GetMag())*3  + m_iLevel*2 + (GetInt())*2; // MP System xRisenx
+	iRet = (GetMag())*3  + level*2 + (GetInt())*2; // MP System xRisenx
 
 	return iRet;
 }
@@ -736,17 +742,21 @@ int Client::GetMaxSP() const
 {
 	int iRet;
 
-	iRet = (GetStr()) + m_iLevel*17; // SP System xRisenx
+	iRet = (GetStr()) + level*17; // SP System xRisenx
 
 	return iRet;
 }
 
-void Client::AddHP(long hp)
+
+// Adds (or subtracts) HP from player. After calling, do a check for HP == 0 and call KilledHandler() if true.
+// This function doesn't do it auto for you because it's a manual call
+void Client::AddHP(int64_t hp)
 {
-// 	int maxHP = GetMaxHP();
-// 	m_iHP += hp; 
-// 	if (m_iHP > maxHP) m_iHP = maxHP;
-// 	Notify(NULL, NOTIFY_HP, NULL, NULL, NULL, NULL);
+	int64_t maxHP = GetMaxHP();
+	health += hp; 
+	if (health > maxHP) health = maxHP;
+	if (health < 0) health = 0;
+	Notify(NULL, NOTIFY_HP, NULL, NULL, NULL, NULL);
 }
 
 void Client::KilledHandler(Unit * attacker, int32_t sDamage)
@@ -757,20 +767,19 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 	int KilledEK, RangeEK;
 #endif
 	short sAttackerWeapon;
-	int   * ip, i, iExH;
 	bool  bIsSAattacked = false;
 
 	if (m_bIsInitComplete == false) return;
-	if (m_bIsKilled == true) return;
+	if (dead == true) return;
 
-	if (pMap->m_cName.find("fight") != -1)
+	if (pMap->name.find("fight") != -1)
 	{
-		m_dwFightzoneDeadTime = unixtime();
-		gserver->logger->information(Poco::format("Fightzone Dead Time: %?d", m_dwFightzoneDeadTime));
+		arenaDeadTime = unixtime();
+		gserver->logger->information(Poco::format("Fightzone Dead Time: %?d", arenaDeadTime));
 	}
 
-	m_bIsKilled = true;
-	m_iHP = 0;
+	dead = true;
+	health = 0;
 
 // 	if (m_isExchangeMode == true) {
 // 		iExH = m_exchangeH;
@@ -785,13 +794,12 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 
 	Notify(nullptr, NOTIFY_HP, 0, 0, 0);
 	Notify(nullptr, NOTIFY_KILLED, 0, 0, 0, attackername);
-	if (attacker->IsPlayer()) {
+	if (attacker && attacker->IsPlayer())
 		sAttackerWeapon = ((static_cast<Client*>(attacker)->m_sAppr2 & 0x0FF0) >> 4);
-	}
 	else sAttackerWeapon = 1;
 	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DYING, sDamage, sAttackerWeapon, 0);
-	pMap->ClearOwner(m_sX, m_sY);
-	pMap->SetDeadOwner(self.lock(), m_sX, m_sY);
+	pMap->ClearOwner(x, y);
+	pMap->SetDeadOwner(self.lock(), x, y);
 
 // 	int itemInd;
 // 	if(gserver->m_astoria.get() && gserver->m_astoria->IsCapture() && (itemInd = HasItem(ITEM_RELIC)))
@@ -799,7 +807,7 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 // 		gserver->DropItemHandler(m_handle, itemInd, 1, m_pItemList[itemInd]->m_cName, false);
 // 	}
 
-	if (pMap->m_cType == MAPTYPE_NOPENALTY_NOREWARD) return;
+	if (pMap->type == MAPTYPE_NOPENALTY_NOREWARD) return;
 	// Monster kill event xRisenx
 	/*if (cAttackerType == OWNERTYPE_PLAYER)
     {    if (g_clientList[iAttackerH] != NULL)
@@ -807,8 +815,12 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
             {    g_game->NpcHuntPointsAdder(iAttackerH);
     }    }    }*/
 	// Monster kill event xRisenx
-	if (attacker->m_ownerType == OWNERTYPE_PLAYER || attacker->m_ownerType == OWNERTYPE_PLAYER_INDIRECT) {
-		if (attacker->m_ownerType == OWNERTYPE_PLAYER_INDIRECT) {
+	if (!attacker)
+		return;
+	if (attacker->IsPlayer() || attacker->OwnerType() == OWNERTYPE_PLAYER_INDIRECT)
+	{
+		if (attacker->OwnerType() == OWNERTYPE_PLAYER_INDIRECT)
+		{
 			//gserver->_bPKLog(PKLOG_BYOTHER,(int) -1,m_handle,NULL) ;
 			// m_iExp -= dice(1, 50);
 			// if (m_iExp < 0) m_iExp = 0;
@@ -816,30 +828,37 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 			// Notify(NULL, NOTIFY_EXP, NULL, NULL, NULL, NULL);
 		}
 
-		switch (static_cast<Client*>(attacker)->m_iSpecialAbilityType) {
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-		case 5:
-			bIsSAattacked = true;
-			break;
+		switch (static_cast<Client*>(attacker)->m_iSpecialAbilityType)
+		{
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+				bIsSAattacked = true;
+				break;
 		}
 
 		if (attacker == this) return;
-		if (IsNeutral()) {
-			if (m_iPKCount == 0) {
+		if (IsNeutral())
+		{
+			if (playerKillCount == 0)
+			{
 
 			//	g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
 				//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
 			}
-			else {
+			else
+			{
 				//gserver->PK_KillRewardHandler(iAttackerH, m_handle);
 			}
 		} 
-		else {
-			if (static_cast<Client*>(attacker)->IsNeutral()) {
-				if (m_iPKCount == 0) {
+		else
+		{
+			if (static_cast<Client*>(attacker)->IsNeutral())
+			{
+				if (playerKillCount == 0)
+				{
 					//	g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
 					//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
 				}
@@ -854,78 +873,93 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 // 				if (gserver->m_bHeldenianMode && g_mapList[m_cMapIndex]->m_bIsHeldenianMap) 
 // 					gserver->HeldenianPlayerKill(g_clientList[iAttackerH], this);
 
-				if (m_side == static_cast<Client*>(attacker)->m_side) {
-					if (m_iPKCount == 0) {
-						static_cast<Client*>(attacker)->ApplyPKPenalty(m_handle);
+				if (side == static_cast<Client*>(attacker)->side)
+				{
+					if (playerKillCount == 0)
+					{
+						static_cast<Client*>(attacker)->ApplyPKPenalty(this);
 					}
-					else {
+					else
+					{
 						//gserver->PK_KillRewardHandler(iAttackerH, m_handle);
 					}
 				}
-				else {
+				else
+				{
 					//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
 				}
 			}
 		}
 
-		if (m_iPKCount == 0) {
+		if (playerKillCount == 0)
+		{
 			// Innocent
-			if (static_cast<Client*>(attacker)->IsNeutral()) {
+			if (static_cast<Client*>(attacker)->IsNeutral())
+			{
 			}
-			else {
-				if (m_side == static_cast<Client*>(attacker)->m_side) {
+			else
+			{
+				if (side == static_cast<Client*>(attacker)->side)
+				{
 				}
-				else {
+				else
+				{
 					ApplyCombatKilledPenalty(2, bIsSAattacked);
 				}
 			}
 		}
-		else if ((m_iPKCount >= 1) && (m_iPKCount <= 3)) {
+		else if ((playerKillCount >= 1) && (playerKillCount <= 3))
+		{
 			// Criminal 
 			ApplyCombatKilledPenalty(3, bIsSAattacked,true);
 		}
-		else if ((m_iPKCount >= 4) && (m_iPKCount <= 11)) {
+		else if ((playerKillCount >= 4) && (playerKillCount <= 11))
+		{
 			// Murderer 
 			ApplyCombatKilledPenalty(6, bIsSAattacked,true);
 		}
-		else if (m_iPKCount >= 12) {
+		else if (playerKillCount >= 12) {
 			// Slaughterer 
 			ApplyCombatKilledPenalty(12, bIsSAattacked,true);
 		}
 	}
-	else if (attacker->m_ownerType == OWNERTYPE_NPC) {
+	else if (attacker->IsNPC()) {
 
 		//gserver->_bPKLog(PKLOG_BYNPC,(int) -1,m_handle, attacker->name) ;
 
-		if (m_iPKCount == 0) {
+		if (playerKillCount == 0) {
 			// Innocent
 			ApplyCombatKilledPenalty(1, bIsSAattacked,true);
 		}
-		else if ((m_iPKCount >= 1) && (m_iPKCount <= 3)) {
+		else if ((playerKillCount >= 1) && (playerKillCount <= 3))
+		{
 			// Criminal 
 			ApplyCombatKilledPenalty(3, bIsSAattacked , true);
 		}
-		else if ((m_iPKCount >= 4) && (m_iPKCount <= 11)) {
+		else if ((playerKillCount >= 4) && (playerKillCount <= 11))
+		{
 			// Murderer 
 			ApplyCombatKilledPenalty(6, bIsSAattacked , true);
 		}
-		else if (m_iPKCount >= 12) {
+		else if (playerKillCount >= 12) {
 			// Slaughterer 
 			ApplyCombatKilledPenalty(12, bIsSAattacked , true);
 		}
 
-		if (static_cast<Npc*>(attacker)->m_iGuildGUID != 0) {
+		if (static_cast<Npc*>(attacker)->guildGUID != 0)
+		{
 
-			if (static_cast<Npc*>(attacker)->m_side != m_side) {
+			if (static_cast<Npc*>(attacker)->side != side)
+			{
 				for (auto c : gserver->clientlist)
 				{
-					if ((c->m_iGuildGUID == static_cast<Npc*>(attacker)->m_iGuildGUID) && (c->m_iCrusadeDuty == 0))
+					if ((c->guildGUID == static_cast<Npc*>(attacker)->guildGUID) && (c->crusadeDuty == 0))
 					{
-						c->m_iConstructionPoint += (m_iLevel / 2);
-						if (c->m_iConstructionPoint > MAXCONSTRUCTIONPOINT)
-							c->m_iConstructionPoint = MAXCONSTRUCTIONPOINT;
-						gserver->logger->information(Poco::format("Enemy Player Killed by Npc! Construction +%?d", (m_iLevel / 2)));
-						gserver->SendNotifyMsg(nullptr, c.get(), NOTIFY_CONSTRUCTIONPOINT, c->m_iConstructionPoint, c->m_iWarContribution, 0);
+						c->crusadePoint += (level / 2);
+						if (c->crusadePoint > MAXCONSTRUCTIONPOINT)
+							c->crusadePoint = MAXCONSTRUCTIONPOINT;
+						gserver->logger->information(Poco::format("Enemy Player Killed by Npc! Construction +%?d", (level / 2)));
+						gserver->SendNotifyMsg(nullptr, c.get(), NOTIFY_CONSTRUCTIONPOINT, c->crusadePoint, c->crusadeContribution, 0);
 					}
 				}
 			}
@@ -1159,57 +1193,52 @@ void Client::PenaltyItemDrop(int iTotal, bool bIsSAattacked , bool bItemDrop)
 // 	}
 }
 
-void Client::ApplyPKPenalty(short sVictimH)
+void Client::ApplyPKPenalty(Client * player)
 {
-// 	int iV1, iV2;
-// 
-// 	if (g_clientList[sVictimH] == NULL) return;
-// 	if ((m_bIsSafeAttackMode == true) && (m_iPKCount == 0)) return; 
-// 
-// 	iV1 = dice((g_clientList[sVictimH]->m_iLevel/2)+1, 50); 
-// 	iV2 = dice((m_iLevel/2)+1, 50);
-// 
-// 	m_iExp -= iV1; 
-// 	m_iExp -= iV2;
-// 	if (m_iExp < 0) m_iExp = 0;
-// 
-// 
-// 	IncPKCount();
+	int32_t iV1, iV2;
+
+	if (!player) return;
+	if (safeAttackMode && playerKillCount == 0) return;
+
+	iV1 = dice((player->level / 2) + 1, 50);
+	iV2 = dice((level/2)+1, 50);
+
+	experience -= iV1; 
+	experience -= iV2;
+	if (experience < 0) experience = 0;
+
+	IncPKCount();
+
 // 
 // 	gserver->_bPKLog(PKLOG_BYPK,m_handle,sVictimH,NULL) ;
 // 	gserver->m_stCityStatus[m_side].iCrimes++;
 // 
 // 	//m_reputation -= 0;
 // 
-// 	if(m_side != NEUTRAL && !IsGM())
-// 	{
-// 		#ifndef PKPENALTY               
-// 			if (strcmp(g_mapList[m_cMapIndex]->m_cLocationName, sideMap[m_side]) != 0 ) return ;
-// 		#endif
-// 		ZeroMemory(m_cLockedMapName, sizeof(m_cLockedMapName));
-// 		strcpy(m_cLockedMapName, sideMap[m_side]);
-// 		m_iLockedMapTime = 60*3;
-// 		gserver->RequestTeleportHandler(m_handle, 2, m_cLockedMapName, -1, -1);
-// 	}
+	if(side != NEUTRAL && !IsGM())
+	{
+/*#ifndef PKPENALTY               
+		if (strcmp(g_mapList[m_cMapIndex]->m_cLocationName, sideMap[m_side]) != 0 ) return ;
+#endif*/
+		lockedMapName = sideMap[side];
+		lockedMapTime = 60*3;
+		gserver->RequestTeleportHandler(this, 2, lockedMapName, -1, -1);//TODO: Shouldn't they be sent to jail instead? Did we do away with jail now?
+	}
 }
 
 bool Client::IsInFoeMap()
 {
-// 	switch(m_side)
-// 	{
-// 	case ARESDEN:
-// 		if(strcmp(g_mapList[ m_cMapIndex ]->m_cLocationName, sideMap[ELVINE]) == 0)
-// 		{
-// 			return true;
-// 		}
-// 		break;
-// 	case ELVINE:
-// 		if(strcmp(g_mapList[ m_cMapIndex ]->m_cLocationName, sideMap[ARESDEN]) == 0)
-// 		{
-// 			return true;
-// 		}
-// 		break;
-// 	}
+	switch(side)
+	{
+	case ARESDEN:
+		if (pMap->factionName == sideMap[ELVINE])
+			return true;
+		break;
+	case ELVINE:
+		if (pMap->factionName == sideMap[ARESDEN])
+			return true;
+		break;
+	}
 
 	return false;
 }
@@ -1251,26 +1280,26 @@ void Client::ApplyElo(Client * foe)
 
 void Client::DecPKCount()
 {
-// 	if (m_iPKCount > 0) {
-// 		m_iPKCount--;
-// 		Notify(NULL, NOTIFY_PKPENALTY, NULL, NULL, NULL, NULL);
-// 		gserver->_bPKLog(PKLOG_REDUCECRIMINAL,(int) -1,m_handle,NULL);
-// 		if(m_iPKCount == 0)
-// 		{	
-// 			SetStatusFlag(STATUS_PK, false);
-// 			gserver->SendEventToNearClient_TypeA(m_handle, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, NULL, NULL, NULL);
-// 		}
-// 
-// 	}
+	if (playerKillCount > 0) {
+		playerKillCount--;
+		Notify(0, NOTIFY_PKPENALTY, 0, 0, 0, 0);
+		//gserver->_bPKLog(PKLOG_REDUCECRIMINAL,(int) -1,m_handle,NULL);
+		if (playerKillCount == 0)
+		{	
+			SetStatusFlag(STATUS_PK, false);
+			gserver->SendEventToNearClient_TypeA(this, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, 0, 0);
+		}
+
+	}
 }
 
 void Client::IncPKCount()
 {
-// 	m_iPKCount++;
-// 	SetStatusFlag(STATUS_PK, true);
-// 
-// 	Notify(NULL, NOTIFY_PKPENALTY, NULL, NULL, NULL, NULL);
-// 	gserver->SendEventToNearClient_TypeA(m_handle, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, NULL, NULL, NULL);
+	playerKillCount++;
+	SetStatusFlag(STATUS_PK, true);
+
+	Notify(0, NOTIFY_PKPENALTY, 0, 0, 0, 0);
+	gserver->SendEventToNearClient_TypeA(this, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, 0, 0);
 }
 void Client::Save()
 {
@@ -1284,6 +1313,9 @@ void Client::SWrite(StreamWrite & sw)
 	socket->write(sw);
 }
 //TODO: let client class send packets directly?
+// no pls.
+// Server function -> Server function -> Client function -> Returned to server function -> Packet sent (ideally)
+// This is temporary and only for compatibility with existing code being pulled in.
 void Client::Notify(Client * from, uint16_t wMsgType, uint32_t sV1, uint32_t sV2, uint32_t sV3, string pString, 
 	uint32_t sV4, uint32_t sV5, uint32_t sV6, uint32_t sV7, uint32_t sV8, uint32_t sV9, string pString2)
 {
@@ -1344,20 +1376,20 @@ void Client::UpdateWeight()
 {
 	m_iCurWeightLoad = 0;
 
-	for(int i = 0; i < m_pItemList.size(); i++)
+	for(int i = 0; i < itemList.size(); i++)
 	{
-		if(m_pItemList[i]->_item)
+		if(itemList[i]->_item)
 		{
-			m_iCurWeightLoad += m_pItemList[i]->_item->GetWeight();
+			m_iCurWeightLoad += itemList[i]->_item->GetWeight();
 		}
 	}
 }
 
 uint32_t Client::HasItem(string name) const
 {
-	for (int i = 0; i < m_pItemList.size(); i++)
+	for (int i = 0; i < itemList.size(); i++)
 	{
-		if (m_pItemList[i]->_item && m_pItemList[i]->_item->m_cName == name) 
+		if (itemList[i]->_item && itemList[i]->_item->m_cName == name) 
 		{
 			return i;
 		}
@@ -1368,9 +1400,9 @@ uint32_t Client::HasItem(string name) const
 
 uint32_t Client::HasItem(uint64_t id) const
 {
-	for (int i = 0; i < m_pItemList.size(); i++)
+	for (int i = 0; i < itemList.size(); i++)
 	{
-		if (m_pItemList[i]->_item && m_pItemList[i]->_item->m_sIDnum == id) 
+		if (itemList[i]->_item && itemList[i]->_item->m_sIDnum == id) 
 		{
 			return i;
 		}
@@ -1381,11 +1413,11 @@ uint32_t Client::HasItem(uint64_t id) const
 
 uint32_t Client::GetItemCount(uint64_t id) const
 {
-	for (int i = 0; i < m_pItemList.size(); i++)
+	for (int i = 0; i < itemList.size(); i++)
 	{
-		if (m_pItemList[i]->_item && m_pItemList[i]->_item->m_sIDnum == id) 
+		if (itemList[i]->_item && itemList[i]->_item->m_sIDnum == id) 
 		{
-			return m_pItemList[i]->_item->m_dwCount;
+			return itemList[i]->_item->m_dwCount;
 		}
 	}
 
@@ -1394,15 +1426,15 @@ uint32_t Client::GetItemCount(uint64_t id) const
 
 void Client::SetItemCount(uint64_t id, uint32_t val, bool notify)
 {
-	for(int i = 0; i < m_pItemList.size(); i++)
+	for(int i = 0; i < itemList.size(); i++)
 	{
-		if(m_pItemList[i]->_item && m_pItemList[i]->_item->m_sIDnum == id) 
+		if(itemList[i]->_item && itemList[i]->_item->m_sIDnum == id) 
 		{
 			if(val == 0) {
-				gserver->ItemDepleteHandler(self.lock(), m_pItemList[i]->_item, false);
+				gserver->ItemDepleteHandler(self.lock(), itemList[i]->_item, false);
 			}
 			else {
-				m_pItemList[i]->_item->m_dwCount = val;
+				itemList[i]->_item->m_dwCount = val;
 				if(notify)
 					Notify(0, NOTIFY_SETITEMCOUNT, i, val, (char)true, 0);
 			}
@@ -1627,7 +1659,7 @@ uint16_t Client::ArcaneResist()
 
 int8_t Client::ChangeCurrency(int8_t id, int64_t amount)
 {
-	for (stCurrency & c : _currency)
+	for (stCurrency & c : currency)
 	{
 		if (c._id == id)
 		{
@@ -1653,7 +1685,7 @@ int8_t Client::ChangeCurrency(int8_t id, int64_t amount)
 
 int8_t Client::SetCurrency(int8_t id, int64_t amount)
 {
-	for (stCurrency & c : _currency)
+	for (stCurrency & c : currency)
 	{
 		if (c._id == id)
 		{
@@ -1675,4 +1707,23 @@ int8_t Client::SetCurrency(int8_t id, int64_t amount)
 		}
 	}
 	return 0;
+}
+
+void Client::LockMap(string mapName, uint32_t time)
+{
+	//Perhaps give error value some time? Or largely irrelevant due to not really mattering in the long haul
+	bool test = false;
+	for (auto map : gserver->maplist)
+	{
+		if (map->name == mapName)
+		{
+			test = true;
+			break;
+		}
+	}
+	if (!test)
+		return;
+
+	this->lockedMapName = mapName;
+	this->lockedMapTime = time;
 }

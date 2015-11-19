@@ -126,6 +126,7 @@ enum GuildRank
 	GUILDRANK_NONE = -1
 };
 
+//TODO: Make this customizable ingame via UI?
 const struct GuildRankPermissions
 {
 	bool canDisband;

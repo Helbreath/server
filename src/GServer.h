@@ -226,6 +226,7 @@ public:
 
 	Gate * gate;
 
+#pragma region sort these
 	void TimerThread();
 	void ChatThread();
 	void SocketThread();
@@ -330,14 +331,21 @@ public:
 
 	void ParseChat(Client * client, string message);
 
+#pragma endregion
+
 	MsgQueue chatpipe;
 	MsgQueue actionpipe;
 	std::mutex mutchat;
 	std::mutex mutaction;
-	shared_mutex mutnpclist;
+	shared_mutex mutobjectlist;
 
 	//TODO: guilds - load all the guilds from the db and keep them in memory
 	//Give guilds more purpose than just another chat channel in game
+
+
+	//need a config array for variables moving forward, temporary solution for like a day (/cough week)
+	uint16_t lockedMapTimeDefault;
+	uint16_t farmRestartLimit;//level limit where players can no longer respawn in the farm
 
 
 	std::list<shared_ptr<Npc>> npclist;

@@ -83,41 +83,69 @@ public:
 	void IncPlayerActivity(Client * player);
 	bool bDecodeMapConfig();
 	bool GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation);
+	Tile * GetTile(int16_t x, int16_t y);
 
 	Map(GServer * pGame);
 	~Map();
 
-	Tile * m_pTile;
 	GServer * gserver;
-	string m_cName;
-	string m_cLocationName;
-	short m_sSizeX, m_sSizeY, m_sTileDataSize;
-	std::vector<TeleportLoc *> m_pTeleportLoc;
+	string name;
+	string factionName;
+	short sizeX, sizeY, tileDataSize;
+	std::vector<TeleportLoc *> teleportLocationList;
 
 	//short m_sInitialPointX, m_sInitialPointY;
-	std::vector<point> m_pInitialPoint;
+	std::vector<point> initialPointList;
 
-	bool m_bIsApocalypseMap;
-	ApocMobGenType m_iApocalypseMobGenType;
-	int32_t m_iApocalypseBossMobNpcID;
-	rect	m_sApocalypseBossMobRect;
 
-	char  m_cDynamicGateType;
-	short m_sDynamicGateCoordRectX1, m_sDynamicGateCoordRectY1, m_sDynamicGateCoordRectX2, m_sDynamicGateCoordRectY2;
-	string m_cDynamicGateCoordDestMap;
-	short m_sDynamicGateCoordTgtX, m_sDynamicGateCoordTgtY;
+	//map flags
+	struct stMapFlags {
+		bool apocalypseMap;
+		bool heldenianMap;
+		bool mineralGenerator;
+		bool randomMobGenerator;
+		bool attackEnabled;
+		bool partyDisabled;
+		bool shieldDisabled;
+		bool armorDisabled;
+		bool chatDisabled;
+		bool magicLimited[MAXMAGICTYPE];
+		bool permIllusionOn;
+		bool disabled;
+		bool fightZone;
+	} flags;
 
-	char  m_cHeldenianModeMap;
-	bool m_bIsHeldenianMap;
-	short m_sHeldenianWinningZoneX;
-	short m_sHeldenianWinningZoneY;
+	uint8_t mineralGenLevel;
+	std::vector<point> mineralPointList;
+	uint16_t   mineralTotalPoint, mineralMax, mineralCurrent;
+
+
+	int8_t  heldenianModeMap;
+	int16_t heldenianWinningZoneX;
+	int16_t heldenianWinningZoneY;
+
+	ApocMobGenType apocalypseMobGenType;
+	int32_t apocalypseBossMobNpcID;
+	rect	apocalypseBossMobRect;
+
+	uint16_t mobGenLevel;
+	uint16_t totalActiveObject;
+	uint16_t totalAliveObject;
+	uint16_t maximumObject;//redundant?
+
+	char    dynamicGateType;
+	int16_t dynamicGateCoordRectX1, dynamicGateCoordRectY1, dynamicGateCoordRectX2, dynamicGateCoordRectY2;
+	string  dynamicGateCoordDestMap;
+	int16_t dynamicGateCoordTgtX, dynamicGateCoordTgtY;
+
+
 
 	struct heldgatedoor {
 		char  cDir;
 		short dX;
 		short dY;
 	};
-	std::vector<heldgatedoor> m_stHeldenianGateDoor;
+	std::vector<heldgatedoor> heldenianGateDoor;
 
 	struct heldtower {
 		short sTypeID;
@@ -125,138 +153,105 @@ public:
 		short dY;
 		char  cSide;
 	};
-	std::vector<heldtower> m_stHeldenianTower;
+	std::vector<heldtower> heldenianTower;
 
-	bool  m_bRandomMobGenerator;
-	uint16_t  m_cRandomMobGeneratorLevel;
-	uint16_t   m_iTotalActiveObject;
-	uint16_t   m_iTotalAliveObject;
-	uint16_t   m_iMaximumObject;
 
-	char  m_cType;
-	bool  m_bIsFixedDayMode;		
-	bool  m_bIsFixedSnowMode;
+
+	int8_t type;
+	bool   fixedDay;		
+	bool   fixedSnow;
+
 	struct spotmobgen {		    
-		bool bDefined;
-		char cType;				// 1:RANDOMAREA   2:RANDOMWAYPOINT
+		bool defined;
+		char genType;				// 1:RANDOMAREA   2:RANDOMWAYPOINT
 
-		char cWaypoint[10];     
+		char waypoints[10];     
 		rect rcRect;
 
-		int  iTotalActiveMob;
-		int  iMobType;
-		int  iMaxMobs;
-		int  iCurMobs;
+		int  active;//??
+		int  type;
+		int  max;
+		int  current;
 
 	};
-	std::vector<spotmobgen> m_stSpotMobGenerator;
+	std::vector<spotmobgen> spotMobGenerator;
 
-	std::vector<point> m_WaypointList;
-	std::vector<rect>  m_rcMobGenAvoidRect;
-	std::vector<rect>  m_rcNoAttackRect;
+	std::vector<point> waypointList;
+	std::vector<rect>  mobGeneratorAvoidList;
+	std::vector<rect>  safeZoneList;
 
-	std::vector<point> m_FishPointList;
-	uint16_t   m_iTotalFishPoint, m_iMaxFish, m_iCurFish;
+	//TODO: figure out something with fishing. no one ever did it for 16 years, why should they do it now?
+	std::vector<point> fishingPointList;
+	uint16_t   totalFishPoints, fishMax, fishCurrent;
 
-	bool  m_bMineralGenerator;
-	char  m_cMineralGeneratorLevel;
-	std::vector<point> m_MineralPointList;
-	uint16_t   m_iTotalMineralPoint, m_iMaxMineral, m_iCurMineral;
 
-	Weather m_weather;			
-	uint32_t m_dwWeatherLastTime, m_dwWeatherStartTime;  
 
-	uint16_t   m_iLevelLimit;
-	uint16_t   m_iUpperLevelLimit;
+	Weather weather;			
+	uint32_t weatherEndTime, weatherStartTime;  
+
+	uint16_t   levelLimitLower;
+	uint16_t   levelLimitUpper;
 
 
 	struct OccupyFlag
 	{
-		OccupyFlag(int dX, int dY, char cSide, int iEKNum, int iDOI)
+		OccupyFlag(int16_t dX, int16_t dY, char cSide, int32_t iEKNum, int32_t iDOI)
 		{
-			m_sX = dX;
-			m_sY = dY;
+			x = dX;
+			y = dY;
 
-			m_side = cSide;
-			m_iEKCount = iEKNum;
+			side = cSide;
+			EKCount = iEKNum;
 
-			m_iDynamicObjectIndex = iDOI;
+			dynamicObjectIndex = iDOI;
 		}
 
-		char m_side;
-		int  m_iEKCount;
-		int  m_sX, m_sY;
+		char side;
+		int  EKCount;
+		int  x, y;
 
-		int  m_iDynamicObjectIndex;
+		int  dynamicObjectIndex;
 	};
 
 	struct StrategicPoint
 	{
 		StrategicPoint()
 		{
-			m_iSide = m_iValue = m_iX = m_iY = 0;
+			side = value = x = y = 0;
 		}
-		int		m_iSide;				
-		int     m_iValue;
-		int		m_iX, m_iY;
+		int8_t		side;				
+		int32_t     value;
+		int16_t		x, y;
 	};
+	std::vector<StrategicPoint *> strategicPointList;
 
-	std::vector<OccupyFlag *> m_pOccupyFlag;
-	int   m_iTotalOccupyFlags;
-
-	std::vector<StrategicPoint *> m_pStrategicPointList;
-
-	bool	m_bIsAttackEnabled;
-	bool	m_isPartyDisabled;
-	bool	m_isShieldDisabled;
-	bool	m_isArmorDisabled;
-	bool	m_isChatDisabled;
-	bool	m_magicLimited[MAXMAGICTYPE];
-	bool	m_isPermIllusionOn;
-
-	bool  m_bIsFightZone;
-
-	struct energysphere {
-		char cType;
-		int sX, sY;
-	};
-	std::vector<energysphere> m_stEnergySphereCreationList;
-	int m_iTotalEnergySphereCreationPoint;
-
-
-	int m_stEnergySphereGoalList_aresdenX, m_stEnergySphereGoalList_aresdenY, m_stEnergySphereGoalList_elvineX, m_stEnergySphereGoalList_elvineY;
-	int m_iTotalEnergySphereGoalPoint;
-
-	bool m_bIsEnergySphereGoalEnabled;
-	int m_iCurEnergySphereGoalPointIndex; 
+	std::vector<OccupyFlag *> occupyFlag;
+	int   occupyFlagTotal;
 
 	struct sectorinfo {
-		int iPlayerActivity;
-		int iNeutralActivity;
-		int iAresdenActivity;
-		int iElvineActivity;
-		int iMonsterActivity;
-
+		int playerActivity;
+		int neutralActivity;
+		int aresdenActivity;
+		int elvineActivity;
+		int mobActivity;
 	};
-	//use vectors or maps?
-	std::vector<sectorinfo> m_stSectorInfo;
-	std::vector<sectorinfo> m_stTempSectorInfo;
 
-	int m_iMaxNx, m_iMaxNy, m_iMaxAx, m_iMaxAy, m_iMaxEx, m_iMaxEy, m_iMaxMx, m_iMaxMy, m_iMaxPx, m_iMaxPy;
+	//use vectors or maps?
+	std::vector<sectorinfo> sectorInfo;
+	std::vector<sectorinfo> sectorInfoTemp;
+
+	int m_iMaxNx, m_iMaxNy, m_iMaxAx, m_iMaxAy, m_iMaxEx, m_iMaxEy, m_iMaxMx, m_iMaxMy, m_iMaxPx, m_iMaxPy;//??
 
 	struct strikepoint {
-		string cRelatedMapName;
-		int iMapIndex;
-		int dX, dY;
-		int iHP, iInitHP;
+		Map * map;
+		int16_t x, y;
+		int64_t hp, hpInit;
 
-		int iEffectX[5];
-		int iEffectY[5];
+		int32_t effectX[5];
+		int32_t effectY[5];
 
 	};
-	std::vector<strikepoint> m_stStrikePoint;
-
-	bool m_bIsDisabled;
+	std::vector<strikepoint> strikePointList;
 
 	struct crusadestructure {
 		char cType;					
@@ -277,15 +272,16 @@ public:
 		int iCurNum;
 		int	iNumMob;
 	};
-	std::vector<itemeventlist> m_stItemEventList;
+	std::vector<itemeventlist> itemEventList;
 
-	short sMobEventAmount ;
+	short mobEventAmount ;
 
-	int m_chatZone;
+	int chatZone;//?
 
 	Map::OccupyFlag * iRegisterOccupyFlag(int dX, int dY, int iSide, int iEKNum, int iDOI);
 
 private:
+	Tile * _tile;
 	bool _bDecodeMapDataFileContents();
 };
 

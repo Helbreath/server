@@ -667,7 +667,7 @@ void LServer::SocketThread()
 									//BUG: potential bug point if charID == 0 - only occurs on unsuccessful login
 									//account found
 									accountfound = true;
-									if (clnt->m_charID == charid)
+									if (clnt->charid == charid)
 									{
 										//exact char found
 										clientfound = clnt;
@@ -710,7 +710,7 @@ void LServer::SocketThread()
 									bool maptest = false;
 									for (Map * pmap : pgs->maplist)
 									{
-										if (pmap->m_cName == mapname)
+										if (pmap->name == mapname)
 										{
 											maptest = true;
 											client->pMap = pmap;
@@ -727,7 +727,7 @@ void LServer::SocketThread()
 
 										sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 										sw.WriteShort(ENTERGAMERESTYPE_CONFIRM);
-										sw.WriteString(string("0.0.0.0"), 16);
+										sw.WriteString(string("127.0.0.1"), 16);
 										sw.WriteShort(2848);
 										sw.WriteString(worldname, 20);
 										client->mutsocket.lock();
@@ -763,7 +763,7 @@ void LServer::SocketThread()
 								bool maptest = false;
 								for (Map * pmap : pgs->maplist)
 								{
-									if (pmap->m_cName == mapname)
+									if (pmap->name == mapname)
 									{
 										maptest = true;
 										client->pMap = pmap;
@@ -781,7 +781,7 @@ void LServer::SocketThread()
 
 									sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 									sw.WriteShort(ENTERGAMERESTYPE_CONFIRM);
-									sw.WriteString(string("0.0.0.0"), 16);
+									sw.WriteString(string("127.0.0.1"), 16);
 									sw.WriteShort(2848);
 									sw.WriteString(worldname, 20);
 									client->mutsocket.lock();

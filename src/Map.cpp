@@ -16,99 +16,93 @@
 
 Map::Map(GServer * pGame)
 {
-	m_sSizeX = m_sSizeY = 0;
+	sizeX = sizeY = 0;
 
-	m_iTotalEnergySphereCreationPoint = 0;
-	m_iTotalEnergySphereGoalPoint = 0;
+	totalActiveObject = 0;
+	totalAliveObject  = 0;
 
-	m_bIsEnergySphereGoalEnabled = false;
-	m_iCurEnergySphereGoalPointIndex = -1;
+	flags.apocalypseMap = false;
+	apocalypseMobGenType = AMGT_NONE;
+	apocalypseBossMobNpcID = 0;
 
-	m_iTotalActiveObject = 0;
-	m_iTotalAliveObject  = 0;
+	dynamicGateType = 0;
 
-	m_bIsApocalypseMap		= false;
-	m_iApocalypseMobGenType = AMGT_NONE;
-	m_iApocalypseBossMobNpcID = 0;
-
-	m_cDynamicGateType = 0;
-
-	m_sDynamicGateCoordRectX1 = -2;
-	m_sDynamicGateCoordRectY1 = -2;
-	m_sDynamicGateCoordRectX2 = -2;
-	m_sDynamicGateCoordRectY2 = -2;
-	m_sDynamicGateCoordTgtX = 0;
-	m_sDynamicGateCoordTgtY = 0;
+	dynamicGateCoordRectX1 = -2;
+	dynamicGateCoordRectY1 = -2;
+	dynamicGateCoordRectX2 = -2;
+	dynamicGateCoordRectY2 = -2;
+	dynamicGateCoordTgtX = 0;
+	dynamicGateCoordTgtY = 0;
 
 	//m_sInitialPointX = 0;
 	//m_sInitialPointY = 0;
 
-	m_bIsFixedDayMode = false;
-	m_bIsFixedSnowMode = false ; 
+	fixedDay = false;
+	fixedSnow = false ; 
 
-	m_iTotalFishPoint = 0;
-	m_iMaxFish = 0;
-	m_iCurFish = 0;
+	totalFishPoints = 0;
+	fishMax = 0;
+	fishCurrent = 0;
 
-	m_iTotalMineralPoint = 0;
-	m_iMaxMineral = 0;
-	m_iCurMineral = 0;
+	mineralTotalPoint = 0;
+	mineralMax = 0;
+	mineralCurrent = 0;
 
-	m_pTile = 0;
+	_tile = 0;
 
-	m_weather = WEATHER_SUNNY;
-	m_cType          = MAPTYPE_NORMAL;
+	weather = WEATHER_SUNNY;
+	type          = MAPTYPE_NORMAL;
 
 	gserver = pGame;
 
-	m_iLevelLimit = 0;
-	m_iUpperLevelLimit = 0; 
-	m_bMineralGenerator = false;
+	levelLimitLower = 0;
+	levelLimitUpper = 0; 
+	flags.mineralGenerator = false;
 
-	m_iTotalOccupyFlags = 0;
+	occupyFlagTotal = 0;
 
-	m_bIsAttackEnabled = true;
-	m_cRandomMobGeneratorLevel = 0;
+	flags.attackEnabled = true;
+	mobGenLevel = 0;
 
 	for(int i = 0; i < MAXMAGICTYPE; i++)
-		m_magicLimited[i] = false;
+		flags.magicLimited[i] = false;
 
-	m_isPartyDisabled = false;
-	m_isShieldDisabled = false;
-	m_isArmorDisabled = false;
-	m_isChatDisabled = false;
-	m_isPermIllusionOn = false;
+	flags.partyDisabled = false;
+	flags.shieldDisabled = false;
+	flags.armorDisabled = false;
+	flags.chatDisabled = false;
+	flags.permIllusionOn = false;
 
-	m_bIsFightZone = false;
+	flags.fightZone = false;
 
-	m_chatZone = 0;
+	chatZone = 0;
 
 	m_iMaxNx = m_iMaxNy = m_iMaxAx = m_iMaxAy = m_iMaxEx = m_iMaxEy = m_iMaxMx = m_iMaxMy = m_iMaxPx = m_iMaxPy = 0;
 
-	m_bIsDisabled = false;
+	flags.disabled = false;
 
-	m_bIsHeldenianMap		= false;
+	flags.heldenianMap = false;
 
-	m_bRandomMobGenerator = false;
+	flags.randomMobGenerator = false;
 
-	sMobEventAmount = 15 ;   
+	mobEventAmount = 15 ;   
 
 	}
 
 Map::~Map()
 {
-	if (m_pTile != 0) 
-		delete []m_pTile;
+	if (_tile != 0) 
+		delete []_tile;
 
-	for (TeleportLoc * var : m_pTeleportLoc)
+	for (TeleportLoc * var : teleportLocationList)
 	{
 		delete var;
 	}
-	for (OccupyFlag * var : m_pOccupyFlag)
+	for (OccupyFlag * var : occupyFlag)
 	{
 		delete var;
 	}
-	for (StrategicPoint * var : m_pStrategicPointList)
+	for (StrategicPoint * var : strategicPointList)
 	{
 		delete var;
 	}
@@ -118,9 +112,9 @@ void Map::SetOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return;
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return;
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	pTile->owner      = sOwner;
 	pTile->m_cOwnerType = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
 }
@@ -130,9 +124,9 @@ void Map::SetDeadOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return;
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return;
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	pTile->deadowner      = sOwner;
 	pTile->m_cDeadOwnerType = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
 }
@@ -141,11 +135,11 @@ shared_ptr<Unit> Map::GetOwner(short sX, short sY)
 {
 	Tile * pTile;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) {
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) {
 		return 0;
 	}
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	return pTile->owner;
 
 }
@@ -154,11 +148,11 @@ shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
 {
 	Tile * pTile;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) {
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) {
 		return 0;
 	}
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	return pTile->deadowner;
 
 }
@@ -173,14 +167,14 @@ std::list<shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2
  	if(x1 < 0)
  		x1 = 0;
  
- 	if(x2 >= m_sSizeX)
- 		x2 = m_sSizeX-1;
+ 	if(x2 >= sizeX)
+ 		x2 = sizeX-1;
  
  	if(y1 < 0)
  		y1 = 0;
  
- 	if(y2 >= m_sSizeY)
- 		y2 = m_sSizeY-1;
+ 	if(y2 >= sizeY)
+ 		y2 = sizeY-1;
  
  	int n = 0;
  
@@ -188,7 +182,7 @@ std::list<shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2
  	{
  		for (int x = x1; x <= x2; x++)
  		{
- 			pTile = (Tile *)(m_pTile + x + y*m_sSizeY);
+ 			pTile = (Tile *)(_tile + x + y*sizeY);
  
  			switch(pTile->m_cOwnerType)
  			{
@@ -218,9 +212,9 @@ bool Map::bGetMoveable(short dX, short dY, short * pDOtype, Item * pTopItem)
 {
 	Tile * pTile;
 
-	if ((dX < 20) || (dX >= m_sSizeX - 20) || (dY < 20) || (dY >= m_sSizeY - 20)) return false;
+	if ((dX < 20) || (dX >= sizeX - 20) || (dY < 20) || (dY >= sizeY - 20)) return false;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
 	if (pDOtype != 0) *pDOtype = pTile->m_sDynamicObjectType; 
 	if ((pTopItem != 0) && (pTile->m_pItem.size() > 0)) pTopItem = pTile->m_pItem[0]; 
@@ -236,9 +230,9 @@ bool Map::bGetIsMoveAllowedTile(short dX, short dY)
 {
 	Tile * pTile;
 
-	if ((dX < 20) || (dX >= m_sSizeX - 20) || (dY < 20) || (dY >= m_sSizeY - 20)) return false;
+	if ((dX < 20) || (dX >= sizeX - 20) || (dY < 20) || (dY >= sizeY - 20)) return false;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
 	if (pTile->m_bIsMoveAllowed == false) return false;
 	if (pTile->m_bIsTempMoveAllowed == false) return false;
@@ -248,11 +242,11 @@ bool Map::bGetIsMoveAllowedTile(short dX, short dY)
 
 bool Map::bGetIsMoveAllowedTile(Point p)
 {
-	if (p.x < 20 || p.x >= m_sSizeX - 20 
-		|| p.y < 20 || p.y >= m_sSizeY - 20
+	if (p.x < 20 || p.x >= sizeX - 20 
+		|| p.y < 20 || p.y >= sizeY - 20
 		) return false;
 
-	Tile * pTile = (Tile *)(m_pTile + p.x + p.y*m_sSizeY);
+	Tile * pTile = (Tile *)(_tile + p.x + p.y*sizeY);
 
 	if (!pTile->m_bIsMoveAllowed || !pTile->m_bIsTempMoveAllowed) 
 		return false;
@@ -264,9 +258,9 @@ bool Map::bGetIsTeleport(short dX, short dY)
 {
 	Tile * pTile;
 
-	if ((dX < 14) || (dX >= m_sSizeX - 16) || (dY < 12) || (dY >= m_sSizeY - 14)) return false;
+	if ((dX < 14) || (dX >= sizeX - 16) || (dY < 12) || (dY >= sizeY - 14)) return false;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
 	if (pTile->m_bIsTeleport == false) return false;
 
@@ -277,9 +271,9 @@ void Map::ClearOwner(short sX, short sY)
 {
 	Tile * pTile;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return;
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return;
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	pTile->owner      = 0;
 	pTile->m_cOwnerType = 0;
 }
@@ -288,9 +282,9 @@ void Map::ClearDeadOwner(short sX, short sY)
 {
 	Tile * pTile;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return;
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return;
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	pTile->deadowner      = 0;
 	pTile->m_cDeadOwnerType = 0;
 }
@@ -299,9 +293,9 @@ bool Map::bSetItem(short sX, short sY, Item * pItem)
 {
 	Tile * pTile;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return false; 
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return false; 
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 
 	if (pTile->m_pItem.size() > 0)
 	{
@@ -329,9 +323,9 @@ Item * Map::pGetItem(short sX, short sY, short * pRemainItemSprite, short * pRem
 	Tile * pTile;
 	Item * pItem;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return 0;
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return 0;
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	if (pTile->m_pItem.size() == 0) return 0;
 	pItem =  pTile->m_pItem[0];
 
@@ -361,9 +355,9 @@ uint64_t Map::iCheckItem(short sX, short sY)
 	Tile * pTile;
 	Item * pItem;
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return 0;
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return 0;
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 	if (pTile->m_pItem.size() == 0) return 0;
 	pItem =  pTile->m_pItem[0];
 
@@ -373,13 +367,13 @@ uint64_t Map::iCheckItem(short sX, short sY)
 
 bool Map::bIsValidLoc(short sX, short sY)
 {
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return false;
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return false;
 	return true;
 }
 
 bool Map::bInit(string pName)
 {
-	m_cName = pName;
+	name = pName;
 
 	if (_bDecodeMapDataFileContents() == false) 
 		return false;
@@ -396,7 +390,7 @@ extern void stack_dump(lua_State *stack);
 bool Map::bDecodeMapConfig()
 {
 	string mapfile = "mapdata/";
-	mapfile += m_cName + ".lua";
+	mapfile += name + ".lua";
 
 	lua_State * L = gserver->L;
 	try
@@ -457,7 +451,7 @@ bool Map::bDecodeMapConfig()
 							loc->m_cDir = dir;
 							loc->m_cDestMapName = dest;
 
-							m_pTeleportLoc.push_back(loc);
+							teleportLocationList.push_back(loc);
 
 							lua_pop(L, 1);
 						}
@@ -482,7 +476,7 @@ bool Map::bDecodeMapConfig()
 							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
 							lua_pop(L, 1);
 
-							m_WaypointList.push_back(point(sX, sY));
+							waypointList.push_back(point(sX, sY));
 
 							lua_pop(L, 1);
 						}
@@ -503,12 +497,12 @@ bool Map::bDecodeMapConfig()
 					uint16_t level = (uint16_t)lua_tointeger(L, -1);
 					lua_pop(L, 1);
 
-					m_bRandomMobGenerator = (gen>0)?true:false;
-					m_cRandomMobGeneratorLevel = level;
+					flags.randomMobGenerator = (gen>0) ? true : false;
+					mobGenLevel = level;
 				}
 				else if (option == "maximumobject")
 				{
-					m_iMaximumObject = (uint16_t)lua_tointeger(L, -1);
+					maximumObject = (uint16_t)lua_tointeger(L, -1);
 				}
 				else if (option == "npcavoidrect")
 				{
@@ -520,7 +514,7 @@ bool Map::bDecodeMapConfig()
 				}
 				else if (option == "name")
 				{
-					this->m_cLocationName = (char*)lua_tostring(L, -1);;
+					this->factionName = (char*)lua_tostring(L, -1);;
 				}
 				else if (option == "initialpoint")
 				{
@@ -541,7 +535,7 @@ bool Map::bDecodeMapConfig()
 							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
 							lua_pop(L, 1);
 
-							m_pInitialPoint.push_back(point(sX, sY));
+							initialPointList.push_back(point(sX, sY));
 
 							lua_pop(L, 1);
 						}
@@ -574,7 +568,7 @@ bool Map::bDecodeMapConfig()
 							uint16_t dY = (uint16_t)lua_tointeger(L, -1);
 							lua_pop(L, 1);
 
-							m_rcNoAttackRect.push_back(rect(sX, sY, dX, dY));
+							safeZoneList.push_back(rect(sX, sY, dX, dY));
 
 							lua_pop(L, 1);
 						}
@@ -590,7 +584,7 @@ bool Map::bDecodeMapConfig()
 				}
 				else if (option == "maxfish")
 				{
-					m_iMaxFish = (uint32_t)lua_tointeger(L, -1);
+					fishMax = (uint32_t)lua_tointeger(L, -1);
 				}
 				else if (option == "type")
 				{
@@ -598,7 +592,7 @@ bool Map::bDecodeMapConfig()
 				}
 				else if (option == "levellimit")
 				{
-					m_iLevelLimit = (uint16_t)lua_tointeger(L, -1);
+					levelLimitLower = (uint16_t)lua_tointeger(L, -1);
 				}
 				else if (option == "mineralgenerator")
 				{
@@ -610,11 +604,11 @@ bool Map::bDecodeMapConfig()
 				}
 				else if (option == "maxmineral")
 				{
-					m_iMaxMineral = (uint16_t)lua_tointeger(L, -1);
+					mineralMax = (uint16_t)lua_tointeger(L, -1);
 				}
 				else if (option == "upperlevellimit")
 				{
-					m_iUpperLevelLimit = (uint16_t)lua_tointeger(L, -1);
+					levelLimitUpper = (uint16_t)lua_tointeger(L, -1);
 				}
 				else if (option == "strategicpoint")
 				{
@@ -710,7 +704,7 @@ bool Map::bDecodeMapConfig()
 bool Map::_bDecodeMapDataFileContents()
 {
 	string mapfile = "mapdata/";
-	mapfile += m_cName + ".amd";
+	mapfile += name + ".amd";
 	FILE * file;
 	char * buffer;
 	file = fopen(mapfile.c_str(), "r");
@@ -718,7 +712,7 @@ bool Map::_bDecodeMapDataFileContents()
 	if (!file)
 	{
 		//not existing
-		gserver->logger->fatal(Poco::format("Loaded map does not exist: %s", m_cName));
+		gserver->logger->fatal(Poco::format("Loaded map does not exist: %s", name));
 		return false;
 	}
 
@@ -751,32 +745,32 @@ bool Map::_bDecodeMapDataFileContents()
 	if (memcmp(tok, "MAPSIZEX",8) == 0)
 	{
 		tok = strtok_s(0, "\t\n =", &ptr);
-		m_sSizeX = atoi(tok);
+		sizeX = atoi(tok);
 	}
 	tok = strtok_s(0, "\t\n =", &ptr);
 	if (memcmp(tok, "MAPSIZEY",8) == 0)
 	{
 		tok = strtok_s(0, "\t\n =", &ptr);
-		m_sSizeY = atoi(tok);
+		sizeY = atoi(tok);
 	}
 	tok = strtok_s(0, "\t\n =", &ptr);
 	if (memcmp(tok, "TILESIZE",8) == 0)
 	{
 		tok = strtok_s(0, "\t\n =", &ptr);
-		m_sTileDataSize = atoi(tok);
+		tileDataSize = atoi(tok);
 	}
 
-	m_pTile = (Tile *)new Tile[m_sSizeX * m_sSizeY];
+	_tile = (Tile *)new Tile[sizeX * sizeY];
 
-	char * tileData = new char[m_sTileDataSize];
+	char * tileData = new char[tileDataSize];
 	Tile * pTile;
 
-	for (int iy = 0; iy < m_sSizeY; iy++)
+	for (int iy = 0; iy < sizeY; iy++)
 	{
-		for (int ix = 0; ix < m_sSizeX; ix++)
+		for (int ix = 0; ix < sizeX; ix++)
 		{
-			fr.ReadBytes(tileData, m_sTileDataSize);
-			pTile = (Tile *)(m_pTile + ix + iy*m_sSizeY);
+			fr.ReadBytes(tileData, tileDataSize);
+			pTile = (Tile *)(_tile + ix + iy*sizeY);
 			pTile->m_attribute = tileData[8];
 			pTile->m_bIsMoveAllowed = (tileData[8] & 0x80) ? false : true;
 			pTile->m_bIsTeleport = (tileData[8] & 0x40) ? true : false;
@@ -871,13 +865,13 @@ bool Map::bSearchTeleportDest(int sX, int sY, string & pMapName, uint16_t * pDx,
 {
 	int i;
 
-	for (i = 0; i < m_pTeleportLoc.size(); i++)
-		if ((m_pTeleportLoc[i]->m_sSrcX == sX) && (m_pTeleportLoc[i]->m_sSrcY == sY))
+	for (i = 0; i < teleportLocationList.size(); i++)
+		if ((teleportLocationList[i]->m_sSrcX == sX) && (teleportLocationList[i]->m_sSrcY == sY))
 		{
-			pMapName = m_pTeleportLoc[i]->m_cDestMapName;
-			*pDx  = m_pTeleportLoc[i]->m_sDestX;
-			*pDy  = m_pTeleportLoc[i]->m_sDestY;
-			*pDir = m_pTeleportLoc[i]->m_cDir;
+			pMapName = teleportLocationList[i]->m_cDestMapName;
+			*pDx  = teleportLocationList[i]->m_sDestX;
+			*pDy  = teleportLocationList[i]->m_sDestY;
+			*pDir = teleportLocationList[i]->m_cDir;
 			return true;
 		}
 
@@ -889,9 +883,9 @@ void Map::SetDynamicObject(uint16_t wID, short sType, short sX, short sY, uint64
 	Tile * pTile;
 
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return; 
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return; 
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 
 	pTile->m_wDynamicObjectID   = wID;
 	pTile->m_sDynamicObjectType = sType;
@@ -903,9 +897,9 @@ bool Map::bGetDynamicObject(short sX, short sY, short *pType, uint64_t *pRegiste
 	Tile * pTile;
 
 
-	if ((sX < 0) || (sX >= m_sSizeX) || (sY < 0) || (sY >= m_sSizeY)) return false; 
+	if ((sX < 0) || (sX >= sizeX) || (sY < 0) || (sY >= sizeY)) return false; 
 
-	pTile = (Tile *)(m_pTile + sX + sY*m_sSizeY);
+	pTile = (Tile *)(_tile + sX + sY*sizeY);
 
 	*pType = pTile->m_sDynamicObjectType;
 	*pRegisterTime = pTile->m_dwDynamicObjectRegisterTime;
@@ -918,9 +912,9 @@ bool Map::bGetIsWater(short dX, short dY)
 {
 	Tile * pTile;
 
-	if ((dX < 14) || (dX >= m_sSizeX - 16) || (dY < 12) || (dY >= m_sSizeY - 14)) return false;
+	if ((dX < 14) || (dX >= sizeX - 16) || (dY < 12) || (dY >= sizeY - 14)) return false;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
 	if (pTile->m_bIsWater == false) return false;
 
@@ -933,9 +927,9 @@ bool Map::bGetIsFarm(short dX, short dY)
 {
 	Tile * pTile;
 
-	if ((dX < 14) || (dX >= m_sSizeX - 16) || (dY < 12) || (dY >= m_sSizeY - 14)) return false;
+	if ((dX < 14) || (dX >= sizeX - 16) || (dY < 12) || (dY >= sizeY - 14)) return false;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
 	if (pTile->m_bIsFarmingAllowed == false) return false;
 
@@ -946,9 +940,9 @@ bool Map::IsBuild(short dX, short dY)
 {
 	Tile * pTile;
 
-	if ((dX < 14) || (dX >= m_sSizeX - 16) || (dY < 12) || (dY >= m_sSizeY - 14)) return false;
+	if ((dX < 14) || (dX >= sizeX - 16) || (dY < 12) || (dY >= sizeY - 14)) return false;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
 	return pTile->IsBuild();
 }
@@ -969,19 +963,19 @@ void Map::SetTempMoveAllowedFlag(int dX, int dY, bool bFlag)
 {
 	Tile * pTile;
 
-	if ((dX < 20) || (dX >= m_sSizeX - 20) || (dY < 20) || (dY >= m_sSizeY - 20)) return;
+	if ((dX < 20) || (dX >= sizeX - 20) || (dY < 20) || (dY >= sizeY - 20)) return;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 	pTile->m_bIsTempMoveAllowed = bFlag;
 }
 
 Map::OccupyFlag * Map::iRegisterOccupyFlag(int dX, int dY, int iSide, int iEKNum, int iDOI)
 {
-	if ((dX < 20) || (dX >= m_sSizeX - 20) || (dY < 20) || (dY >= m_sSizeY - 20)) return 0;
+	if ((dX < 20) || (dX >= sizeX - 20) || (dY < 20) || (dY >= sizeY - 20)) return 0;
 
 	OccupyFlag * oflag = new OccupyFlag(dX, dY, iSide, iEKNum, iDOI);
 
-	m_pOccupyFlag.push_back(oflag);
+	occupyFlag.push_back(oflag);
 
 	return oflag;
 }
@@ -992,11 +986,11 @@ void Map::ClearSectorInfo()
 {
 	for (int i = 0; i < MAXSECTORS*MAXSECTORS; ++i)
 	{
-		m_stSectorInfo[i].iNeutralActivity = 0;
-		m_stSectorInfo[i].iAresdenActivity = 0;
-		m_stSectorInfo[i].iElvineActivity  = 0;
-		m_stSectorInfo[i].iMonsterActivity = 0;
-		m_stSectorInfo[i].iPlayerActivity  = 0;
+		sectorInfo[i].neutralActivity = 0;
+		sectorInfo[i].aresdenActivity = 0;
+		sectorInfo[i].elvineActivity  = 0;
+		sectorInfo[i].mobActivity = 0;
+		sectorInfo[i].playerActivity  = 0;
 	}
 }
 
@@ -1004,11 +998,11 @@ void Map::ClearTempSectorInfo()
 {
 	for (int i = 0; i < MAXSECTORS*MAXSECTORS; ++i)
 	{
-		m_stTempSectorInfo[i].iNeutralActivity = 0;
-		m_stTempSectorInfo[i].iAresdenActivity = 0;
-		m_stTempSectorInfo[i].iElvineActivity  = 0;
-		m_stTempSectorInfo[i].iMonsterActivity = 0;
-		m_stTempSectorInfo[i].iPlayerActivity  = 0;
+		sectorInfoTemp[i].neutralActivity = 0;
+		sectorInfoTemp[i].aresdenActivity = 0;
+		sectorInfoTemp[i].elvineActivity  = 0;
+		sectorInfoTemp[i].mobActivity = 0;
+		sectorInfoTemp[i].playerActivity  = 0;
 	}
 }
 
@@ -1017,20 +1011,20 @@ void Map::_SetupNoAttackArea()
 	int i, ix, iy;
 	Tile * pTile;
 
-	for (i = 0; i < m_rcNoAttackRect.size(); i++) {
-		if (m_rcNoAttackRect[i].top > 0) {
+	for (i = 0; i < safeZoneList.size(); i++) {
+		if (safeZoneList[i].top > 0) {
 
-			for (ix = m_rcNoAttackRect[i].left; ix <= m_rcNoAttackRect[i].right; ix++)
-				for (iy = m_rcNoAttackRect[i].top; iy <= m_rcNoAttackRect[i].bottom; iy++) {
-					pTile = (Tile *)(m_pTile + ix + iy*m_sSizeY);
+			for (ix = safeZoneList[i].left; ix <= safeZoneList[i].right; ix++)
+				for (iy = safeZoneList[i].top; iy <= safeZoneList[i].bottom; iy++) {
+					pTile = (Tile *)(_tile + ix + iy*sizeY);
 					pTile->m_attribute |= 0x00000004;
 				}
 		}
 
-		else if (m_rcNoAttackRect[i].top == -10) {
-			for (ix = 0; ix < m_sSizeX; ix++)
-				for (iy = 0; iy < m_sSizeY; iy++) {
-					pTile = (Tile *)(m_pTile + ix + iy*m_sSizeY);
+		else if (safeZoneList[i].top == -10) {
+			for (ix = 0; ix < sizeX; ix++)
+				for (iy = 0; iy < sizeY; iy++) {
+					pTile = (Tile *)(_tile + ix + iy*sizeY);
 					pTile->m_attribute |= 0x00000004;
 				}
 		}
@@ -1041,9 +1035,9 @@ int Map::iGetAttribute(int dX, int dY, int iBitMask)
 {
 	Tile * pTile;
 
-	if ((dX < 20) || (dX >= m_sSizeX - 20) || (dY < 20) || (dY >= m_sSizeY - 20)) return -1;
+	if ((dX < 20) || (dX >= sizeX - 20) || (dY < 20) || (dY >= sizeY - 20)) return -1;
 
-	pTile = (Tile *)(m_pTile + dX + dY*m_sSizeY);
+	pTile = (Tile *)(_tile + dX + dY*sizeY);
 	return (pTile->m_attribute & iBitMask);
 }
 
@@ -1106,8 +1100,8 @@ bool Map::bRemoveCropsTotalSum()
 
 void Map::RestoreStrikePoints()
 {
-	for (int i = 0; i < m_stStrikePoint.size(); i++)
-		m_stStrikePoint[i].iHP = m_stStrikePoint[i].iInitHP;
+	for (int i = 0; i < strikePointList.size(); i++)
+		strikePointList[i].hp = strikePointList[i].hpInit;
 }
 
 void Map::IncPlayerActivity(Client * player)
@@ -1117,15 +1111,15 @@ void Map::IncPlayerActivity(Client * player)
 
 	//TODO: vector or 2d array? need to initialize vector
 
-	iStX = player->m_sX / 20;
-	iStY = player->m_sY / 20;
-	m_stTempSectorInfo[iStX+iStY*MAXSECTORS].iPlayerActivity++;
+	iStX = player->x / 20;
+	iStY = player->y / 20;
+	sectorInfoTemp[iStX+iStY*MAXSECTORS].playerActivity++;
 
-	switch (player->m_side)
+	switch (player->side)
 	{
-		case NEUTRAL: m_stTempSectorInfo[iStX+iStY*MAXSECTORS].iNeutralActivity++; break;
-		case ARESDEN: m_stTempSectorInfo[iStX+iStY*MAXSECTORS].iAresdenActivity++; break;
-		case ELVINE: m_stTempSectorInfo[iStX+iStY*MAXSECTORS].iElvineActivity++;  break;
+		case NEUTRAL: sectorInfoTemp[iStX+iStY*MAXSECTORS].neutralActivity++; break;
+		case ARESDEN: sectorInfoTemp[iStX+iStY*MAXSECTORS].aresdenActivity++; break;
+		case ELVINE: sectorInfoTemp[iStX+iStY*MAXSECTORS].elvineActivity++;  break;
 	}
 }
 
@@ -1133,7 +1127,7 @@ bool Map::GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation)
 {
 	//every map has to have an initial point as a "fail safe". if none exists by some stupid error, send back to town
 
-	if (m_pInitialPoint.size() == 0)
+	if (initialPointList.size() == 0)
 	{
 		Map * tempmap = 0;
 		if (pPlayerLocation == "NONE")
@@ -1147,7 +1141,7 @@ bool Map::GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation)
 		{
 			//map not found. this is the critical failure point as player cannot load into current map, and their "town" map cannot be found loaded.
 			//worst case, pick a random teleport spot. If that fails, return a false to indicate to disconnect the client
-			if (m_pTeleportLoc.size() == 0)
+			if (teleportLocationList.size() == 0)
 			{
 				return false;
 			}
@@ -1155,9 +1149,9 @@ bool Map::GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation)
 			{
 				//this is incredibly crude and will result in player most likely instant teleporting to where the spot leads to, but is a fail safe to not being able to be
 				//placed. this should typically never be trigger, but HAS had a use before but has always resulted in the inability of the player to login, so this should exist
-				uint16_t pos = uint16_t(rand()%m_pTeleportLoc.size());
-				*pX = m_pTeleportLoc[pos]->m_sSrcX;
-				*pY = m_pTeleportLoc[pos]->m_sSrcY;
+				uint16_t pos = uint16_t(rand()%teleportLocationList.size());
+				*pX = teleportLocationList[pos]->m_sSrcX;
+				*pY = teleportLocationList[pos]->m_sSrcY;
 				return true;
 			}
 		}
@@ -1166,15 +1160,19 @@ bool Map::GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation)
 	if (pPlayerLocation == "NONE")
 	{
 		//apparently travelers always go to the first initial coordinate
-		*pX = m_pInitialPoint[0].x;
-		*pY = m_pInitialPoint[0].y;
+		*pX = initialPointList[0].x;
+		*pY = initialPointList[0].y;
 		return true;
 	}
 
-	uint16_t pos = uint16_t(rand()%m_pInitialPoint.size());
+	uint16_t pos = uint16_t(rand()%initialPointList.size());
 
-	*pX = m_pInitialPoint[pos].x;
-	*pY = m_pInitialPoint[pos].y;
+	*pX = initialPointList[pos].x;
+	*pY = initialPointList[pos].y;
 	return true;
 }
 
+Tile * Map::GetTile(int16_t x, int16_t y)
+{
+	return (Tile *)(_tile + x + y*sizeY);
+}

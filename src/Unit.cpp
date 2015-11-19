@@ -8,10 +8,10 @@
 Unit::Unit(void)
 {
 	m_uid = GenUID();
-	m_bIsKilled   = false;
-	m_killer = 0;
-	m_sOriginalType      = 0;
-	m_iStatus    = 0;
+	dead   = false;
+	killer = 0;
+	_typeOriginal      = 0;
+	status    = 0;
 	gserver = 0;
 }
 
@@ -22,23 +22,23 @@ Unit::~Unit(void)
 void Unit::SetStatusFlag(long flag, bool enabled)
 {
 	if (enabled) 
-		m_iStatus |= flag;
+		status |= flag;
 	else 
-		m_iStatus &= ~flag;
+		status &= ~flag;
 
 	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
 }
 
 void Unit::ToggleStatusFlag(long flag)
 {
-	m_iStatus ^= flag;	
+	status ^= flag;	
 	
 	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
 }
 
 bool Unit::GetStatusFlag(long flag) const
 {
-	return (m_iStatus & flag) ? true : false;
+	return (status & flag) ? true : false;
 }
 
 void Unit::SetMagicFlag(int16_t magicType, bool enabled)
@@ -60,7 +60,7 @@ void Unit::SetMagicFlag(int16_t magicType, bool enabled)
 			flag = STATUS_BERSERK;
 			break;
 		case MAGICTYPE_PROTECT:
-			switch(m_cMagicEffectStatus[magicType])
+			switch(magicEffectStatus[magicType])
 			{
 			case MAGICPROTECT_PFA:
 				flag = STATUS_PFA;
@@ -77,7 +77,7 @@ void Unit::SetMagicFlag(int16_t magicType, bool enabled)
 			}
 			break;
 		case MAGICTYPE_CONFUSE:
-			switch (m_cMagicEffectStatus[magicType])
+			switch (magicEffectStatus[magicType])
 			{
 			case 1:	// Language confuse
 				break;
@@ -104,10 +104,10 @@ bool Unit::AddMagicEffect(int16_t magicType, uint64_t effectTime, int8_t kind)
 	//char magicType = spell->m_sType;
 	uint64_t  dwTime = unixtime();
 
-	if(m_cMagicEffectStatus[magicType])
+	if(magicEffectStatus[magicType])
 		return false;
 
-	m_cMagicEffectStatus[magicType] = kind;
+	magicEffectStatus[magicType] = kind;
 
 // 	if (effectTime > 0)
 // 		gs->RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, magicType, dwTime + (effectTime)_s, 

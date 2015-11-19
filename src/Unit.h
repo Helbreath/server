@@ -31,15 +31,22 @@ public:
 	bool RemoveMagicEffect(int8_t magicType);
 	void SetSideFlag(Side side);
 
-	bool IsDead()			const { return (m_iHP > 0) ? false : true; }
-	bool IsBerserked()	const { return m_cMagicEffectStatus[MAGICTYPE_BERSERK] ? true : false; }
-	bool IsInvisible()	const { return m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] ? true : false; }
+	bool IsDead()			const { return (health > 0) ? false : true; }
+	bool IsBerserked()	const { return magicEffectStatus[MAGICTYPE_BERSERK] ? true : false; }
+	bool IsInvisible()	const { return magicEffectStatus[MAGICTYPE_INVISIBILITY] ? true : false; }
 
-	bool IsPlayer()	const	{ return (m_ownerType == OWNERTYPE_PLAYER) ? true : false; }//TODO: go through old code and update
-	bool IsNPC() 		const	{ return (m_ownerType == OWNERTYPE_NPC) ? true : false; }
-	bool IsNeutral()	const	{ return (m_side == NEUTRAL) ? true : false; }
-	bool IsAres()		const	{ return (m_side == ARESDEN) ? true : false; }
-	bool IsElv()		const	{ return (m_side == ELVINE) ? true : false; }
+	bool IsPlayer()	const	{ return (_ownerType == OWNERTYPE_PLAYER) ? true : false; }//TODO: go through old code and update
+	bool IsNPC() 		const	{ return (_ownerType == OWNERTYPE_NPC) ? true : false; }
+	bool IsNeutral()	const	{ return (side == NEUTRAL) ? true : false; }
+	bool IsAres()		const	{ return (side == ARESDEN) ? true : false; }
+	bool IsElv()		const	{ return (side == ELVINE) ? true : false; }
+
+	void SetOwnerType(int8_t type) { _ownerType = type; }
+	void SetType(int8_t type) { _type = type; }
+	void SetTypeOriginal(int8_t type) { _typeOriginal = type; }
+	int8_t OwnerType() { return _ownerType; }
+	int8_t Type() { return _type; }
+	int8_t TypeOriginal() { return _typeOriginal; }
 
 	virtual float GetDropFactor()		const { return 1.0f; }
 
@@ -47,31 +54,36 @@ public:
 	GServer * gserver;
 	uint64_t m_handle;
 	
-	int16_t m_sX, m_sY;
-	int64_t m_iHP;
-	int64_t m_iMP;
-	uint64_t  m_iExp;
-	Side m_side;
-	uint32_t m_iStatus;
-	bool m_bIsKilled;
-	shared_ptr<Unit> m_killer;
+	//stick in stats struct or something?
+	int16_t x, y;
+	int64_t health;
+	int64_t mana;
+	uint64_t experience;
+	Side side;
+	uint32_t status;
+	bool dead;
+	shared_ptr<Unit> killer;
 	Map * pMap;
+	int8_t direction;
 
-	int8_t  m_cDir;
-	int8_t m_sType;
-	int8_t m_sOriginalType;
-	int8_t m_ownerType;
+
 
 	string name;
 
-	int8_t  m_cMagicEffectStatus[MAXMAGICEFFECTS];
+	int8_t  magicEffectStatus[MAXMAGICEFFECTS];
 
-	uint64_t m_iGuildGUID;
+	uint64_t guildGUID;
 
 	uint64_t m_uid;
 	static uint64_t GenUID(){
 		static uint64_t uids = 0;
 		return uids++;
 	}
+
+private:
+	//confusing Helbreath names amuck!
+	int8_t _type;//model type
+	int8_t _typeOriginal;//original model type
+	int8_t _ownerType;//whether is player or npc
 };
 #endif
