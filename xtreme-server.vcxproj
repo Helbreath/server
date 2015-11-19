@@ -96,6 +96,7 @@
     <ClInclude Include="src\DelayEvent.h" />
     <ClInclude Include="src\funcs.h" />
     <ClInclude Include="src\Gate.h" />
+    <ClInclude Include="src\Guild.h" />
     <ClInclude Include="src\InventoryMgr.h" />
     <ClInclude Include="src\Inventory.h" />
     <ClInclude Include="src\Item.h" />
@@ -127,6 +128,7 @@
     <ClCompile Include="src\DelayEvent.cpp" />
     <ClCompile Include="src\funcs.cpp" />
     <ClCompile Include="src\Gate.cpp" />
+    <ClCompile Include="src\Guild.cpp" />
     <ClCompile Include="src\InventoryMgr.cpp" />
     <ClCompile Include="src\Inventory.cpp" />
     <ClCompile Include="src\Item.cpp" />

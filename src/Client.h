@@ -17,6 +17,7 @@
 #include "Magic.h"
 #include "connection.h"
 #include "InventoryMgr.h"
+#include "Guild.h"
 #include <mutex>
 
 class Guild;
@@ -91,6 +92,8 @@ public:
 	uint64_t socknum;
 
 	weak_ptr<Client> self;
+
+	//shared_ptr<Guild> guild;//TODO: placeholder
 
 	GServer * gserver;
 
