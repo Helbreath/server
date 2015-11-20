@@ -9,12 +9,12 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-CSkill::CSkill()
+Skill::Skill()
 {
 	memset(m_cName, 0, sizeof(m_cName));
 }
 
-CSkill::~CSkill()
+Skill::~Skill()
 { 
 
 }										    

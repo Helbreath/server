@@ -7,6 +7,7 @@
 #include "netmessages.h"
 #include "Misc.h"
 #include "DelayEvent.h"
+#include "Skill.h"
 using namespace Poco::JSON;
 
 int AddNpc(lua_State *L);
@@ -1107,6 +1108,7 @@ void GServer::TimerThread()
 			if (t100msectimer < ltime)
 			{
 				//run delay events
+				DelayEventProcessor();
 				t100msectimer += 100;
 			}
 			if (t1sectimer < ltime)
@@ -7273,7 +7275,7 @@ void GServer::CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue)
 
 }
 
-int GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack, bool bIsDash)
+int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack /*= false*/, bool bIsDash /*= false*/)
 {
 	int    iAP_SM=0, iAP_L=0, iAttackerHitRatio=0, iTargetDefenseRatio=0, iDestHitRatio=0, iResult=0, iAP_Abs_Armor=0, iAP_Abs_Shield=0;
 	char   cAttackerDir=0, cAttackerSide=0, cTargetDir=0, cProtect=0;
@@ -10221,5 +10223,106 @@ bool GServer::RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLas
 //constantly firing and being checked every ~100ms
 void GServer::DelayEventProcessor()
 {
+	uint64_t _time = unixtime();
+	delayMutex.lock();
+	std::list<shared_ptr<DelayEvent>> tempDelayEventList = DelayEventList;
+	for (auto delayevent : tempDelayEventList)
+	{
+		if (delayevent->m_dwTriggerTime < _time)
+		{
+			switch (delayevent->m_iDelayType)
+			{
+			case DELAYEVENTTYPE_CALCMETEORSTRIKEEFFECT:
+				//CalcMeteorStrikeEffectHandler(delayevent->map);//good ol' HB handlers for handling handlers
+				break;
+
+			case DELAYEVENTTYPE_DOMETEORSTRIKEDAMAGE:
+				//DoMeteorStrikeDamageHandler(delayevent->map);
+				break;
+
+			case DELAYEVENTTYPE_METEORSTRIKE:
+				//MeteorStrikeHandler(delayevent->map);
+				break;
+
+			case DELAYEVENTTYPE_USEITEM_SKILL:
+				if (delayevent->target != nullptr && delayevent->target->IsPlayer())
+				{
+					int skillnum = delayevent->m_iEffectType;
+
+					Client * player = (Client*)delayevent->target;
+
+					if (!player->skillInUse[skillnum] || player->skillInUse[skillnum] != delayevent->m_iV2) break;
+
+					player->skillInUse[skillnum] = 0;
+					player->skillInUseTime[skillnum] = 0;
+
+					int32_t result = CalculateUseSkillItemEffect(player, delayevent->m_iV1, skillnum, player->map, delayevent->m_dX);
+
+					SendNotifyMsg(nullptr, player, NOTIFY_SKILLUSINGEND, result);
+				}
+				break;
+
+			case DELAYEVENTTYPE_DAMAGEOBJECT:
+				break;
+			case DELAYEVENTTYPE_MAGICRELEASE:
+				break;
+			}
+
+			DelayEventList.remove(delayevent);
+		}
+	}
+	delayMutex.unlock();
 }
+
+int32_t GServer::CalculateUseSkillItemEffect(Client * player, int16_t skillvalue, int skillnum, Map * map, int32_t x, int32_t y)
+{
+	int32_t dX, dY, itemid = 0;
+	if (player == nullptr) return 0;
+	if (player->map != map) return 0;
+	if (skillnum == 0) return 0;
+	if (skillvalue == 0) return 0;
+	if (m_pSkillConfigList[skillnum] == nullptr) return 0;
+	dX = player->x;
+	dY = player->y;
+
+	int result = dice(1, 105);
+	if (skillvalue <= result) return 0;
+
+	switch (m_pSkillConfigList[skillnum]->m_sType)
+	{
+	case SKILLEFFECTTYPE_TAMING:
+		//_TamingHandler(player, skillnum, map, dX, dY);//??
+		break;
+	case SKILLEFFECTTYPE_GET:
+		switch (m_pSkillConfigList[skillnum]->m_sValue1)
+		{
+			case 1:
+				itemid = 99;
+				break;
+			case 2:
+			{
+				if (!map->bGetIsWater(dX, dY)) return 0;
+				int fish = 0;// iCheckFish(player, map, dX, dY);
+				if (fish == 0) itemid = 100;
+
+				if (itemid != 0)
+				{
+					if (itemid == 100)
+					{
+						SendNotifyMsg(nullptr, player, NOTIFY_FISHSUCCESS);
+						GetExp(player, dice(2, 5));
+
+						Item * item = new Item;
+						if (item->InitItemAttr(itemid, m_pItemConfigList))
+						{
+							map->bSetItem(dX, dY, item);
+							SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, map, dX, dY, item->m_sSprite, item->m_sSpriteFrame, item->m_ItemColor);
+						}
+					}
+				}
+			}
+		}
+		break;
+	}
+	return 1;
 }

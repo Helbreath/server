@@ -289,14 +289,15 @@ public:
 	bool CheckResistingIceSuccess(char cAttackerDir, Unit * target, int iHitRatio);
 	void CalculateSSN_SkillIndex(Client * client, short sSkillIndex, int iValue);
 	void CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue);
-	int CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack = false, bool bIsDash = false);
+	int32_t CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack = false, bool bIsDash = false);
+	int32_t CalculateUseSkillItemEffect(Client * player, int16_t skillvalue, int skillnum, Map * map, int32_t x, int32_t y);
 	void EnduStrippingDamage(Unit * target, Unit * attacker, int item, int higherStripEndu, bool shield = false);
 	void Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, int32_t attr);
 
 	int _iCalcSkillSSNpoint(int iLevel);
 
 	void _CheckMiningAction(Client * client, int dX, int dY);
-	void GetExp(Client * client, uint64_t iExp, bool bIsAttackerOwn);
+	void GetExp(Client * client, uint64_t iExp, bool bIsAttackerOwn = false);
 
 	int iAddDynamicObjectList(Unit * owner, short sType, Map * pmap, short sX, short sY, uint32_t dwLastTime, int iV1);
 	void CheckDynamicObjectList();

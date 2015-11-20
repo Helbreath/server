@@ -18,11 +18,11 @@
 
 int probabilityTable(int x,int y,int iTable);
 
-class CSkill  
+class Skill  
 {
 public:
-	CSkill();
-	virtual ~CSkill();
+	Skill();
+	virtual ~Skill();
 
 	char m_cName[21];
 

@@ -1331,9 +1331,7 @@ bool Map::bGetIsWater(short dX, short dY)
 
 	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
-	if (pTile->m_bIsWater == false) return false;
-
-	return true;
+	return pTile->m_bIsWater;
 }
 
 
@@ -1346,9 +1344,7 @@ bool Map::bGetIsFarm(short dX, short dY)
 
 	pTile = (Tile *)(_tile + dX + dY*sizeY);
 
-	if (pTile->m_bIsFarmingAllowed == false) return false;
-
-	return true;
+	return pTile->m_bIsFarmingAllowed;
 }
 
 bool Map::IsBuild(short dX, short dY)
