@@ -221,18 +221,19 @@ public:
 	void handle_stop();
 
 	std::thread * chatthread;
-	std::thread * actionthread;
 	std::thread * runthread;
+	std::thread * timerthread;
 
 	Gate * gate;
 
 #pragma region sort these
-	void TimerThread();
 	void ChatThread();
 	void SocketThread();
-	void ActionThread();
+	void TimerThread();
 
 	void DeleteClient(shared_ptr<Client> client, bool save = true, bool deleteobj = false);
+	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3);
+	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
 
 	bool LoadCharacterData(shared_ptr<Client> client);
 	void InitPlayerData(shared_ptr<Client> client);
@@ -269,33 +270,17 @@ public:
 	void SendItemNotifyMsg(shared_ptr<Client> client, uint16_t msgtype, Item *pItem, int iV1);
 	void DropItemHandler(shared_ptr<Client> client, short sItemIndex, int iAmount, string pItemName, bool bByPlayer);
 	void ItemDepleteHandler(shared_ptr<Client> client, Item * pItem, bool bIsUseItemResult, bool bIsLog = true, bool notify = true);
-	bool bGetEmptyPosition(short * pX, short * pY, shared_ptr<Unit> client);
 	void RequestTeleportHandler(Client * client, char teleportType, string cMapName = "", int dX = -1, int dY = -1);
 	int iGetMapLocationSide(string MapName);
 	
 	void PlayerMapEntry(shared_ptr<Client> client, bool setRecallTime);
 	void ToggleCombatModeHandler(shared_ptr<Client> client);
-	shared_ptr<Npc> CreateNpc(string & pNpcName, Map * mapIndex, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
 	void RequestTitleHandler(Client * client, StreamRead & sr);
 	bool bCheckClientAttackFrequency(Client * client);
 	bool bCheckClientMagicFrequency(Client * client);
 	bool bCheckClientMoveFrequency(Client * client, bool running);
 	void _CheckAttackType(Client * client, int16_t & spType);
 	void ClearSkillUsingStatus(Client * client);
-
-	void NpcProcess();
-
-	void RemoveFromTarget(shared_ptr<Unit> target, int iCode = 0);
-	void NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16_t damage);
-	void NpcBehavior_Flee(shared_ptr<Npc> npc);
-	void NpcBehavior_Dead(shared_ptr<Npc> npc);
-	void NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc);
-
-	void DeleteNpc(shared_ptr<Npc> npc);
-	
-	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError);
-	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError, short * DOType);
-
 
 	int getPlayerNum(Map * pMap, short dX, short dY, char cRadius);
 	bool CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int iHitRatio);
@@ -309,9 +294,6 @@ public:
 
 	int _iCalcSkillSSNpoint(int iLevel);
 
-	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
-	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3);
-
 	void _CheckMiningAction(Client * client, int dX, int dY);
 	void GetExp(Client * client, uint64_t iExp, bool bIsAttackerOwn);
 
@@ -322,10 +304,7 @@ public:
 
 	bool bAnalyzeCriminalAction(Client * client, short dX, short dY, bool bIsCheck = false);
 
-	uint64_t npchandle;
-
 	shared_ptr<Client> GetClient(uint64_t ObjectID);
-	shared_ptr<Npc> GetNpc(uint64_t ObjectID);
 	Npc * GetNpcByName(string name);
 	Item * GetItemByName(string name);
 
@@ -333,10 +312,12 @@ public:
 
 #pragma endregion
 
+	std::list<shared_ptr<DelayEvent>> DelayEventList;
+	std::mutex delayMutex;
+
+
 	MsgQueue chatpipe;
-	MsgQueue actionpipe;
 	std::mutex mutchat;
-	std::mutex mutaction;
 	shared_mutex mutobjectlist;
 
 	//TODO: guilds - load all the guilds from the db and keep them in memory
@@ -346,18 +327,6 @@ public:
 	//need a config array for variables moving forward, temporary solution for like a day (/cough week)
 	uint16_t lockedMapTimeDefault;
 	uint16_t farmRestartLimit;//level limit where players can no longer respawn in the farm
-
-
-	std::list<shared_ptr<Npc>> npclist;
-
-	struct
-	{
-		Item * item;
-		time_t dropTime;
-		uint16_t sx, sy;
-		Map * cMapIndex;
-		bool bEmpty;
-	} m_stGroundNpcItem[MAXGROUNDITEMS];
 
 	string servername;
 	uint64_t  m_iLimitedUserExp, m_iLevelExp51;
@@ -373,7 +342,6 @@ public:
 	Magic  * m_pMagicConfigList[MAXMAGICTYPE];
 	Skill  * m_pSkillConfigList[MAXSKILLTYPE];
 	Quest  * m_pQuestConfigList[MAXQUESTTYPE];
-	char            m_pMsgBuffer[2048];
 	Crafting * m_pCraftingConfigList[MAXCRAFTING];
 
 	Teleport * m_pTeleportConfigList[MAXTELEPORTLIST];
@@ -426,9 +394,6 @@ public:
 	int m_iAresdenOccupyTiles;
 	int m_iElvineOccupyTiles;
 	int m_iCurMsgs, m_iMaxMsgs;
-
-	std::list<shared_ptr<DelayEvent>> DelayEventList;
-	std::mutex delayMutex;
 
 
 	int iDMGCount; // New monster event xRisenx

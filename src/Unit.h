@@ -31,7 +31,7 @@ public:
 	bool RemoveMagicEffect(int8_t magicType);
 	void SetSideFlag(Side side);
 
-	bool IsDead()			const { return (health > 0) ? false : true; }
+	bool IsDead() const { return _dead; }
 	bool IsBerserked()	const { return magicEffectStatus[MAGICTYPE_BERSERK] ? true : false; }
 	bool IsInvisible()	const { return magicEffectStatus[MAGICTYPE_INVISIBILITY] ? true : false; }
 
@@ -51,8 +51,8 @@ public:
 	virtual float GetDropFactor()		const { return 1.0f; }
 
 
-	GServer * gserver;
-	uint64_t m_handle;
+	Map * map;
+	uint64_t handle;
 	
 	//stick in stats struct or something?
 	int16_t x, y;
@@ -61,9 +61,8 @@ public:
 	uint64_t experience;
 	Side side;
 	uint32_t status;
-	bool dead;
+	bool _dead;
 	shared_ptr<Unit> killer;
-	Map * pMap;
 	int8_t direction;
 
 

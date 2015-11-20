@@ -79,7 +79,7 @@ Client::Client()
 	}
 
 	//handle of 0 assumed. 0 = invalid and is not usable for an object in game - this value would be set when obtaining character data from the db assuming login is successful
-	m_handle = 0;
+	handle = 0;
 	SetOwnerType(OWNERTYPE_PLAYER);
 	m_bIsBeingResurrected = false;
 
@@ -301,7 +301,7 @@ Client::Client()
 
 	lockedMapName = "NONE";
 	lockedMapTime   = 0;
-	m_iDeadPenaltyTime = 0;
+	deadPenaltyTime = 0;
 
 	crusadeDuty  = 0;
 	crusadeGUID = 0;
@@ -770,15 +770,15 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 	bool  bIsSAattacked = false;
 
 	if (m_bIsInitComplete == false) return;
-	if (dead == true) return;
+	if (_dead == true) return;
 
-	if (pMap->name.find("fight") != -1)
+	if (map->name.find("fight") != -1)
 	{
 		arenaDeadTime = unixtime();
 		gserver->logger->information(Poco::format("Fightzone Dead Time: %?d", arenaDeadTime));
 	}
 
-	dead = true;
+	_dead = true;
 	health = 0;
 
 // 	if (m_isExchangeMode == true) {
@@ -787,7 +787,7 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 // 		gserver->_ClearExchangeStatus(m_handle);
 // 	}
 
-	gserver->RemoveFromTarget(self.lock());
+	map->RemoveFromTarget(self.lock());
 
 	if (attacker)
 		attackername = attacker->name;
@@ -798,8 +798,8 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 		sAttackerWeapon = ((static_cast<Client*>(attacker)->m_sAppr2 & 0x0FF0) >> 4);
 	else sAttackerWeapon = 1;
 	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DYING, sDamage, sAttackerWeapon, 0);
-	pMap->ClearOwner(x, y);
-	pMap->SetDeadOwner(self.lock(), x, y);
+	map->ClearOwner(x, y);
+	map->SetDeadOwner(self.lock(), x, y);
 
 // 	int itemInd;
 // 	if(gserver->m_astoria.get() && gserver->m_astoria->IsCapture() && (itemInd = HasItem(ITEM_RELIC)))
@@ -807,7 +807,7 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 // 		gserver->DropItemHandler(m_handle, itemInd, 1, m_pItemList[itemInd]->m_cName, false);
 // 	}
 
-	if (pMap->type == MAPTYPE_NOPENALTY_NOREWARD) return;
+	if (map->type == MAPTYPE_NOPENALTY_NOREWARD) return;
 	// Monster kill event xRisenx
 	/*if (cAttackerType == OWNERTYPE_PLAYER)
     {    if (g_clientList[iAttackerH] != NULL)
@@ -1231,11 +1231,11 @@ bool Client::IsInFoeMap()
 	switch(side)
 	{
 	case ARESDEN:
-		if (pMap->factionName == sideMap[ELVINE])
+		if (map->factionName == sideMap[ELVINE])
 			return true;
 		break;
 	case ELVINE:
-		if (pMap->factionName == sideMap[ARESDEN])
+		if (map->factionName == sideMap[ARESDEN])
 			return true;
 		break;
 	}
@@ -1300,11 +1300,6 @@ void Client::IncPKCount()
 
 	Notify(0, NOTIFY_PKPENALTY, 0, 0, 0, 0);
 	gserver->SendEventToNearClient_TypeA(this, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, 0, 0);
-}
-void Client::Save()
-{
-// 	gserver->bSendMsgToLS(MSGID_REQUEST_SAVEPLAYERDATA, m_handle);
-// 	m_dwAutoSaveTime = unixtime();
 }
 void Client::SWrite(StreamWrite & sw)
 {

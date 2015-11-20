@@ -174,7 +174,7 @@ public:
 	bool IsInvincible()	const { return (m_GMFlags & GMFLAG_INVINCIBLE)	? true : false; }
 	bool IsNoAggro()		const { return (m_GMFlags & GMFLAG_NOAGGRO)			? true : false; }
 	bool IsEthereal()		const { return (m_GMFlags & GMFLAG_ETHEREAL)>1; }
-	bool IsValid()			const { return (m_handle != -1) ? true : false; }
+	bool IsValid()			const { return (handle != -1) ? true : false; }
 
 
 #pragma region resists
@@ -186,7 +186,6 @@ public:
 	uint16_t ArcaneResist();
 #pragma endregion
 
-	void Save();
 	void SWrite(StreamWrite & sw);
 
 	void Notify(Client * from, uint16_t wMsgType, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, string pString = "",
@@ -548,7 +547,7 @@ public:
 
 	string  lockedMapName;
 	uint64_t lockedMapTime;
-	uint64_t m_iDeadPenaltyTime;
+	uint64_t deadPenaltyTime;
 
 
 	int32_t m_iCSIsendPoint;//unused?

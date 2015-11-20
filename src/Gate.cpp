@@ -222,9 +222,9 @@ void Gate::stop(connection_ptr c)
 	try
 	{
 		//fyi, client_ should always be set, the question is whether m_handle is set (indicates actually made it in game)
-		if (client->m_handle > 0)
+		if (client->handle > 0)
 		{
-			consoleLogger->error(Poco::format("<%?d> Client Disconnected! (%s) (%s)", client->m_handle, client->name, c->address));
+			consoleLogger->error(Poco::format("<%?d> Client Disconnected! (%s) (%s)", client->handle, client->name, c->address));
 			if ((unixtime() - client->logoutHackCheck) < 10000)
 			{
 				consoleLogger->error(Poco::format("Logout Hack: (%s) Player: (%s) - disconnected within 10 seconds of most recent damage. Hack? Lag?", c->address, client->name));
@@ -513,9 +513,9 @@ void Gate::SocketThread()
 					}
 					else
 					{
-						client->gserver->mutaction.lock();
-						client->gserver->PutMsgQueue(msg, client->gserver->actionpipe);
-						client->gserver->mutaction.unlock();
+						client->map->mutaction.lock();
+						client->gserver->PutMsgQueue(msg, msg->client->map->actionpipe);
+						client->map->mutaction.unlock();
 					}
 				}
 			}
@@ -713,21 +713,22 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 		//need to perform client removal
 		//remove from map
-		if (client->dead)
-			client->pMap->ClearDeadOwner(client->x, client->y);
+		Client * player = client.get();
+	
+		if (player->IsDead())
+			player->map->ClearDeadOwner(player->x, player->y);
 		else
-			client->pMap->ClearOwner(client->x, client->y);
+			player->map->ClearOwner(player->x, player->y);
 
 		//let npcs know it's an invalid target
-		client->m_bActive = false;
+		player->m_bActive = false;
 
-		client->gserver->SendEventToNearClient_TypeA(client.get(), MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
+		player->gserver->SendEventToNearClient_TypeA(player, MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
 
-		Client * player = client.get();
 
 		if (save)
 		{
-			if (player->dead)
+			if (player->IsDead())
 			{
 				player->x = -1;
 				player->y = -1;
@@ -740,14 +741,14 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 				{
 					if (player->gserver->m_bIsCrusadeMode)
 					{
-						if (player->m_iDeadPenaltyTime > 0)
+						if (player->deadPenaltyTime > 0)
 						{
 							player->lockedMapName = sideMap[player->side];
-							player->lockedMapTime = 60*5;
-							player->m_iDeadPenaltyTime = 60*10;
+							player->deadPenaltyTime = 60*10;//10 minutes
+							player->LockMap(sideMap[player->side], 300);
 						}
 						else
-							player->m_iDeadPenaltyTime = 60*10;
+							player->deadPenaltyTime = 60*10;
 
 					}
 
@@ -755,8 +756,7 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 					{
 						if ((player->mapName == sideMap[ELVINE]) && !player->IsGM())
 						{
-							player->lockedMapName = sideMapJail[ELVINE];
-							player->lockedMapTime = 60*3;
+							player->LockMap(sideMapJail[ELVINE], 180);
 						}
 						else if (player->level > 80)
 						{
@@ -796,7 +796,7 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 			if (player->m_bIsInitComplete)
 			{
-				//savedata here
+				//TODO: savedata here
 			}
 		}
 

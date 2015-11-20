@@ -3,6 +3,8 @@
 
 #include "common.h"
 #include "funcs.h"
+#include "Server.h"
+#include "netmessages.h"
 #include <list>
 
 // for Client Data
@@ -46,6 +48,57 @@ class TeleportLoc;
 class Map  
 {
 public:
+
+
+	void run();
+
+	std::thread * actionthread;
+	std::thread * timerthread;
+	Server::MsgQueue actionpipe;
+	std::mutex mutaction;
+	bool TimerThreadRunning;
+
+	void TimerThread();
+	void ActionThread();
+
+	
+	
+	void NpcProcess();
+
+	void RemoveFromTarget(shared_ptr<Unit> target, int iCode = 0);
+	void NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16_t damage);
+	void NpcBehavior_Flee(shared_ptr<Npc> npc);
+	void NpcBehavior_Dead(shared_ptr<Npc> npc);
+	void NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc);
+
+	shared_ptr<Npc> CreateNpc(string & pNpcName, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
+	void DeleteNpc(shared_ptr<Npc> npc);
+
+	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError);
+	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError, short * DOType);
+
+	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
+	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3);
+	bool bGetEmptyPosition(short & pX, short & pY, shared_ptr<Unit> client);
+
+	shared_ptr<Npc> GetNpc(uint64_t ObjectID);
+
+	std::list<shared_ptr<Npc>> npclist;
+	uint64_t npchandle;
+
+	struct
+	{
+		Item * item;
+		time_t dropTime;
+		uint16_t sx, sy;
+		Map * cMapIndex;
+		bool bEmpty;
+	} m_stGroundNpcItem[MAXGROUNDITEMS];
+
+	std::list<shared_ptr<DelayEvent>> DelayEventList;
+	std::mutex delayMutex;
+
+
 
 	void RestoreStrikePoints();
 	bool bRemoveCrusadeStructureInfo(short sX, short sY);

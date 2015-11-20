@@ -713,7 +713,7 @@ void LServer::SocketThread()
 										if (pmap->name == mapname)
 										{
 											maptest = true;
-											client->pMap = pmap;
+											client->map = pmap;
 											break;
 										}
 									}
@@ -766,7 +766,7 @@ void LServer::SocketThread()
 									if (pmap->name == mapname)
 									{
 										maptest = true;
-										client->pMap = pmap;
+										client->map = pmap;
 										break;
 									}
 								};

@@ -1,6 +1,7 @@
 #include "Unit.h"
 #include "GServer.h"
 #include "netmessages.h"
+#include "Map.h"
 // #include "ActionID.h"
 // #include "DelayEvent.h"
 // #include "maths.h"
@@ -8,11 +9,11 @@
 Unit::Unit(void)
 {
 	m_uid = GenUID();
-	dead   = false;
+	_dead   = false;
 	killer = 0;
 	_typeOriginal      = 0;
 	status    = 0;
-	gserver = 0;
+	map = 0;
 }
 
 Unit::~Unit(void)
@@ -26,14 +27,14 @@ void Unit::SetStatusFlag(long flag, bool enabled)
 	else 
 		status &= ~flag;
 
-	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
+	map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
 }
 
 void Unit::ToggleStatusFlag(long flag)
 {
 	status ^= flag;	
 	
-	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
+	map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
 }
 
 bool Unit::GetStatusFlag(long flag) const
@@ -114,7 +115,7 @@ bool Unit::AddMagicEffect(int16_t magicType, uint64_t effectTime, int8_t kind)
 // 			this, 0, 0, 0, kind, 0, 0);
 	
 	if (IsPlayer())
-		gserver->SendNotifyMsg(0, static_cast<Client*>(this), NOTIFY_MAGICEFFECTON, magicType, kind, 0);
+		map->gserver->SendNotifyMsg(0, static_cast<Client*>(this), NOTIFY_MAGICEFFECTON, magicType, kind, 0);
 
 	SetMagicFlag(magicType, true);
  	return true;

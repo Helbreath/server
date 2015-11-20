@@ -172,12 +172,12 @@ class Npc : public Unit
 {
 public:
 
-	Npc(uint64_t NpcH, GServer * gs);
+	Npc(uint64_t NpcH, Map * map);
 	~Npc();
 
 	weak_ptr<Npc> self;
 
-	bool initNpcAttr(string & pNpcName, char cSA);
+	bool initNpcAttr(Npc * npcTemplate, char cSA);
 	void Behave();
 	bool behavior_searchMaster();
 
@@ -210,8 +210,8 @@ public:
 	virtual void RegenHP();
 	virtual void RegenMP();
 	
-	bool IsHighlyTrained()	const { return (m_cSpecialAbility == 9); }
-	bool IsElite()				const { return (m_cSpecialAbility == 10); }
+	bool IsHighlyTrained()	const { return (specialAbility == 9); }
+	bool IsElite()				const { return (specialAbility == 10); }
 	
 	void AddHP(uint64_t value);
 	void ReduceHP(uint64_t value);
@@ -219,25 +219,27 @@ public:
 	short m_dX, m_dY;
 	short m_vX, m_vY;
 	int   m_tmp_iError;
-	rect  m_rcRandomArea;
+	rect  roamArea;
 
-	char  m_cAction;
-	char  m_cTurn;
+	char  action;
+	char  turn;
 
-	short m_sAppr2;
+	short appr2;
 
-	uint64_t m_dwTime;
-	uint64_t m_dwActionTime;
-	uint64_t m_dwHPupTime, m_dwMPupTime;
-	uint64_t m_dwDeadTime, m_dwRegenTime;
+	uint64_t timeLastAction;
+	uint64_t timeActionInterval;
+	uint64_t timeHealth, timeMana;//TODO: remove hp regen during combat and instead make it only regen outside combat?
+	uint64_t timeDead, timeRegen;
 
-	int  m_iHitDice;
+	//TODO: completely revamp dice system on NPCs. Instead give ranges like actually makes sense
+	// int minDamage = 50; int maxDamage = 80; easier to read than 5D20+30 - HB is not D&D.
+	int  m_iHitDice;//hitpoint regen dice
 	int  m_iDefenseRatio;
-	int  m_iHitRatio;
+	int  m_iHitRatio;//attack hit chance
 	int  m_iMagicHitRatio;
 	int  m_iMinBravery;
 	int  m_iExpDice;
-	uint64_t dwGoldDropValue;
+	uint64_t goldDropValue;
 
 	char m_cActionLimit;
 
@@ -257,24 +259,24 @@ public:
 	short m_sBehaviorTurnCount;
 	char  m_cTargetSearchRange;
 
-	shared_ptr<Unit> m_iFollowOwnerIndex;
-	bool  m_bIsSummoned;            
-	uint64_t m_dwSummonedTime;
-	char  m_cTargetType;
-	char  m_cFollowOwnerType;
-	shared_ptr<Unit> m_iTargetIndex;
+	shared_ptr<Unit> follow;
+	bool  summoned;            
+	uint64_t timeSummoned;
+	char  targetType;
+	char  followOwnerType;
+	shared_ptr<Unit> target;
 	uint8_t  m_cCurWaypoint;
 	uint8_t  m_cTotalWaypoint;
 
 	int   m_iSpotMobIndex;
 	int   m_iWayPointIndex[MAXWAYPOINTS+1];
 
-	bool  m_bIsPermAttackMode;		   
+	bool  permAttackMode;		   
 	int   m_iNoDieRemainExp;
 	int   m_iAttackStrategy; 
 	int   m_iAILevel;
 
-	int   m_iAttackRange;
+	int   attackRange;
 	/*
 		AI-Level 
 			1: 보통 행동 
@@ -285,13 +287,13 @@ public:
 
 
 	int   m_iLastDamage;
-	int   m_iSummonControlMode;
-	Element m_element;
-	int   m_iAbsDamage;
+	int   summonControlMode;
+	Element element;
+	int   absDamage;
 
 	int   m_iItemRatio;
 	int   m_iAssignedItem;
-	char  m_cSpecialAbility;
+	char  specialAbility;
 
 									/*
 case 0: break;
@@ -306,15 +308,17 @@ case 8:  "Hi-Explosive"
 
 									*/
 
-	int	  m_iBuildCount;
+	int	  buildCount;
 
-	bool  m_bIsMaster;
-	int   m_iV1;
+	bool  isLeader;
+
+	//TODO: turn this into something more readable and perhaps useful
+	int   m_iV1;//Grand Magic Generator damage count and ManaStone mana count
 
 	// 2002-09-17 #1
 	int		m_iNpcitemType;
 
-	int		m_iNpcitemMax;
+	int		npcItemMax;
 
 	int		m_iNpcCrops;
 	int		m_iCropsSkillLV;

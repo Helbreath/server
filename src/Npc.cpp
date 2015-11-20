@@ -19,13 +19,13 @@
 extern char _tmp_cTmpDirX[9];
 extern char _tmp_cTmpDirY[9];
 
-Npc::Npc(uint64_t NpcH, GServer * gs)
+Npc::Npc(uint64_t NpcH, Map * map)
 {
 	int i;
 
-	gserver = gs;
+	this->map = map;
 
-	m_handle = NpcH;
+	handle = NpcH;
 	SetOwnerType(OWNERTYPE_NPC);
 
 	for (i = 0; i < MAXWAYPOINTS; i++)
@@ -34,23 +34,23 @@ Npc::Npc(uint64_t NpcH, GServer * gs)
 	for (i = 0; i < MAXMAGICEFFECTS; i++)
 		magicEffectStatus[i]	= 0;
 
-	m_bIsSummoned       = false;
-	m_bIsPermAttackMode = false;
+	summoned       = false;
+	permAttackMode = false;
 
-	m_dwRegenTime = 0;
+	timeRegen = 0;
 
-	m_iSummonControlMode = 0;
+	summonControlMode = 0;
 
-	m_element = ELEMENT_NONE;
-	m_iAbsDamage = 0;
-	m_sAppr2     = 0;
+	element = ELEMENT_NONE;
+	absDamage = 0;
+	appr2     = 0;
 
-	m_iAttackRange    = 1;
-	m_cSpecialAbility = 0;
+	attackRange    = 1;
+	specialAbility = 0;
 
-	m_iBuildCount = 0;
+	buildCount = 0;
 
-	m_bIsMaster  = false;
+	isLeader  = false;
 	guildGUID = 0;
 
 	m_iV1 = 0;
@@ -58,12 +58,12 @@ Npc::Npc(uint64_t NpcH, GServer * gs)
 	m_iNpcCrops = 0;
 	m_iCropsSkillLV = 0;
 	// added - acidx
-	m_cTargetType = 0;
-	m_cFollowOwnerType = 0;
+	targetType = 0;
+	followOwnerType = 0;
 	// 2002-09-17 #1
-	m_iNpcitemMax = 0;
+	npcItemMax = 0;
 
-	dwGoldDropValue = 0;
+	goldDropValue = 0;
 }
 
 Npc::~Npc()
@@ -72,226 +72,221 @@ Npc::~Npc()
 }
 
 //TODO: have the server pass the config struct or something.
-bool Npc::initNpcAttr(string & pNpcName, char cSA)
+bool Npc::initNpcAttr(Npc * npcTemplate, char cSA)
 {
 	int i, iTemp;
 	double dV1, dV2, dV3;
 	uint32_t mult = 1;
 
-	for (i = 0; i < MAXNPCTYPES; i++)
+	if (npcTemplate != 0)
 	{
-		if (gserver->m_npcConfigList[i] != 0) {
-			if (pNpcName == gserver->m_npcConfigList[i]->name)
-			{
-				name = gserver->m_npcConfigList[i]->name;
+		name = npcTemplate->name;
 
-				SetType(gserver->m_npcConfigList[i]->Type());
+		SetType(npcTemplate->Type());
 
-				experience             = dice(gserver->m_npcConfigList[i]->m_iExpDice, 4) + gserver->m_npcConfigList[i]->m_iExpDice;
-				//
-				m_iHitDice         = gserver->m_npcConfigList[i]->m_iHitDice;
-				m_iExpDice         = gserver->m_npcConfigList[i]->m_iExpDice;
-				m_iDefenseRatio    = gserver->m_npcConfigList[i]->m_iDefenseRatio;
-				m_iHitRatio        = gserver->m_npcConfigList[i]->m_iHitRatio;
-				m_iMinBravery      = gserver->m_npcConfigList[i]->m_iMinBravery;
-				m_cAttackDiceThrow = gserver->m_npcConfigList[i]->m_cAttackDiceThrow;
-				m_cAttackDiceRange = gserver->m_npcConfigList[i]->m_cAttackDiceRange;
-				m_cSize            = gserver->m_npcConfigList[i]->m_cSize;
-				side            = gserver->m_npcConfigList[i]->side;
-				m_cActionLimit     = gserver->m_npcConfigList[i]->m_cActionLimit;
-				m_dwActionTime     = gserver->m_npcConfigList[i]->m_dwActionTime;
-				m_dwRegenTime      = gserver->m_npcConfigList[i]->m_dwRegenTime;
-				m_cResistMagic     = gserver->m_npcConfigList[i]->m_cResistMagic;
-				m_cMagicLevel      = gserver->m_npcConfigList[i]->m_cMagicLevel;
-				m_iMaxMana         = gserver->m_npcConfigList[i]->m_iMaxMana;
-				mana            = gserver->m_npcConfigList[i]->m_iMaxMana;
-				m_cChatMsgPresence = gserver->m_npcConfigList[i]->m_cChatMsgPresence;
-				m_cDayOfWeekLimit  = gserver->m_npcConfigList[i]->m_cDayOfWeekLimit;
-				m_cTargetSearchRange = gserver->m_npcConfigList[i]->m_cTargetSearchRange;
-				m_iAttackStrategy = dice(1,10);
-				m_iAILevel		   = dice(1,3);
-				m_iAbsDamage         = gserver->m_npcConfigList[i]->m_iAbsDamage;
-				m_iMagicHitRatio     = gserver->m_npcConfigList[i]->m_iMagicHitRatio;
-				m_iAttackRange       = gserver->m_npcConfigList[i]->m_iAttackRange;
-				m_cSpecialAbility    = cSA;
-				m_iBuildCount		   = gserver->m_npcConfigList[i]->m_iMinBravery;
-				m_element		   = gserver->m_npcConfigList[i]->m_element;
-				dwGoldDropValue	   = gserver->m_npcConfigList[i]->dwGoldDropValue;
+		experience = dice(npcTemplate->m_iExpDice, 4) + npcTemplate->m_iExpDice;
+		//
+		m_iHitDice = npcTemplate->m_iHitDice;
+		m_iExpDice = npcTemplate->m_iExpDice;
+		m_iDefenseRatio = npcTemplate->m_iDefenseRatio;
+		m_iHitRatio = npcTemplate->m_iHitRatio;
+		m_iMinBravery = npcTemplate->m_iMinBravery;
+		m_cAttackDiceThrow = npcTemplate->m_cAttackDiceThrow;
+		m_cAttackDiceRange = npcTemplate->m_cAttackDiceRange;
+		m_cSize = npcTemplate->m_cSize;
+		side = npcTemplate->side;
+		m_cActionLimit = npcTemplate->m_cActionLimit;
+		timeActionInterval = npcTemplate->timeActionInterval;
+		timeRegen = npcTemplate->timeRegen;
+		m_cResistMagic = npcTemplate->m_cResistMagic;
+		m_cMagicLevel = npcTemplate->m_cMagicLevel;
+		m_iMaxMana = npcTemplate->m_iMaxMana;
+		mana = npcTemplate->m_iMaxMana;
+		m_cChatMsgPresence = npcTemplate->m_cChatMsgPresence;
+		m_cDayOfWeekLimit = npcTemplate->m_cDayOfWeekLimit;
+		m_cTargetSearchRange = npcTemplate->m_cTargetSearchRange;
+		m_iAttackStrategy = dice(1,10);
+		m_iAILevel		   = dice(1,3);
+		absDamage = npcTemplate->absDamage;
+		m_iMagicHitRatio = npcTemplate->m_iMagicHitRatio;
+		attackRange = npcTemplate->attackRange;
+		specialAbility    = cSA;
+		buildCount = npcTemplate->m_iMinBravery;
+		element = npcTemplate->element;
+		goldDropValue	   = npcTemplate->goldDropValue;
 
-				switch (m_cSpecialAbility)
-				{
-				case 1: // Clairvoyant
-					dV2 = (double)experience;
-					dV3 = 25.0f/100.0f;
-					dV1 = dV2 * dV3;
-					experience += (int)dV1;
-					break;
+		switch (specialAbility)
+		{
+		case 1: // Clairvoyant
+			dV2 = (double)experience;
+			dV3 = 25.0f/100.0f;
+			dV1 = dV2 * dV3;
+			experience += (int)dV1;
+			break;
 
-				case 2:
-					dV2 = (double)experience;
-					dV3 = 30.0f/100.0f;
-					dV1 = dV2 * dV3;
-					experience += (int)dV1;
-					break;
+		case 2:
+			dV2 = (double)experience;
+			dV3 = 30.0f/100.0f;
+			dV1 = dV2 * dV3;
+			experience += (int)dV1;
+			break;
 
-				case 3: // Absorbing Physical Damage
-					if (m_iAbsDamage > 0) {
-						m_cSpecialAbility = 0;
-						cSA = 0;
-					}
-					else {
-						iTemp = 20 + dice(1, 60);
-						m_iAbsDamage -= iTemp;
-						if (m_iAbsDamage < -90) m_iAbsDamage = -90;
-					}
+		case 3: // Absorbing Physical Damage
+			if (absDamage > 0) {
+				specialAbility = 0;
+				cSA = 0;
+			}
+			else {
+				iTemp = 20 + dice(1, 60);
+				absDamage -= iTemp;
+				if (absDamage < -90) absDamage = -90;
+			}
 
-					dV2 = (double)experience;
-					dV3 = (double)abs(m_iAbsDamage)/100.0f;
-					dV1 = dV2 * dV3;
-					experience += (int)dV1;
-					break;
+			dV2 = (double)experience;
+			dV3 = (double)abs(absDamage)/100.0f;
+			dV1 = dV2 * dV3;
+			experience += (int)dV1;
+			break;
 
-				case 4: // Absorbing Magical Damage
-					if (m_iAbsDamage < 0) {
-						m_cSpecialAbility = 0;
-						cSA = 0;
-					}
-					else {
-						iTemp = 20 + dice(1, 60);
-						m_iAbsDamage += iTemp;
-						if (m_iAbsDamage > 90) m_iAbsDamage = 90;
-					}
+		case 4: // Absorbing Magical Damage
+			if (absDamage < 0) {
+				specialAbility = 0;
+				cSA = 0;
+			}
+			else {
+				iTemp = 20 + dice(1, 60);
+				absDamage += iTemp;
+				if (absDamage > 90) absDamage = 90;
+			}
 
-					dV2 = (double)experience;
-					dV3 = (double)(m_iAbsDamage)/100.0f;
-					dV1 = dV2 * dV3;
-					experience += (int)dV1;
-					break;
+			dV2 = (double)experience;
+			dV3 = (double)(absDamage)/100.0f;
+			dV1 = dV2 * dV3;
+			experience += (int)dV1;
+			break;
 
-				case 5:
-					dV2 = (double)experience;
-					dV3 = 15.0f/100.0f;
-					dV1 = dV2 * dV3;
-					experience += (int)dV1;
-					break;
+		case 5://??
+			dV2 = (double)experience;
+			dV3 = 15.0f/100.0f;
+			dV1 = dV2 * dV3;
+			experience += (int)dV1;
+			break;
 
-				case 6:
-				case 7:
-					dV2 = (double)experience;
-					dV3 = 20.0f/100.0f;
-					dV1 = dV2 * dV3;
-					experience += (int)dV1;
-					break;
+		case 6://??
+		case 7://??
+			dV2 = (double)experience;
+			dV3 = 20.0f/100.0f;
+			dV1 = dV2 * dV3;
+			experience += (int)dV1;
+			break;
 
-				case 8:
-					dV2 = (double)experience;
-					dV3 = 25.0f/100.0f;
-					dV1 = dV2 * dV3;
-					experience += (int)dV1;
-					break;
+		case 8://??
+			dV2 = (double)experience;
+			dV3 = 25.0f/100.0f;
+			dV1 = dV2 * dV3;
+			experience += (int)dV1;
+			break;
 // New Abilitys xRisenx
 
-				case 9:
+		case 9://?? is this 'highly trained'?
 
-					switch (Type())
-					{
-						case NPC_LICHE:
-							mult = 4;
-							break;
-						case NPC_SLIME:
-							mult = 4;
-							break;
-					}
-					experience *= 4*mult;
-					m_iHitDice *= 2*mult;
-					m_iDefenseRatio *= 3;
-					m_iHitRatio *= 2;
-					m_iMinBravery = 100;
-					m_cAttackDiceThrow += 10; // 2->10
-					m_cAttackDiceRange += 15; // 3->15
-					m_dwActionTime *= 0.85;
-					m_cResistMagic *= 1.5 + (mult/10);
-					if(m_cResistMagic > 100) m_cResistMagic = 100;
-					m_iMaxMana *= 1.5 * mult;
-					mana = m_iMaxMana;
-					m_iAttackStrategy = ATTACKAI_NORMAL;
-					m_iAILevel = 3;
-					if(m_iAbsDamage > 70 && m_iAbsDamage < 90)
-						m_iAbsDamage += 10;
-					else if(m_iAbsDamage > 50 && m_iAbsDamage < 70)
-						m_iAbsDamage += 20;
-					else if(m_iAbsDamage < 50)
-						m_iAbsDamage += 30;
-					m_iMagicHitRatio *= 2 * mult/2;
-					dwGoldDropValue *= 4/**mult*mult*/;
+			switch (Type())
+			{
+				case NPC_LICHE:
+					mult = 4;
 					break;
-
-				//case 10: Elite
-
-				case 11: // Mighty
-					m_iHitDice		 += (m_iHitDice/4);  // No HP increase, but will regen faster & higher
-					//m_cAttackDiceRange += (m_cAttackDiceRange/2);
-					m_cAttackDiceRange *= 1.25;
-					m_cAttackDiceThrow *= 1.65;
-					m_iAttackRange     += 1;
-					experience			 += (experience / 2);
+				case NPC_SLIME:
+					mult = 4;
 					break;
-
-				case 12: // Crippled
-					m_iHitDice         = m_iHitDice/4;  // No HP diminution, so crippled mob will have hard time regen....
-					m_iDefenseRatio    = m_iDefenseRatio/2;
-					m_iHitRatio        = m_iHitRatio/2;
-					experience			   = experience / 4;
-					m_dwActionTime     += 600;
-					break;
-
-				case 13: // Shaman
-					m_cResistMagic     *= 2;
-					m_iMaxMana         += 2500;
-					m_iMagicHitRatio   *= 2;
-					m_iHitDice		   *= 3;
-					if ((m_iHitDice >= 1) && (m_iHitDice <= 50)) m_cMagicLevel = 5; // Same as Cyclops
-					if ((m_iHitDice >= 51) && (m_iHitDice <= 150)) m_cMagicLevel = 7; // Same as Demon
-					if ((m_iHitDice >= 151) && (m_iHitDice <= 500)) m_cMagicLevel = 8; // Same as Centaurs
-					if ((m_iHitDice >= 501) && (m_iHitDice <= 10000)) m_cMagicLevel = 17; // Same as Barlog
-					experience			 += (experience / 4);
-					break;
-
-				case 14: // Swift
-					if (m_iHitRatio <= 200)
-						m_iHitRatio += (m_iHitRatio/2);
-					else
-						m_iHitRatio     += 100;
-					if (m_iDefenseRatio <= 200)
-						m_iDefenseRatio += (m_iDefenseRatio/2);
-					else
-						m_iDefenseRatio += 100;
-						m_dwActionTime     = m_dwActionTime/4;
-					if (m_dwActionTime < 200) m_dwActionTime = 200;
-						experience			 += (experience / 2);
-					break;
-
-				// New Abilitys xRisenx
-
-				}
-
-				if(m_iHitDice <= 5)
-					health  = abs(dice(m_iHitDice, 4) + m_iHitDice);
-				else health  = abs(m_iHitDice * 5 + dice(1, m_iHitDice));
-
-				if (health == 0) health = 1;
-
-				m_iNoDieRemainExp  = (experience) - (experience/3);
-
-				SetNibble(status, 2, cSA);
-
-				if(side == 10) // temporary code
-					side = HOSTILE;
-				SetNibble(status, 7, side);
-
-				return true;
 			}
+			experience *= 4*mult;
+			m_iHitDice *= 2*mult;
+			m_iDefenseRatio *= 3;
+			m_iHitRatio *= 2;
+			m_iMinBravery = 100;
+			m_cAttackDiceThrow += 10; // 2->10
+			m_cAttackDiceRange += 15; // 3->15
+			timeActionInterval = (uint64_t)(timeActionInterval * 0.85);
+			m_cResistMagic *= 1.5 + (mult/10);
+			if(m_cResistMagic > 100) m_cResistMagic = 100;
+			m_iMaxMana *= 1.5 * mult;
+			mana = m_iMaxMana;
+			m_iAttackStrategy = ATTACKAI_NORMAL;
+			m_iAILevel = 3;
+			if(absDamage > 70 && absDamage < 90)
+				absDamage += 10;
+			else if(absDamage > 50 && absDamage < 70)
+				absDamage += 20;
+			else if(absDamage < 50)
+				absDamage += 30;
+			m_iMagicHitRatio *= 2 * mult/2;
+			goldDropValue *= 4/**mult*mult*/;
+			break;
+
+		//case 10: Elite
+
+		case 11: // Mighty
+			m_iHitDice		 += (m_iHitDice/4);  // No HP increase, but will regen faster & higher
+			//m_cAttackDiceRange += (m_cAttackDiceRange/2);
+			m_cAttackDiceRange *= 1.25;
+			m_cAttackDiceThrow *= 1.65;
+			attackRange     += 1;
+			experience			 += (experience / 2);
+			break;
+
+		case 12: // Crippled
+			m_iHitDice         = m_iHitDice/4;  // No HP diminution, so crippled mob will have hard time regen....
+			m_iDefenseRatio    = m_iDefenseRatio/2;
+			m_iHitRatio        = m_iHitRatio/2;
+			experience			   = experience / 4;
+			timeActionInterval     += 600;
+			break;
+
+		case 13: // Shaman
+			m_cResistMagic     *= 2;
+			m_iMaxMana         += 2500;
+			m_iMagicHitRatio   *= 2;
+			m_iHitDice		   *= 3;
+			if ((m_iHitDice >= 1) && (m_iHitDice <= 50)) m_cMagicLevel = 5; // Same as Cyclops
+			if ((m_iHitDice >= 51) && (m_iHitDice <= 150)) m_cMagicLevel = 7; // Same as Demon
+			if ((m_iHitDice >= 151) && (m_iHitDice <= 500)) m_cMagicLevel = 8; // Same as Centaurs
+			if ((m_iHitDice >= 501) && (m_iHitDice <= 10000)) m_cMagicLevel = 17; // Same as Barlog
+			experience			 += (experience / 4);
+			break;
+
+		case 14: // Swift
+			if (m_iHitRatio <= 200)
+				m_iHitRatio += (m_iHitRatio/2);
+			else
+				m_iHitRatio     += 100;
+			if (m_iDefenseRatio <= 200)
+				m_iDefenseRatio += (m_iDefenseRatio/2);
+			else
+				m_iDefenseRatio += 100;
+				timeActionInterval     = timeActionInterval/4;
+			if (timeActionInterval < 200) timeActionInterval = 200;
+				experience			 += (experience / 2);
+			break;
+
+		// New Abilitys xRisenx
+
 		}
+
+		if(m_iHitDice <= 5)
+			health  = abs(dice(m_iHitDice, 4) + m_iHitDice);
+		else health  = abs(m_iHitDice * 5 + dice(1, m_iHitDice));
+
+		if (health == 0) health = 1;
+
+		m_iNoDieRemainExp  = (experience) - (experience/3);
+
+		SetNibble(status, 2, cSA);
+
+		if(side == 10) // temporary code
+			side = HOSTILE;
+		SetNibble(status, 7, side);
+
+		return true;
 	}
 
 	return false;
@@ -304,9 +299,9 @@ void Npc::RegenHP()
 
 	uint64_t now = unixtime();
 
-	if ((now - m_dwHPupTime) > HPUPTIME)
+	if ((now - timeHealth) > HPUPTIME)
 	{
-		m_dwHPupTime = now;
+		timeHealth = now;
 
 		//AddHP( dice(2, m_iHitDice/2) );
 	}
@@ -319,8 +314,8 @@ void Npc::RegenMP()
 
 	uint64_t now = unixtime();
 
-	if(now - m_dwMPupTime > MPUPTIME) {
-		m_dwMPupTime = now;
+	if(now - timeMana > MPUPTIME) {
+		timeMana = now;
 
 //		m_iMP += dice(1, (m_iMaxMana/5));
 
@@ -388,20 +383,19 @@ bool Npc::behavior_searchMaster()
 void Npc::behavior_move()
 {
 
-	std::cout << "Npc::Move"<<std::endl;
  	char  cDir;
  	short sX, sY, dX, dY, absX, absY;
  	short sDistance;
  	shared_ptr<Unit> sTarget;
 	dX = 0; dY = 0;
- 	if (dead == true) return;
+ 	if (_dead == true) return;
 
- 	if ((m_bIsSummoned == true) &&
- 		(m_iSummonControlMode == 1)) return;
+ 	if ((summoned == true) &&
+ 		(summonControlMode == 1)) return;
  	if (magicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0) return;
-	if ((m_iTargetIndex != nullptr) && (m_iTargetIndex->pMap->name != pMap->name))
+	if ((target != nullptr) && (target->map->name != map->name))
 	{
-		gserver->RemoveFromTarget(this->self.lock());
+		map->RemoveFromTarget(this->self.lock());
 		return;
 	}
  	switch (m_cActionLimit) {
@@ -415,7 +409,7 @@ void Npc::behavior_move()
 	}
 
  	int iStX, iStY;
- 	if (pMap != nullptr) {
+ 	if (map != nullptr) {
  		iStX = x / 20;
  		iStY = y / 20;
 		/*for (int i = 0; i < MAXSECTORS*MAXSECTORS; i++)
@@ -448,13 +442,13 @@ void Npc::behavior_move()
 	sTarget = TargetSearch();
 	if (sTarget!=nullptr) {
 		
- 		if (m_dwActionTime < 500) {//Changed to 500 for quicker re-action time.. 1000 seems too slow
+ 		if (timeActionInterval < 1000) {//Changed to 500 for quicker re-action time.. 1000 seems too slow
  			if (dice(1,3) == 3) {
  				m_cBehavior          = BEHAVIOR_ATTACK;
  				m_sBehaviorTurnCount = 0;
- 				m_iTargetIndex = sTarget;
+ 				target = sTarget;
 				
- 				m_cTargetType  = sTarget->OwnerType();
+ 				targetType  = sTarget->OwnerType();
 				
  				return;
  			}
@@ -462,37 +456,37 @@ void Npc::behavior_move()
  		else {//I don't think this was even needed? Either way it's kind of stupid whoever did this.
  			m_cBehavior          = BEHAVIOR_ATTACK;
  			m_sBehaviorTurnCount = 0;
- 			m_iTargetIndex = sTarget;
-			m_cTargetType  = sTarget->OwnerType();
+ 			target = sTarget;
+			targetType  = sTarget->OwnerType();
  			return;
  		}
  	}
 
- 	if ((m_bIsMaster == true) && (dice(1,3) == 2)) return;
+ 	if ((isLeader == true) && (dice(1,3) == 2)) return;
 
  	if (m_cMoveType == MOVETYPE_FOLLOW) {
  		sX = x;
  		sY = y;
- 		switch (m_cFollowOwnerType) {
+ 		switch (followOwnerType) {
  		case OWNERTYPE_PLAYER:
- 			if (m_iFollowOwnerIndex == nullptr) {
+ 			if (follow == nullptr) {
  				m_cMoveType = MOVETYPE_RANDOM;
  				return;
  			}
 
- 			dX = m_iFollowOwnerIndex->x;
- 			dY = m_iFollowOwnerIndex->y;
+ 			dX = follow->x;
+ 			dY = follow->y;
  			break;
  		case OWNERTYPE_NPC:
-			if (m_iFollowOwnerIndex == nullptr) {
+			if (follow == nullptr) {
  				m_cMoveType = MOVETYPE_RANDOM;
-				m_iFollowOwnerIndex = nullptr;
+				follow = nullptr;
  				//searchMaster(m_handle);
  				return;
  			}
 
- 			dX = m_iFollowOwnerIndex->x;
- 			dY = m_iFollowOwnerIndex->y;
+ 			dX = follow->x;
+ 			dY = follow->y;
  			break;
  		}
 		if (dX < 0 || dY < 0)return;
@@ -502,7 +496,7 @@ void Npc::behavior_move()
 
  		if (sDistance >= 3) {
  			short DOType = 0;
-			cDir =GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError, &DOType);
+			cDir =GetNextMoveDir(sX, sY, dX, dY, map, turn, &m_tmp_iError, &DOType);
 
  			if (cDir == 0)
 			{
@@ -517,24 +511,24 @@ void Npc::behavior_move()
 
  					if(IsDead())
  					{
- 						gserver->NpcKilledHandler(nullptr, self.lock(), 0);
+						map->NpcKilledHandler(nullptr, self.lock(), 0);
  						return;
  					}
 					else
 					{
- 						gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
+ 						map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
  					}
  				}
 				//Clear tile and set next tile owner
  				dX = x + _tmp_cTmpDirX[cDir];
  				dY = y + _tmp_cTmpDirY[cDir];
-				pMap->ClearOwner(x, y);
-				pMap->SetOwner(this->self.lock(), dX,dY);
+				map->ClearOwner(x, y);
+				map->SetOwner(this->self.lock(), dX,dY);
 	
  				x   = dX;
  				y   = dY;
  				direction = cDir;
- 				gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
+ 				map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
  			}
  		}
  	}
@@ -542,7 +536,7 @@ void Npc::behavior_move()
  	{
  		short DOType = 0;
  		cDir = GetNextMoveDir(x, y, m_dX, m_dY,
- 			pMap, m_cTurn, &m_tmp_iError, &DOType);
+ 			map, turn, &m_tmp_iError, &DOType);
 			
  		if (cDir == 0) {
  			if (dice(1,10) == 3) nextWaypointDest();
@@ -559,18 +553,18 @@ void Npc::behavior_move()
  					//gserver->NpcKilledHandler(NULL, NULL, m_handle, 0);
  					return;
  				} else {
- 					gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
+ 					map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
  				}
  			}
  			dX = x + _tmp_cTmpDirX[cDir];
  			dY = y + _tmp_cTmpDirY[cDir];
 			//Clear tile and set next tile owner
-			pMap->ClearOwner(x, y);
-			pMap->SetOwner(this->self.lock(), dX, dY);
+			map->ClearOwner(x, y);
+			map->SetOwner(this->self.lock(), dX, dY);
  			x   = dX;
  			y   = dY;
  			direction = cDir;
- 			gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
+ 			map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
 			
  		}
 	
@@ -584,7 +578,7 @@ void Npc::behavior_flee()
 	shared_ptr<Unit> sTarget;
 	char  cTargetType;
 
-	if (this->dead == true) return;
+	if (this->_dead == true) return;
 
 	this->m_sBehaviorTurnCount++;
 
@@ -627,38 +621,38 @@ void Npc::behavior_flee()
 
 	cTargetType = sTarget->OwnerType();
 	if (sTarget != nullptr) {
-		this->m_iTargetIndex = sTarget;
-		this->m_cTargetType = cTargetType;
+		this->target = sTarget;
+		this->targetType = cTargetType;
 	}
 
 	sX = this->x;
 	sY = this->y;
-	switch (this->m_cTargetType) {
+	switch (this->targetType) {
 	case OWNERTYPE_PLAYER:
-		dX = this->m_iTargetIndex->x;
-		dY = this->m_iTargetIndex->y;
+		dX = this->target->x;
+		dY = this->target->y;
 		break;
 	case OWNERTYPE_NPC:
-		dX = this->m_iTargetIndex->x;
-		dY = this->m_iTargetIndex->y;
+		dX = this->target->x;
+		dY = this->target->y;
 		break;
 	}
 	dX = sX - (dX - sX);
 	dY = sY - (dY - sY);
 
-	cDir = GetNextMoveDir(sX, sY, dX, dY, this->pMap, this->m_cTurn, &this->m_tmp_iError);
+	cDir = GetNextMoveDir(sX, sY, dX, dY, this->map, this->turn, &this->m_tmp_iError);
 	if (cDir == 0) {
 	}
 	else {
 		dX = this->x + _tmp_cTmpDirX[cDir];
 		dY = this->y + _tmp_cTmpDirY[cDir];
-		this->pMap->ClearOwner(this->x, this->y);
+		this->map->ClearOwner(this->x, this->y);
 
-		this->pMap->SetOwner(this->self.lock(), dX, dY);
+		this->map->SetOwner(this->self.lock(), dX, dY);
 		this->x = dX;
 		this->y = dY;
 		this->direction = cDir;
-		gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
+		map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
 	}
 }
 
@@ -682,7 +676,7 @@ void Npc::behavior_stop()
 				bFlag = behavior_manaCollector();
 
 				if (bFlag == true) {
-					gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, x, y, 1);
+					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x, y, 1);
 				}
 			}
 			break;
@@ -692,7 +686,7 @@ void Npc::behavior_stop()
 				m_sBehaviorTurnCount = 0;
 				bFlag = behavior_detector();
 				if (bFlag == true) {
-					gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, x, y, 1);
+					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x, y, 1);
 				}
 			}
 			break;
@@ -722,8 +716,8 @@ void Npc::behavior_stop()
 
 		m_cBehavior = BEHAVIOR_ATTACK;
 		m_sBehaviorTurnCount = 0;
-		m_iTargetIndex = sTarget;
-		m_cTargetType = sTarget->Type();
+		target = sTarget;
+		targetType = sTarget->Type();
 		return;
 	}
 }
@@ -737,7 +731,7 @@ void Npc::behavior_attack()
  	uint32_t dwTime = unixtime();
 
  	if (magicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0) return;
- 	if (dead == true) return;
+ 	if (_dead == true) return;
 
  	switch (m_cActionLimit) {
  	case 1:
@@ -749,11 +743,11 @@ void Npc::behavior_attack()
  		return;
 
  	case 5:
- 		if (m_iBuildCount > 0) return;
+ 		if (buildCount > 0) return;
  	}
 
  	int iStX, iStY;
- 	if (pMap != nullptr) {
+ 	if (map != nullptr) {
  		iStX = x / 20;
  		iStY = y / 20;
 // 		pMap->m_stTempSectorInfo[iStX+iStY].iMonsterActivity++;
@@ -766,7 +760,7 @@ void Npc::behavior_attack()
  	if (m_sBehaviorTurnCount > 20) {
  		m_sBehaviorTurnCount = 0;
 
- 		if (m_bIsPermAttackMode == false)
+ 		if (permAttackMode == false)
  			m_cBehavior    = BEHAVIOR_MOVE;
 
  		return;
@@ -775,36 +769,17 @@ void Npc::behavior_attack()
  	sX = x;
  	sY = y;
 
- 	shared_ptr<Unit> target = nullptr;
- 	if(m_cTargetType == OWNERTYPE_PLAYER)
- 		target = m_iTargetIndex;
- 	else if(m_cTargetType == OWNERTYPE_NPC)
- 		target = m_iTargetIndex;
-
- 	switch (m_cTargetType) {
- 	case OWNERTYPE_PLAYER:
-		if (m_iTargetIndex == nullptr) {
- 			m_sBehaviorTurnCount = 0;
- 			m_cBehavior    = BEHAVIOR_MOVE;
- 			return;
- 		}
- 		dX = m_iTargetIndex->x;
- 		dY = m_iTargetIndex->y;
- 		break;
-
- 	case OWNERTYPE_NPC:
-		if (m_iTargetIndex == nullptr) {
- 			m_sBehaviorTurnCount = 0;
- 			m_cBehavior    = BEHAVIOR_MOVE;
- 			return;
- 	}
- 	dX = m_iTargetIndex->x;
- 	dY = m_iTargetIndex->y;
- 	break;
- 	}
+ 	if (target == nullptr)
+	{
+ 		m_sBehaviorTurnCount = 0;
+ 		m_cBehavior    = BEHAVIOR_MOVE;
+ 		return;
+	}
+	dX = target->x;
+	dY = target->y;
 
  	if ( (getDangerValue(dX, dY) > m_cBravery) &&
- 		(m_bIsPermAttackMode == false) &&
+ 		(permAttackMode == false) &&
  		(m_cActionLimit != 5)) {
 
  			m_sBehaviorTurnCount = 0;
@@ -813,7 +788,7 @@ void Npc::behavior_attack()
  	}
 
  	if ( (health <= 2) && (dice(1,m_cBravery) <= 3) &&
- 		(m_bIsPermAttackMode == false) &&
+ 		(permAttackMode == false) &&
  		(m_cActionLimit != 5)) {
 
  			m_sBehaviorTurnCount = 0;
@@ -828,14 +803,12 @@ void Npc::behavior_attack()
  		if (cDir == 0) return;
  		direction = cDir;
 
-		gserver->consoleLogger->information(Poco::format("NPC::Attack() - dir: %d", (int)cDir));
-
  		if (m_cActionLimit == 5) {
 			switch (Type()) {
  			case 89: // AGT
  				if (target) {
- 				if(m_cTargetType == OWNERTYPE_PLAYER) {
- 				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
+ 				if(targetType == OWNERTYPE_PLAYER) {
+					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  				m_iMagicHitRatio = 1000;
  				magicHandler(target.get(), dX, dY, 61);
  					}
@@ -843,19 +816,19 @@ void Npc::behavior_attack()
  				break;
  			case 87: // CT
  				if (target) {
- 				if(m_cTargetType == OWNERTYPE_PLAYER) {
- 				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 2);
-				gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+ 				if(targetType == OWNERTYPE_PLAYER) {
+					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 2);
+					map->gserver->CalculateAttackEffect(target.get(), this, handle, OWNERTYPE_NPC, dX, dY, 2);
  					}
  				}
  				break;
  			case 36: // Crossbow Guard Tower
- 				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 2);
-				gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+				map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 2);
+				map->gserver->CalculateAttackEffect(target.get(), this, handle, OWNERTYPE_NPC, dX, dY, 2);
  				break;
 
  			case 37: // Cannon Guard Tower:
- 				gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
+				map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  				m_iMagicHitRatio = 1000;
 				magicHandler(target.get(), dX, dY, 61);
  				break;
@@ -864,18 +837,18 @@ void Npc::behavior_attack()
 
  		else {
  			if (m_cMagicLevel == 11) {
- 				gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, x, y, 1);
+				map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x, y, 1);
  				m_iMagicHitRatio = 1000;
 				magicHandler(target.get(), x, y, 75);
  			} else
  			{
- 				gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_ATTACK, 0,0, 1);
-				gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
+				map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, 0, 0, 1);
+				map->gserver->CalculateAttackEffect(target.get(), this, handle, OWNERTYPE_NPC, dX, dY, 1);
  			}
  		}
  		m_iAttackCount++;
 
- 		if ((m_bIsPermAttackMode == false) && (m_cActionLimit == 0)) {
+ 		if ((permAttackMode == false) && (m_cActionLimit == 0)) {
  			switch (m_iAttackStrategy) {
  			case ATTACKAI_EXCHANGEATTACK:
  				m_sBehaviorTurnCount = 0;
@@ -901,164 +874,165 @@ void Npc::behavior_attack()
  			(abs(sX - dX) <= 9) && (abs(sY - dY) <= 7)) {
  				iMagicType = -1;
 				//return;//TODO : Fix because Magic is currently broken;
+				//also fix this nasty switch
 				switch (m_cMagicLevel)
  				{
  				case 1:
- 					if (gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
  						iMagicType = 0;
  					break;
  				case 2:
- 					if (gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
  						iMagicType = 10;
-					else if (gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
  						iMagicType = 0;
  					break;
  				case 3:
- 					if (gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
  						iMagicType = 20;
- 					else if (gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 4:
- 					if (gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
  						iMagicType = 30;
- 					else if (gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
  						iMagicType = 37;
- 					else if (gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
  						iMagicType = 20;
- 					else if (gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 5:
- 					if (gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
  						iMagicType = 43;
- 					else if (gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
  						iMagicType = 30;
- 					else if (gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
  						iMagicType = 37;
- 					else if (gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
  						iMagicType = 20;
- 					else if (gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 6:
- 					if (gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
  						iMagicType = 51;
- 					else if (gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
  						iMagicType = 43;
- 					else if (gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
  						iMagicType = 30;
- 					else if (gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
  						iMagicType = 37;
- 					else if (gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
  						iMagicType = 20;
- 					else if (gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 7:
- 					if ((gserver->m_pMagicConfigList[70]->m_manaCost <= mana) && (dice(1,5) == 3))
+					if ((map->gserver->m_pMagicConfigList[70]->m_manaCost <= mana) && (dice(1, 5) == 3))
  						iMagicType = 70;
- 					else if (gserver->m_pMagicConfigList[61]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[61]->m_manaCost <= mana)
  						iMagicType = 61;
- 					else if (gserver->m_pMagicConfigList[60]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[60]->m_manaCost <= mana)
  						iMagicType = 60;
-					else if (gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
  						iMagicType = 51;
-					else if (gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
  						iMagicType = 43;
 					break;
  				case 8:
-					if ((gserver->m_pMagicConfigList[35]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 35;
- 					else if (gserver->m_pMagicConfigList[60]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[60]->m_manaCost <= mana)
  						iMagicType = 60;
- 					else if (gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
  						iMagicType = 51;
- 					else if (gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
  						iMagicType = 43;
  					break;
 
  				case 9:
- 					if ((gserver->m_pMagicConfigList[74]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[74]->m_manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 74;
  					break;
  				case 10:
- 					if ((gserver->m_pMagicConfigList[57]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[57]->m_manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 57;
  					break;
  				case 11:
  					goto NBA_CHASE;
  					break;
  				case 12: // Wyvern
- 					if ((gserver->m_pMagicConfigList[91]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[91]->m_manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 91;//blizzard
- 					else if (gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
  						iMagicType = 63;
  					break;
  				case 13: // Abaddon
- 					if ((gserver->m_pMagicConfigList[96]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[96]->m_manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 96;
- 					else if (gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
  						iMagicType = 81;
  					break;
  				case 14: // Earth Wyvern
- 					if ((gserver->m_pMagicConfigList[64]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[64]->m_manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 64;
- 					else if (gserver->m_pMagicConfigList[96]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[96]->m_manaCost <= mana)
  						iMagicType = 96;
  					break;
  				case 15: // Black Demon
- 					if (gserver->m_pMagicConfigList[92]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[92]->m_manaCost <= mana)
  						iMagicType = 92;
- 					else if ((gserver->m_pMagicConfigList[73]->m_manaCost <= mana) && (dice(1,30) == 2))
+					else if ((map->gserver->m_pMagicConfigList[73]->m_manaCost <= mana) && (dice(1, 30) == 2))
  						iMagicType = 73;
-					else if ((gserver->m_pMagicConfigList[83]->m_manaCost <= mana) && (dice(1,10) == 2))
+					else if ((map->gserver->m_pMagicConfigList[83]->m_manaCost <= mana) && (dice(1, 10) == 2))
  						iMagicType = 83;
  					break;
  				case 16: // Fire Wyvern
- 					if ((gserver->m_pMagicConfigList[61]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[61]->m_manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 61;
- 					else if (gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
  						iMagicType = 81;
  					break;
  				case 17: // Barlog
- 					if (gserver->m_pMagicConfigList[92]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[92]->m_manaCost <= mana)
  						iMagicType = 92;
- 					else if (gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
  						iMagicType = 63;
  					break;
  				case 18: // Enraged Troll / Enraged Stalker
- 					if ((gserver->m_pMagicConfigList[35]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 35;
  					break;
  				case 19: // Enraged Cyclops
- 					if(gserver->m_pMagicConfigList[74]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[74]->m_manaCost <= mana)
  						iMagicType = 74;
- 					else if (gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
 						iMagicType = 35;
 					break;
  				case 20: // Enraged Gargoyle
- 					if ((gserver->m_pMagicConfigList[41]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[41]->m_manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 41;
-					else if (gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
 						iMagicType = 81;
 				break;
  				case 21: // Enraged Hellclaw
-					if ((gserver->m_pMagicConfigList[55]->m_manaCost <= mana) && (dice(1,3) == 2))
+					if ((map->gserver->m_pMagicConfigList[55]->m_manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 55;
-					else if (gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
  						iMagicType = 35;
 					break;
 				case 22: // Enraged Tigerworm
- 					if (gserver->m_pMagicConfigList[88]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[88]->m_manaCost <= mana)
  						iMagicType = 88;
- 					else if (gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
  						iMagicType = 35;
  					break;
  				case 23: // Wind Wyvern
- 					if (gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
  						iMagicType = 63;
- 					else if (gserver->m_pMagicConfigList[93]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[93]->m_manaCost <= mana)
  						iMagicType = 93;
  					break;
  				}
@@ -1066,36 +1040,36 @@ void Npc::behavior_attack()
  				if (iMagicType != -1) {
 
  					if (m_iAILevel >= 2) {
- 						switch (m_cTargetType) {
+ 						switch (targetType) {
  						case OWNERTYPE_PLAYER:
- 							if (m_iTargetIndex->magicEffectStatus[MAGICTYPE_PROTECT] == MAGICPROTECT_PFM) {
- 								if ((abs(sX - dX) > m_iAttackRange) || (abs(sY - dY) > m_iAttackRange)) {
+ 							if (target->magicEffectStatus[MAGICTYPE_PROTECT] == MAGICPROTECT_PFM) {
+ 								if ((abs(sX - dX) > attackRange) || (abs(sY - dY) > attackRange)) {
  									m_sBehaviorTurnCount = 0;
  									m_cBehavior    = BEHAVIOR_MOVE;
  									return;
  								}
  								else goto NBA_CHASE;
  							}
- 							if ((iMagicType == 35) && (m_iTargetIndex->magicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0)) goto NBA_CHASE;
+ 							if ((iMagicType == 35) && (target->magicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0)) goto NBA_CHASE;
  							break;
 
  						case OWNERTYPE_NPC:
- 							if (m_iTargetIndex->magicEffectStatus[MAGICTYPE_PROTECT] == MAGICPROTECT_PFM) {
- 								if ((abs(sX - dX) > m_iAttackRange) || (abs(sY - dY) > m_iAttackRange)) {
+ 							if (target->magicEffectStatus[MAGICTYPE_PROTECT] == MAGICPROTECT_PFM) {
+ 								if ((abs(sX - dX) > attackRange) || (abs(sY - dY) > attackRange)) {
  									m_sBehaviorTurnCount = 0;
  									m_cBehavior    = BEHAVIOR_MOVE;
  									return;
  								}
  								else goto NBA_CHASE;
  							}
- 							if ((iMagicType == 35) && (m_iTargetIndex->magicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0)) goto NBA_CHASE;
+ 							if ((iMagicType == 35) && (target->magicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0)) goto NBA_CHASE;
  							break;
  						}
  					}
 
- 					gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 1);
+					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 1);
 					magicHandler(this, dX, dY, iMagicType);
- 					m_dwTime = dwTime;
+ 					timeLastAction = dwTime;
  					return;
  				}
  		}
@@ -1103,22 +1077,22 @@ void Npc::behavior_attack()
  		if ((m_cMagicLevel < 0) && (dice(1,2) == 1) &&
  			(abs(sX - dX) <= 9) && (abs(sY - dY) <= 7)) {
  				iMagicType = -1;
- 				if (gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+				if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
  					iMagicType = 43;
- 				else if (gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+				else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
  					iMagicType = 37;
- 				else if (gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
+				else if (map->gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
 					iMagicType = 0;
  				if (iMagicType != -1) {
-					gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 1);
+					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 1);
 					magicHandler(target.get(), dX, dY, iMagicType);
- 					m_dwTime = dwTime;
+ 					timeLastAction = dwTime;
  					return;
  				}
  		}
 
- 		if ((m_iAttackRange > 1) &&
- 			(abs(sX - dX) <= m_iAttackRange) && (abs(sY - dY) <= m_iAttackRange)) {
+ 		if ((attackRange > 1) &&
+ 			(abs(sX - dX) <= attackRange) && (abs(sY - dY) <= attackRange)) {
 
 			cDir = CMisc::cGetNextMoveDir(sX, sY, dX, dY);//GetNextMoveDir(sX, sY, dX, dY, pMap, m_cTurn, &m_tmp_iError);//gserver->cGetNextMoveDir(sX, sY, dX, dY);
  				if (cDir == 0) return;
@@ -1130,7 +1104,7 @@ void Npc::behavior_attack()
  						case 89:  //AGT
 							if (target && target->IsPlayer())
 							{
-								gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
+								map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
 								m_iMagicHitRatio = 1000;
 								magicHandler(target.get(), dX, dY, 61);
 							}
@@ -1138,17 +1112,17 @@ void Npc::behavior_attack()
  						case 87: // CT
  							if (target && target->IsPlayer())
 							{
-								gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
-								gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+								map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
+								map->gserver->CalculateAttackEffect(target.get(), this, handle, OWNERTYPE_NPC, dX, dY, 2);
  							}
  							break;
  						case 36: // Crossbow Guard Tower
-							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
-							gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+							map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
+							map->gserver->CalculateAttackEffect(target.get(), this, handle, OWNERTYPE_NPC, dX, dY, 2);
  						break;
 
  						case 37://  Cannon Guard Tower
-							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
+							map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  							m_iMagicHitRatio = 1000;
  							magicHandler(target.get(), dX, dY, 61);
  						break;
@@ -1157,45 +1131,45 @@ void Npc::behavior_attack()
  				else {
 					switch (Type()) {
  					case 51:
- 						gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
+						map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 1);
  						m_iMagicHitRatio = 1000;
  						magicHandler(target.get(), dX, dY, 61);
  						break;
 
  					case 54:  //Dark Elf
- 						gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
-						gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 2);
+						map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 2);
+						map->gserver->CalculateAttackEffect(target.get(), this, handle, OWNERTYPE_NPC, dX, dY, 2);
  						break;
  					case 63: //v2.20 2002-12-20 frost
  					case 53:// Beholder
  					case 79:
  						if (target)
  						{
-							if (!target->IsDead() && gserver->CheckResistingIceSuccess(direction, m_iTargetIndex.get(), m_iMagicHitRatio) == false)
+							if (!target->IsDead() && map->gserver->CheckResistingIceSuccess(direction, target.get(), m_iMagicHitRatio) == false)
  							{
  								if (target->magicEffectStatus[ MAGICTYPE_ICE ] == 0)
  								{
  									target->magicEffectStatus[ MAGICTYPE_ICE ] = 1;
  									target->SetStatusFlag(STATUS_FROZEN, true);
- 									gserver->RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_ICE, dwTime + (5*1000),
-										target.get(), 0, 0, 0, 1, 0, 0);
+									map->RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_ICE, dwTime + (5 * 1000),
+										target.get(), 0, 0, 1, 0, 0);
  								}
  							}
- 							gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 20);
-							gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
+							map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 20);
+							map->gserver->CalculateAttackEffect(target.get(), this, handle, OWNERTYPE_NPC, dX, dY, 1);
  						}
  						break;
 
  					default:
- 						gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 20);
+						map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, dX, dY, 20);
 						//gserver->CalculateAttackEffect(m_iTargetIndex.get(), this, m_handle, OWNERTYPE_NPC, dX, dY, 1);
-						magicHandler(m_iTargetIndex.get(), dX, dY, 0);//test
+						magicHandler(target.get(), dX, dY, 0);//test
 						break;
  					}
  				}
  				m_iAttackCount++;
 
- 				if ((m_bIsPermAttackMode == false) && (m_cActionLimit == 0)) {
+ 				if ((permAttackMode == false) && (m_cActionLimit == 0)) {
  					switch (m_iAttackStrategy) {
  					case ATTACKAI_EXCHANGEATTACK:
  						m_sBehaviorTurnCount = 0;
@@ -1226,12 +1200,12 @@ void Npc::behavior_attack()
  			}
  			dX = x + _tmp_cTmpDirX[cDir];
  			dY = y + _tmp_cTmpDirY[cDir];
- 			pMap->ClearOwner( x, y);
- 			pMap->SetOwner(this->self.lock(), dX, dY);
+ 			map->ClearOwner( x, y);
+ 			map->SetOwner(this->self.lock(), dX, dY);
  			x   = dX;
  			y   = dY;
  			direction = cDir;
- 			gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
+			map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
  		}
  	}
 }
@@ -1354,33 +1328,33 @@ void Npc::nextWaypointDest()
  		m_cCurWaypoint++;
  		if (m_cCurWaypoint >= m_cTotalWaypoint)
  			m_cCurWaypoint = 1;
-		m_dX = (short)(pMap->waypointList[m_iWayPointIndex[m_cCurWaypoint]].x);
-		m_dY = (short)(pMap->waypointList[m_iWayPointIndex[m_cCurWaypoint]].y);
+		m_dX = (short)(map->waypointList[m_iWayPointIndex[m_cCurWaypoint]].x);
+		m_dY = (short)(map->waypointList[m_iWayPointIndex[m_cCurWaypoint]].y);
  		break;
 
  	case MOVETYPE_RANDOMWAYPOINT:
 
  		m_cCurWaypoint = ((rand() % (m_cTotalWaypoint - 1)) + 1);
-		m_dX = (short)(pMap->waypointList[m_iWayPointIndex[m_cCurWaypoint]].x);
-		m_dY = (short)(pMap->waypointList[m_iWayPointIndex[m_cCurWaypoint]].y);
+		m_dX = (short)(map->waypointList[m_iWayPointIndex[m_cCurWaypoint]].x);
+		m_dY = (short)(map->waypointList[m_iWayPointIndex[m_cCurWaypoint]].y);
  		break;
 
  	case MOVETYPE_RANDOMAREA:
 
- 		sRange = (short)(m_rcRandomArea.right - m_rcRandomArea.left);
- 		m_dX = (short)((rand() % sRange) + m_rcRandomArea.left);
- 		sRange = (short)(m_rcRandomArea.bottom - m_rcRandomArea.top);
- 		m_dY = (short)((rand() % sRange) + m_rcRandomArea.top);
+ 		sRange = (short)(roamArea.right - roamArea.left);
+ 		m_dX = (short)((rand() % sRange) + roamArea.left);
+ 		sRange = (short)(roamArea.bottom - roamArea.top);
+ 		m_dY = (short)((rand() % sRange) + roamArea.top);
  		break;
 
  	case MOVETYPE_RANDOM:
-		m_dX = (rand() % (pMap->sizeX - 50)) + 15;
-		m_dY = (rand() % (pMap->sizeY - 50)) + 15;
+		m_dX = (rand() % (map->sizeX - 50)) + 15;
+		m_dY = (rand() % (map->sizeY - 50)) + 15;
  	//	iMapIndex = m_cMapIndex;
 //
  		for ( i = 0; i <= 30; i++) {
-			sX = (rand() % (pMap->sizeX - 50)) + 15;
-			sY = (rand() % (pMap->sizeY - 50)) + 15;
+			sX = (rand() % (map->sizeX - 50)) + 15;
+			sY = (rand() % (map->sizeY - 50)) + 15;
 //
  			bFlag = true;
 			/*
@@ -1394,12 +1368,12 @@ void Npc::nextWaypointDest()
 						(sY <= mapIndex->m_rcMobGenAvoidRect[k].bottom))
 					{*/
 		
-			for (j = 0; j < pMap->mobGeneratorAvoidList.size(); j++)
-				if (pMap->mobGeneratorAvoidList[j].left != -1) {
- 					if ((sX >= pMap->mobGeneratorAvoidList[j].left) &&
-						(sX <= pMap->mobGeneratorAvoidList[j].right) &&
-						(sY >= pMap->mobGeneratorAvoidList[j].top) &&
-						(sY <= pMap->mobGeneratorAvoidList[j].bottom)) {
+			for (j = 0; j < map->mobGeneratorAvoidList.size(); j++)
+				if (map->mobGeneratorAvoidList[j].left != -1) {
+ 					if ((sX >= map->mobGeneratorAvoidList[j].left) &&
+						(sX <= map->mobGeneratorAvoidList[j].right) &&
+						(sY >= map->mobGeneratorAvoidList[j].top) &&
+						(sY <= map->mobGeneratorAvoidList[j].bottom)) {
  							bFlag = false;
  					}
  				}
@@ -1457,7 +1431,7 @@ shared_ptr<Unit> Npc::TargetSearch()
  	case NPC_CP: iSearchType = 1; break;
  	}
 
- 	std::list<shared_ptr<Unit>> owners = pMap->GetOwners(
+ 	std::list<shared_ptr<Unit>> owners = map->GetOwners(
  		x - m_cTargetSearchRange, x + m_cTargetSearchRange,
  		y - m_cTargetSearchRange, y + m_cTargetSearchRange);
 	if (owners.size() <= 0)return 0;
@@ -1479,7 +1453,7 @@ shared_ptr<Unit> Npc::TargetSearch()
  //			if(gserver->GetClient(owner->m_handle)->IsNoAggro() || iSearchType == 1)
  //				continue;
 
- 			iPKCount    = gserver->GetClient(owner->m_handle)->playerKillCount;
+			iPKCount = map->gserver->GetClient(owner->handle)->playerKillCount;
  			break;
 
  		case OWNERTYPE_NPC:
@@ -1513,7 +1487,7 @@ shared_ptr<Unit> Npc::TargetSearch()
  			iPKCount    = 0;
 
 			if (Type() == 21) {
- 				if (gserver->getPlayerNum(this->pMap, owner->x, owner->y, 2) != 0) {
+				if (map->gserver->getPlayerNum(this->map, owner->x, owner->y, 2) != 0) {
  					continue;
  				}
  			}
@@ -1535,7 +1509,7 @@ shared_ptr<Unit> Npc::TargetSearch()
  		}*/
 
  		// INVISIBILITY
- 		if (owner->IsInvisible() && m_cSpecialAbility != 1) continue;
+ 		if (owner->IsInvisible() && specialAbility != 1) continue;
 
  		if (abs(x - owner->x) >= abs(y - owner->y))
  			sTempDistance = abs(x - owner->x);
@@ -1588,8 +1562,8 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 {
 	Magic * spell;
 
-	if ((dX < 0) || (dX >= pMap->sizeX) ||
-		(dY < 0) || (dY >= pMap->sizeY)) return;
+	if ((dX < 0) || (dX >= map->sizeX) ||
+		(dY < 0) || (dY >= map->sizeY)) return;
 
  	const int crossPnts[5][2] = {{0,0},{-1,0},{1,0},{0,-1},{0,1}};
  	uint32_t  dwTime = unixtime();
@@ -1597,11 +1571,11 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 // 	int i, iErr, ix, iy, sX, sY, tX, tY, iResult, iWeatherBonus;
 
 	if ((magicType < 0) || (magicType >= 100))     return;
-	if (gserver->m_pMagicConfigList[magicType] == nullptr) return;
+	if (map->gserver->m_pMagicConfigList[magicType] == nullptr) return;
 
 	if (unit->IsPlayer())
 	{
-		if (unit->pMap->flags.attackEnabled == false) return;
+		if (unit->map->flags.attackEnabled == false) return;
 		//TODO: Calculate player magic hit ratio (or go ahead as planned and remove it early)
 	}
 	else
@@ -1612,9 +1586,9 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 	//TODO: Implement old weather effects?
 	// 	iWeatherBonus = gserver->iGetWeatherMagicBonusEffect(spell, pMap->m_weather);
 
-	spell = gserver->m_pMagicConfigList[magicType];
+	spell = map->gserver->m_pMagicConfigList[magicType];
 
-	Unit * target = pMap->GetOwner(dX, dY).get();
+	Unit * target = map->GetOwner(dX, dY).get();
 
 
 
@@ -1646,10 +1620,10 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 				for (short ix = dX - 8; ix <= dX + 8; ix++)
 				{
 					for (short iy = dY - 8; iy <= dY + 8; iy++){
-						target = pMap->GetOwner(ix, iy).get();
+						target = map->GetOwner(ix, iy).get();
 						if (target){
 							target->RemoveMagicEffect(spell->m_sType);
-							gserver->RemoveFromTarget(shared_ptr<Unit>(target));
+							map->RemoveFromTarget(shared_ptr<Unit>(target));
 						}
 					}
 				}
@@ -1658,7 +1632,7 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 			break;
 
 		case MAGICTYPE_HOLDOBJECT:
-			if (target && gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false) {
+			if (target && map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false) {
 				if (target->IsNPC() && ((Npc*)target)->m_cMagicLevel >= 6)
 					break;
 				if (!target->AddMagicEffect(spell->m_sType, spell->m_dwLastTime))
@@ -1812,15 +1786,15 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 //
 		case MAGICTYPE_DAMAGE_SPOT:
 			//test
-			target = pMap->GetOwner(dX, dY).get();
-			if (target && target->IsPlayer()) gserver->SendNotifyMsg(0, (Client*)target, NOTIFY_NOTICEMSG, 0, 0, 0, "Magic cast");
-			if (target && gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
-				gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
+			target = map->GetOwner(dX, dY).get();
+			if (target && target->IsPlayer()) map->gserver->SendNotifyMsg(0, (Client*)target, NOTIFY_NOTICEMSG, 0, 0, 0, "Magic cast");
+			if (target && map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
+				map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
 
-			target = pMap->GetDeadOwner(dX, dY).get();
+			target = map->GetDeadOwner(dX, dY).get();
 			if (target && target->IsPlayer() && target->health > 0 ) {
-				if (gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
-					gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
+				if (map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
+					map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
 			}
 			break;
 
@@ -2636,7 +2610,7 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 	if (mana < 0)
 		mana = 0;
 
-	gserver->SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, pMap, x, y, dX, dY, (magicType + 100), Type());
+	map->gserver->SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, map, x, y, dX, dY, (magicType + 100), Type());
 
 }
 
@@ -2766,36 +2740,36 @@ void Npc::behavior_death(shared_ptr<Unit> attacker, int16_t dmg)
  	{
 		killer = attacker;
 		sAttackerWeapon = ((static_cast<Client*>(attacker.get()))->m_sAppr2 & 0x0FF0) >> 4;
-		gserver->NpcDeadItemGenerator(attacker, this->self.lock());
+		map->NpcDeadItemGenerator(attacker, this->self.lock());
  	}
 
- 	dead = true;
+ 	_dead = true;
  	health = 0;
  	m_iLastDamage = dmg;
 
- 	pMap->totalAliveObject--;
+ 	map->totalAliveObject--;
 
- 	gserver->RemoveFromTarget(this->self.lock(), OWNERTYPE_NPC);
+	map->RemoveFromTarget(this->self.lock(), OWNERTYPE_NPC);
 
 	ReleaseFollowMode(this->self.lock());
 
- 	m_iTargetIndex = 0;
- 	m_cTargetType  = 0;
+ 	target = 0;
+ 	targetType  = 0;
 
- 	gserver->SendEventToNearClient_TypeA(this,  MSGID_MOTION_DYING, dmg, sAttackerWeapon, 0);
+	map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DYING, dmg, sAttackerWeapon, 0);
 
- 	pMap->ClearOwner(x, y);
+ 	map->ClearOwner(x, y);
 
-	pMap->SetDeadOwner(this->self.lock(), x, y);
+	map->SetDeadOwner(this->self.lock(), x, y);
 
  	m_cBehavior = BEHAVIOR_DEAD;
 
  	m_sBehaviorTurnCount = 0;
 
- 	m_dwDeadTime = unixtime();
+ 	timeDead = unixtime();
 
 
- 	if (pMap->type == MAPTYPE_NOPENALTY_NOREWARD) return;
+ 	if (map->type == MAPTYPE_NOPENALTY_NOREWARD) return;
 
  	// Monster kill event xRisenx
  	/*if (OWNERTYPE_PLAYER)
@@ -3027,23 +3001,23 @@ void Npc::Cast(short x, short y, short spell)
 
 bool Npc::Follow(shared_ptr<Unit> master)
 {
-	if(!master || master->pMap != pMap)
+	if(!master || master->map != map)
 		return false;
 
 	//TODO: set follow target to Unit* type
 	m_cMoveType = MOVETYPE_FOLLOW;
-	m_iFollowOwnerIndex = master;
+	follow = master;
 	side = master->side;
 
 	return true;
 }
 void Npc::ReleaseFollowMode(shared_ptr<Unit> owner)
 {
-	for (shared_ptr<Npc> npcs : gserver->npclist)
+	for (shared_ptr<Npc> npcs : map->npclist)
 		if (npcs != nullptr)  {
 			if ((npcs->m_cMoveType == MOVETYPE_FOLLOW) &&
-				(npcs->m_iFollowOwnerIndex == owner) &&
-				(npcs->m_cFollowOwnerType == owner->OwnerType())) {
+				(npcs->follow == owner) &&
+				(npcs->followOwnerType == owner->OwnerType())) {
 
 				npcs->m_cMoveType = MOVETYPE_RANDOMWAYPOINT;
 			}
@@ -3054,9 +3028,9 @@ void Npc::SetTarget(shared_ptr<Unit> target, bool isperm)
 	//TODO: set attack target to Unit* type
 	m_cBehavior = BEHAVIOR_ATTACK;
 	m_sBehaviorTurnCount = 0;
-	m_iTargetIndex = target;
+	target = target;
 
-	m_bIsPermAttackMode = isperm;
+	permAttackMode = isperm;
 }
 void Npc::behavior_dead()
 {
@@ -3068,8 +3042,8 @@ void Npc::behavior_dead()
 		m_sBehaviorTurnCount = 0;
 	}
 
-	if ((dwTime - m_dwDeadTime) > m_dwRegenTime)
-		gserver->DeleteNpc(this->self.lock());
+	if ((dwTime - timeDead) > timeRegen)
+		map->DeleteNpc(this->self.lock());
 }
 uint8_t Npc::GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError)
 {

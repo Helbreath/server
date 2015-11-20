@@ -60,7 +60,7 @@ void connection::stop()
 	client->disconnecttime = unixtime();
 	socket_.close();
 	client->socket.reset();
-	if (client->m_handle > 0)
+	if (client->handle > 0)
 	{
 		server.currentplayersonline--;
 		server.logger->information(Poco::format("Client disconnected: %s", client->name));
