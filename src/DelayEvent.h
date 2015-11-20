@@ -38,6 +38,6 @@ public:
 	
 	int32_t m_iV1, m_iV2, m_iV3;
 
-	uint32_t m_dwTriggerTime;
+	uint64_t m_dwTriggerTime;
 };
 

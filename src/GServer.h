@@ -232,8 +232,9 @@ public:
 	void TimerThread();
 
 	void DeleteClient(shared_ptr<Client> client, bool save = true, bool deleteobj = false);
-	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3);
+	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3);
 	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
+	void DelayEventProcessor();
 
 	bool LoadCharacterData(shared_ptr<Client> client);
 	void InitPlayerData(shared_ptr<Client> client);

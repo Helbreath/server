@@ -78,7 +78,7 @@ public:
 	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError, short * DOType);
 
 	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
-	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3);
+	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3);
 	bool bGetEmptyPosition(short & pX, short & pY, shared_ptr<Unit> client);
 
 	shared_ptr<Npc> GetNpc(uint64_t ObjectID);

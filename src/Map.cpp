@@ -2279,7 +2279,7 @@ void Map::RemoveFromDelayEventList(Unit * unit, int32_t iEffectType)
 	delayMutex.unlock();
 }
 
-bool Map::RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3)
+bool Map::RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3)
 {
 	shared_ptr<DelayEvent> delayevent(new DelayEvent);
 

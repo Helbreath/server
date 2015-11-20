@@ -10190,7 +10190,7 @@ void GServer::RemoveFromDelayEventList(Unit * unit, int32_t iEffectType)
 	delayMutex.unlock();
 }
 
-bool GServer::RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3)
+bool GServer::RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3)
 {
 	shared_ptr<DelayEvent> delayevent(new DelayEvent);
 
@@ -10214,4 +10214,12 @@ bool GServer::RegisterDelayEvent(int iDelayType, int iEffectType, uint32_t dwLas
 	delayMutex.unlock();
 
 	return true;
+}
+
+//NOTE: if this becomes a bit bloaty, move Unit timers to their respective classes
+//needs live testing to see if this would cause any issues with potentially thousands of delay events
+//constantly firing and being checked every ~100ms
+void GServer::DelayEventProcessor()
+{
+}
 }
