@@ -8,6 +8,7 @@
 #include "Misc.h"
 #include "DelayEvent.h"
 #include "Skill.h"
+#include "ChatHandler.h"
 using namespace Poco::JSON;
 
 int AddNpc(lua_State *L);
@@ -22,8 +23,7 @@ int AddNpc(lua_State *L)
 extern int _tmp_iMoveLocX[9][44];
 extern int _tmp_iMoveLocY[9][44];
 
-GServer::GServer(string servername, string config)
-	: Server(config)
+GServer::GServer(string servername)
 {
 
 	m_bIsCrusadeMode = false;
@@ -190,43 +190,12 @@ GServer::GServer(string servername, string config)
 
 	this->servername = servername;
 
+	chathandler = new ChatHandler();
+
 	sqlpool = 0;
 
 	farmRestartLimit = 20;
 	lockedMapTimeDefault = 180;//3 minutes
-
-	//TODO: put name of server in console messages?
-	pFCConsole = new FormattingChannel(new PatternFormatter("GServer: %p: %t"));
-	pFCConsole->setChannel(new ConsoleChannel);
-	pFCConsole->open();
-
-	pFCDefault= new FormattingChannel(new PatternFormatter("GServer: %t"));
-	pFCDefault->setChannel(new ConsoleChannel);
-	pFCDefault->open();
-
-	pFCFile = new FormattingChannel(new PatternFormatter("%Y-%m-%d %H:%M:%S.%c | %s:%q:%t"));
-	pFCFile->setChannel(new FileChannel("gserver.log"));
-	pFCFile->setProperty("rotation", "daily");
-	pFCFile->setProperty("times", "local");
-	pFCFile->open();
-
-	consoleLogger = &Poco::Logger::create(string("ConsoleLogger")+servername, pFCConsole, Message::PRIO_TRACE);
-	logger		  = &Poco::Logger::create(string("DefaultLogger")+servername, pFCDefault, Message::PRIO_TRACE);
-	fileLogger    = &Poco::Logger::create(string("FileLogger")+servername, pFCFile, Message::PRIO_TRACE);
-	poco_information(*logger, "");
-	poco_information(*logger, Poco::format("Server %s instantiated", servername));
-// 	consoleLogger->error("An error message");
-// 	consoleLogger->warning("A warning message");
-// 	consoleLogger->information("An information message");
-// 	fileLogger->warning("An information message");
-// 	if ((consoleLogger)->information())
-// 		(consoleLogger)->information("Another informational message", __FILE__, __LINE__);
-// 	Poco::Logger::get("ConsoleLogger").error("Another error message");
-
-
-	MySQL::Connector::registerConnector();
-	SQLite::Connector::registerConnector();
-
 
 	L = luaL_newstate();
 	luaL_openlibs(L);
@@ -235,6 +204,10 @@ GServer::GServer(string servername, string config)
 
 GServer::~GServer()
 {
+	if (chathandler)
+	{
+		delete chathandler;
+	}
 	for (Map * pmap : maplist)
 	{
 		delete pmap;
@@ -250,33 +223,12 @@ GServer::~GServer()
 			delete m_pItemConfigList[i];
 	}
 	delete sqlpool;
-	MySQL::Connector::unregisterConnector();
-	SQLite::Connector::unregisterConnector();
-	Poco::Logger::destroy(string("ConsoleLogger")+servername);
-	Poco::Logger::destroy(string("DefaultLogger")+servername);
-	Poco::Logger::destroy(string("FileLogger")+servername);
-	pFCConsole->close();
-	pFCDefault->close();
-	pFCFile->close();
-}
-
-//TODO: remove these and finish replacing
-void GServer::PutLogFileList(char * str)
-{
-	poco_information(*fileLogger, str);
-}
-void GServer::PutLogList(char * str)
-{
-	poco_information(*logger, str);
 }
 
 void GServer::run()
 {
 	try
 	{
-		//TODO: Redo entire threading model
-		//Map classes themselves hold all the major threads while GServer only handles some basic timers and chat
-
 		serverstatus = SERVERSTATUS_ONLINE;
 		logger->information("Creating Server threads.");
 
@@ -299,7 +251,7 @@ void GServer::run()
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Server::run() Exception: %s", e.what() ));
+		logger->fatal(Poco::format("Server::run() Exception: %s", e.what() ));
 	}
 }
 
@@ -310,589 +262,326 @@ void GServer::handle_stop()
 }
 extern void stack_dump(lua_State *stack);
 
-bool GServer::Init()
+bool GServer::Init(string config)
 {
+	configfile = config;
 	try
 	{
-		consoleLogger->information("Loading Config.");
-		if (luaL_dofile(L, configfile.c_str()) != 0)
+		using Poco::JSON::Parser;
+		using Poco::Dynamic::Var;
+		using Poco::JSON::Object;
+		using Poco::JSON::Array;
+
+		Parser parser;
+
 		{
-			poco_fatal(*consoleLogger, Poco::format("%s", (string)lua_tostring(L,-1)));
-			return false;
-		}
-		lua_getglobal(L, "config");
+			ifstream config(configfile.c_str());
+			Var parsed = parser.parse(config);
+			Var parsedResult = parser.result();
 
-		char * temp;
+			logger->information(Poco::format("Loading %s", configfile));
 
-		//sql host
-		{
-			lua_getfield(L, -1, "sqlhost");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlhost setting."); return false; }
-			sqlhost = temp;
-			logger->information(Poco::format("sqlhost: %s", sqlhost));
-			lua_pop(L, 1);
-		}
-
-		//sql user
-		{
-			lua_getfield(L, -1, "sqluser");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqluser setting."); return false; }
-			sqluser = temp;
-			logger->information(Poco::format("sqluser: %s", sqluser));
-			lua_pop(L, 1);
-		}
-
-		//sql pass
-		{
-			lua_getfield(L, -1, "sqlpass");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlpass setting."); return false; }
-			logger->information("sqlpass set");
-			sqlpass = temp;
-			lua_pop(L, 1);
-		}
-
-
-
-		//load maps
-		{
-			lua_getfield(L, -1, "maps");
-			if(lua_istable(L,-1))
+			Object::Ptr configOptions = parsedResult.extract<Object::Ptr>();
+			if (configOptions)
 			{
-				uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-				for (uint8_t i = 1; i <= tableSize; ++i)
+				worldname = configOptions->get("worldname").convert<string>();
+				logger->information(Poco::format("worldname: %s", worldname));
+
+				sqlhost = configOptions->get("sqlhost").convert<string>();
+				logger->information(Poco::format("sqlhost: %s", sqlhost));
+
+				sqluser = configOptions->get("sqluser").convert<string>();
+				logger->information(Poco::format("sqluser: %s", sqluser));
+
+				sqlpass = configOptions->get("sqlpass").convert<string>();
+				logger->information("sqlpass set");
+
+				sqldb = configOptions->get("sqldb").convert<string>();
+				logger->information(Poco::format("sqldb: %s", sqldb));
+
+				if (configOptions->has("maps"))
 				{
-					lua_pushinteger(L, i);
-					lua_gettable(L, -2);
-
-					string mapname = (char*)lua_tostring(L, -1);
-					lua_pop(L, 1);
-
-					Map * map = new Map(this);
-					try
+					Array::Ptr maps = configOptions->getArray("maps");
+					for (int i = 0; i < maps->size(); ++i)
 					{
-						if (!map->bInit(mapname))
+						string mapname = maps->get(i).convert<string>();
+						Map * map = new Map(this);
+						try
 						{
-							//map failed to load
+							if (!map->bInit(mapname))
+								return false;
+						}
+						catch (...)
+						{
+							logger->fatal(Poco::format("Failed to load map: %s", mapname));
 							return false;
 						}
 						maplist.push_back(map);
 					}
-					catch (...)
+				}
+			}
+		}
+
+		{
+			ifstream config("npc.json");
+			parser.reset();
+			Var parsed = parser.parse(config);
+			Var parsedResult = parser.result();
+
+			logger->information("Loading npc.json");
+
+			Object::Ptr configOptions = parsedResult.extract<Object::Ptr>();
+			if (configOptions)
+			{
+				if (configOptions->has("npcs"))
+				{
+					Array::Ptr npcs = configOptions->getArray("npcs");
+					for (int i = 0; i < npcs->size(); ++i)
 					{
-						poco_fatal(*logger, "Failed to load map.");
-						return false;
+						Array::Ptr npc = npcs->getArray(i);
+
+						
+
+						Npc * newnpc = new Npc(0, 0);
+						newnpc->name = npc->get(0).convert<string>();
+						newnpc->SetType((uint8_t)npc->get(1).convert<uint8_t>());
+						newnpc->SetTypeOriginal(newnpc->Type());
+						newnpc->m_iHitDice = npc->get(2).convert<uint32_t>();
+						newnpc->m_iDefenseRatio = npc->get(3).convert<uint32_t>();
+						newnpc->m_iHitRatio = npc->get(4).convert<uint32_t>();
+						newnpc->m_iMinBravery = npc->get(5).convert<uint32_t>();
+						newnpc->m_iExpDice = npc->get(6).convert<uint32_t>();
+						newnpc->m_cAttackDiceThrow = npc->get(7).convert<uint8_t>();
+						newnpc->m_cAttackDiceRange = npc->get(8).convert<uint8_t>();
+						newnpc->m_cSize = npc->get(9).convert<int8_t>();
+						newnpc->side = (Side)npc->get(10).convert<int8_t>();
+						newnpc->m_cActionLimit = npc->get(11).convert<int8_t>();
+						newnpc->timeActionInterval = npc->get(12).convert<uint64_t>();
+						newnpc->m_cResistMagic = npc->get(13).convert<int16_t>();
+						newnpc->m_cMagicLevel = npc->get(14).convert<int8_t>();
+						newnpc->m_cDayOfWeekLimit = npc->get(15).convert<int8_t>();
+						newnpc->m_cChatMsgPresence = npc->get(16).convert<int8_t>();
+						newnpc->m_cTargetSearchRange = npc->get(17).convert<int8_t>();
+						newnpc->timeRegen = npc->get(18).convert<uint64_t>();
+						newnpc->element = (Element)npc->get(19).convert<uint8_t>();
+						newnpc->absDamage = npc->get(20).convert<uint32_t>();
+						newnpc->m_iMaxMana = npc->get(21).convert<uint32_t>();
+						newnpc->m_iMagicHitRatio = npc->get(22).convert<uint32_t>();
+						newnpc->attackRange = npc->get(23).convert<uint32_t>();
+						newnpc->goldDropValue = npc->get(24).convert<uint64_t>() * GOLDDROPMULTIPLIER;
+
+						if (!m_npcConfigList[newnpc->Type()])
+							m_npcConfigList[newnpc->Type()] = newnpc;
+						else
+							delete newnpc;
 					}
-
-					poco_information(*logger, Poco::format("Loading map: %s", mapname));
 				}
-				lua_pop(L,1);
 			}
 		}
 
-
-		lua_pop(L, 1);
-
-		consoleLogger->information("Loading Npcs.");
-		if (luaL_dofile(L, "npc.lua") != 0)
 		{
-			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
-			return false;
-		}
-		lua_getglobal(L, "npcs");
+			ifstream config("item.json");
+			parser.reset();
+			Var parsed = parser.parse(config);
+			Var parsedResult = parser.result();
 
-		if(lua_istable(L,-1))
-		{
-			lua_pushnil(L);
-			while (lua_next(L, -2))
+			logger->information("Loading item.json");
+
+			Object::Ptr configOptions = parsedResult.extract<Object::Ptr>();
+			if (configOptions)
 			{
-				uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-				Npc * npc = new Npc(0, 0);
-				lua_pushinteger(L, 1);
-				lua_gettable(L, -2);
-				npc->name = lua_tostring(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 2);
-				lua_gettable(L, -2);
-				npc->SetType((uint8_t)lua_tointeger(L, -1));
-				npc->SetTypeOriginal(npc->Type());
-				lua_pop(L, 1);
-				lua_pushinteger(L, 3);
-				lua_gettable(L, -2);
-				npc->m_iHitDice = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 4);
-				lua_gettable(L, -2);
-				npc->m_iDefenseRatio = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 5);
-				lua_gettable(L, -2);
-				npc->m_iHitRatio = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 6);
-				lua_gettable(L, -2);
-				npc->m_iMinBravery = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 7);
-				lua_gettable(L, -2);
-				npc->m_iExpDice = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 8);
-				lua_gettable(L, -2);
-				npc->m_cAttackDiceThrow = (uint8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 9);
-				lua_gettable(L, -2);
-				npc->m_cAttackDiceRange = (uint8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 10);
-				lua_gettable(L, -2);
-				npc->m_cSize = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 11);
-				lua_gettable(L, -2);
-				npc->side = (Side)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 12);
-				lua_gettable(L, -2);
-				npc->m_cActionLimit = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 13);
-				lua_gettable(L, -2);
-				npc->timeActionInterval = (uint64_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 14);
-				lua_gettable(L, -2);
-				npc->m_cResistMagic = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 15);
-				lua_gettable(L, -2);
-				npc->m_cMagicLevel = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 16);
-				lua_gettable(L, -2);
-				npc->m_cDayOfWeekLimit = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 17);
-				lua_gettable(L, -2);
-				npc->m_cChatMsgPresence = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 18);
-				lua_gettable(L, -2);
-				npc->m_cTargetSearchRange = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 19);
-				lua_gettable(L, -2);
-				npc->timeRegen = (uint64_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 20);
-				lua_gettable(L, -2);
-				npc->element = (Element)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 21);
-				lua_gettable(L, -2);
-				npc->absDamage = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 22);
-				lua_gettable(L, -2);
-				npc->m_iMaxMana = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 23);
-				lua_gettable(L, -2);
-				npc->m_iMagicHitRatio = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 24);
-				lua_gettable(L, -2);
-				npc->attackRange = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-				lua_pushinteger(L, 25);
-				lua_gettable(L, -2);
-				npc->goldDropValue = (uint64_t)lua_tointeger(L, -1) * GOLDDROPMULTIPLIER;
-				lua_pop(L, 1);
-
-				if (!m_npcConfigList[npc->Type()])
+				if (configOptions->has("items"))
 				{
-					m_npcConfigList[npc->Type()] = npc;
-				}
-				lua_pop(L, 1);
-			}
-		}
-		lua_pop(L, 1);
+					Array::Ptr items = configOptions->getArray("items");
+					for (int i = 0; i < items->size(); ++i)
+					{
+						Array::Ptr item = items->getArray(i);
 
-
-
-		consoleLogger->information("Loading Items.");
-		if (luaL_dofile(L, "item.lua") != 0)
-		{
-			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
-			return false;
-		}
-		lua_getglobal(L, "items");
-
-		if(lua_istable(L,-1))
-		{
-			lua_pushnil(L);
-			while (lua_next(L, -2))
-			{
-				uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-				Item * item = new Item();
-
-				lua_pushinteger(L, 1);
-				lua_gettable(L, -2);
-				item->m_sIDnum = (int64_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 2);
-				lua_gettable(L, -2);
-				item->m_cName = lua_tostring(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 3);
-				lua_gettable(L, -2);
-				item->m_cItemType = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 4);
-				lua_gettable(L, -2);
-				item->m_cEquipPos = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 5);
-				lua_gettable(L, -2);
-				item->m_sItemEffectType = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 6);
-				lua_gettable(L, -2);
-				item->m_sItemEffectValue1 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 7);
-				lua_gettable(L, -2);
-				item->m_sItemEffectValue2 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 8);
-				lua_gettable(L, -2);
-				item->m_sItemEffectValue3 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 9);
-				lua_gettable(L, -2);
-				item->m_sItemEffectValue4 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 10);
-				lua_gettable(L, -2);
-				item->m_sItemEffectValue5 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 11);
-				lua_gettable(L, -2);
-				item->m_sItemEffectValue6 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 12);
-				lua_gettable(L, -2);
-				item->m_wMaxLifeSpan = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 13);
-				lua_gettable(L, -2);
-				item->m_sSpecialEffect = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 14);
-				lua_gettable(L, -2);
-				item->m_sSprite = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 15);
-				lua_gettable(L, -2);
-				item->m_sSpriteFrame = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 16);
-				lua_gettable(L, -2);
-				item->m_wPrice = (int32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 17);
-				lua_gettable(L, -2);
-				item->m_wWeight = (uint8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 18);
-				lua_gettable(L, -2);
-				item->m_cApprValue = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 19);
-				lua_gettable(L, -2);
-				item->m_cSpeed = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 20);
-				lua_gettable(L, -2);
-				item->m_sLevelLimit = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 21);
-				lua_gettable(L, -2);
-				item->m_cGenderLimit = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 22);
-				lua_gettable(L, -2);
-				item->m_sSpecialEffectValue1 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 23);
-				lua_gettable(L, -2);
-				item->m_sSpecialEffectValue2 = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 24);
-				lua_gettable(L, -2);
-				item->m_sRelatedSkill = (int16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 25);
-				lua_gettable(L, -2);
-				item->m_cCategory = (int8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 26);
-				lua_gettable(L, -2);
-				item->m_ItemColor = (uint32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				if (!m_pItemConfigList[item->m_sIDnum])
-				{
-					m_pItemConfigList[item->m_sIDnum] = item;
-				}
-				lua_pop(L, 1);
-			}
-		}
-		lua_pop(L, 1);
-
-
-		consoleLogger->information("Loading Magic.");
-		if (luaL_dofile(L, "magic.lua") != 0)
-		{
-			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L, -1)));
-			return false;
-		}
-		lua_getglobal(L, "magic");
-
-		if (lua_istable(L, -1))
-		{
-			lua_pushnil(L);
-			while (lua_next(L, -2))
-			{
-				uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-				Magic * magic = new Magic();
-
-				lua_pushinteger(L, 1);
-				lua_gettable(L, -2);
-				magic->num = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 2);
-				lua_gettable(L, -2);
-				magic->m_cName = lua_tostring(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 3);
-				lua_gettable(L, -2);
-				magic->m_sType = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 4);
-				lua_gettable(L, -2);
-				magic->m_dwDelayTime = (uint64_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 5);
-				lua_gettable(L, -2);
-				magic->m_dwLastTime = (uint64_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 6);
-				lua_gettable(L, -2);
-				magic->m_manaCost = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 7);
-				lua_gettable(L, -2);
-				magic->m_hRange = (uint8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 8);
-				lua_gettable(L, -2);
-				magic->m_vRange = (uint8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 9);
-				lua_gettable(L, -2);
-				magic->m_sValue[0] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 10);
-				lua_gettable(L, -2);
-				magic->m_sValue[1] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 11);
-				lua_gettable(L, -2);
-				magic->m_sValue[2] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 12);
-				lua_gettable(L, -2);
-				magic->m_sValue[3] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 13);
-				lua_gettable(L, -2);
-				magic->m_sValue[4] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 14);
-				lua_gettable(L, -2);
-				magic->m_sValue[5] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 15);
-				lua_gettable(L, -2);
-				magic->m_sValue[6] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 16);
-				lua_gettable(L, -2);
-				magic->m_sValue[7] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 17);
-				lua_gettable(L, -2);
-				magic->m_sValue[8] = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 18);
-				lua_gettable(L, -2);
-				magic->m_sIntLimit = (uint16_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 19);
-				lua_gettable(L, -2);
-				magic->m_iGoldCost = (int32_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 20);
-				lua_gettable(L, -2);
-				magic->m_cCategory = (uint8_t)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				lua_pushinteger(L, 21);
-				lua_gettable(L, -2);
-				magic->m_element = (Element)lua_tointeger(L, -1);
-				lua_pop(L, 1);
-
-				if (!m_pMagicConfigList[magic->num])
-				{
-					m_pMagicConfigList[magic->num] = magic;
-				}
-				lua_pop(L, 1);
-			}
-		}
-		lua_pop(L, 1);
-
-		
-		consoleLogger->information("Loading Drop Rate JSON.");
-		Poco::JSON::Parser * parser = new Poco::JSON::Parser();
-		std::ifstream dropJson("droplist.json");
-		Poco::Dynamic::Var parsed = parser->parse(dropJson);
-		Poco::Dynamic::Var parsedResult = parser->result();
-
-		Array::Ptr npcList = parsedResult.extract<Array::Ptr>();
-		int npcCount = npcList->size();
-		if (npcList && npcCount) {
-			for (int ni = 0; ni < npcCount; ni++) {
-				Object::Ptr npcRow = npcList->getObject(ni);
-				if (npcRow) {
-					Npc * npc = 0;
-					string npcName = "";
-					int npcID = 0;
-					if (npcRow->has("id")) {
-						Poco::Dynamic::Var npcIDVar = npcRow->get("id");
-						npcIDVar.convert(npcID);
-					}
-					if (npcRow->has("_name")) {
-						Poco::Dynamic::Var npcNameVar = npcRow->get("_name");
-						npcName = npcNameVar.convert<std::string>();
-					}
-					if (npcRow->has("items")) {
-						Array::Ptr npcItems = npcRow->getArray("items");
-						if (npcID != 0) {
-							npc = m_npcConfigList[npcID];
+						Item * newitem = new Item();
+						
+						try {
+							newitem->m_sIDnum = item->get(0).convert<int64_t>();
+							newitem->name = item->get(1).convert<string>();
+							newitem->m_cItemType = item->get(2).convert<int8_t>();
+							newitem->m_cEquipPos = item->get(3).convert<int8_t>();
+							newitem->itemEffectType = item->get(4).convert<int16_t>();
+							newitem->itemEffectV1 = item->get(5).convert<int16_t>();
+							newitem->itemEffectV2 = item->get(6).convert<int16_t>();
+							newitem->itemEffectV3 = item->get(7).convert<int16_t>();
+							newitem->itemEffectV4 = item->get(8).convert<int16_t>();
+							newitem->itemEffectV5 = item->get(9).convert<int16_t>();
+							newitem->itemEffectV6 = item->get(10).convert<int16_t>();
+							newitem->durability = item->get(11).convert<uint16_t>();
+							newitem->specialEffect = item->get(12).convert<int16_t>();
+							newitem->spriteID = item->get(13).convert<int16_t>();
+							newitem->spriteFrame = item->get(14).convert<int16_t>();
+							newitem->price = item->get(15).convert<int32_t>();
+							newitem->weight = item->get(16).convert<uint16_t>();
+							newitem->appearanceValue = item->get(17).convert<int8_t>();
+							newitem->swingSpeed = item->get(18).convert<int8_t>();
+							newitem->levelLimit = item->get(19).convert<int16_t>();
+							newitem->genderLimit = item->get(20).convert<int8_t>();
+							newitem->specialEffectV1 = item->get(21).convert<int16_t>();
+							newitem->specialEffectV2 = item->get(22).convert<int16_t>();
+							newitem->relatedSkill = item->get(23).convert<int16_t>();
+							newitem->category = item->get(24).convert<int8_t>();
+							newitem->color = item->get(25).convert<uint32_t>();
 						}
-						else if (npcName != "") {
-							npc = GetNpcByName(npcName);
+						catch (...)
+						{
+							logger->information(Poco::format("e: item: %s", newitem->name));
 						}
-						if (npc != 0) {
-							logger->information("Processing items for NPC: %?d", npc->Type());
-							for (int ii = 0; ii < npcItems->size(); ii++) {
-								Object::Ptr itemRow = npcItems->getObject(ii);
-								if (itemRow) {
-									Item * item = 0;
-									int itemProb = 0;
-									int itemID = 0;
-									string itemName = "";
-									if (itemRow->has("id")) {
-										Poco::Dynamic::Var itemIDVar = itemRow->get("id");
-										itemID = itemIDVar.convert<int>();
-									}
-									if (itemRow->has("_name")) {
-										Poco::Dynamic::Var itemNameVar = itemRow->get("_name");
-										itemNameVar.convert<std::string>(itemName);
-									}
-									if (itemRow->has("prob")) {
-										Poco::Dynamic::Var itemProbVar = itemRow->get("prob");
-										itemProbVar.convert<int>(itemProb);
-									}
-									if (itemProb == 0) {
-										itemProb = 1;
-									}
-									if (itemID != 0) {
-										item = m_pItemConfigList[itemID];
-									}
-									else if(itemName != "") {
-										item = GetItemByName(itemName);
-									}
-									if (item != 0) {
-										logger->information("Setting drop data; NPC: %?d, Item: %?d, Probability: %?d", npc->Type(), item->m_sIDnum, itemProb);
-										m_npcDropData[npc->Type()][item->m_sIDnum] = itemProb;
+
+						if (!m_pItemConfigList[newitem->m_sIDnum])
+							m_pItemConfigList[newitem->m_sIDnum] = newitem;
+						else
+							delete newitem;
+					}
+				}
+			}
+		}
+
+		{
+			ifstream config("magic.json");
+			parser.reset();
+			Var parsed = parser.parse(config);
+			Var parsedResult = parser.result();
+
+			logger->information("Loading magic.json");
+
+			Object::Ptr configOptions = parsedResult.extract<Object::Ptr>();
+			if (configOptions)
+			{
+				if (configOptions->has("magic"))
+				{
+					Array::Ptr magics = configOptions->getArray("magic");
+					for (int i = 0; i < magics->size(); ++i)
+					{
+						Array::Ptr magic = magics->getArray(i);
+
+						Magic * newmagic = new Magic();
+						try {
+							newmagic->num = magic->get(0).convert<uint16_t>();
+							newmagic->name = magic->get(1).convert<string>();
+							newmagic->magicType = magic->get(2).convert<uint16_t>();
+							newmagic->delayTime = magic->get(3).convert<uint64_t>();
+							newmagic->lastTime = magic->get(4).convert<uint64_t>();
+							newmagic->manaCost = magic->get(5).convert<uint16_t>();
+							newmagic->m_hRange = magic->get(6).convert<uint8_t>();
+							newmagic->m_vRange = magic->get(7).convert<uint8_t>();
+							newmagic->m_sValue[0] = magic->get(8).convert<uint16_t>();
+							newmagic->m_sValue[1] = magic->get(9).convert<uint16_t>();
+							newmagic->m_sValue[2] = magic->get(10).convert<uint16_t>();
+							newmagic->m_sValue[3] = magic->get(11).convert<uint16_t>();
+							newmagic->m_sValue[4] = magic->get(12).convert<uint16_t>();
+							newmagic->m_sValue[5] = magic->get(13).convert<uint16_t>();
+							newmagic->m_sValue[6] = magic->get(14).convert<uint16_t>();
+							newmagic->m_sValue[7] = magic->get(15).convert<uint16_t>();
+							newmagic->m_sValue[8] = magic->get(16).convert<uint16_t>();
+							newmagic->m_sIntLimit = magic->get(17).convert<uint16_t>();
+							newmagic->goldCost = magic->get(18).convert<int32_t>();
+							newmagic->category = magic->get(19).convert<uint8_t>();
+							newmagic->element = (Element)magic->get(20).convert<uint8_t>();
+						}
+						catch (...)
+						{
+							logger->information(Poco::format("e: magic: %s", newmagic->name));
+						}
+
+						if (!m_pMagicConfigList[newmagic->num])
+							m_pMagicConfigList[newmagic->num] = newmagic;
+						else
+							delete newmagic;
+					}
+				}
+			}
+		}
+
+		{
+			logger->information("Loading Drop Rate JSON.");
+			std::ifstream dropJson("droplist.json");
+			parser.reset();
+			Var parsed = parser.parse(dropJson);
+			Var parsedResult = parser.result();
+
+			Array::Ptr npcList = parsedResult.extract<Array::Ptr>();
+			int npcCount = npcList->size();
+			if (npcList && npcCount) {
+				for (int ni = 0; ni < npcCount; ni++) {
+					Object::Ptr npcRow = npcList->getObject(ni);
+					if (npcRow) {
+						Npc * npc = 0;
+						string npcName = "";
+						int npcID = 0;
+						if (npcRow->has("id")) {
+							Var npcIDVar = npcRow->get("id");
+							npcIDVar.convert(npcID);
+						}
+						if (npcRow->has("_name")) {
+							Var npcNameVar = npcRow->get("_name");
+							npcName = npcNameVar.convert<string>();
+						}
+						if (npcRow->has("items")) {
+							Array::Ptr npcItems = npcRow->getArray("items");
+							if (npcID != 0) {
+								npc = m_npcConfigList[npcID];
+							}
+							else if (npcName != "") {
+								npc = GetNpcByName(npcName);
+							}
+							if (npc != 0) {
+								//logger->information(Poco::format("Processing items for NPC: %?d", npc->Type()));
+								for (int ii = 0; ii < npcItems->size(); ii++) {
+									Object::Ptr itemRow = npcItems->getObject(ii);
+									if (itemRow) {
+										Item * item = 0;
+										int itemProb = 0;
+										int itemID = 0;
+										string itemName = "";
+										if (itemRow->has("id")) {
+											Var itemIDVar = itemRow->get("id");
+											itemID = itemIDVar.convert<int>();
+										}
+										if (itemRow->has("_name")) {
+											Var itemNameVar = itemRow->get("_name");
+											itemNameVar.convert<string>(itemName);
+										}
+										if (itemRow->has("prob")) {
+											Var itemProbVar = itemRow->get("prob");
+											itemProbVar.convert<int>(itemProb);
+										}
+										if (itemProb == 0) {
+											itemProb = 1;
+										}
+										if (itemID != 0) {
+											item = m_pItemConfigList[itemID];
+										}
+										else if (itemName != "") {
+											item = GetItemByName(itemName);
+										}
+										if (item != 0) {
+											//logger->information(Poco::format("Setting drop data; NPC: %?d, Item: %?d, Probability: %?d", npc->Type(), item->m_sIDnum, itemProb));
+											m_npcDropData[npc->Type()][item->m_sIDnum] = itemProb;
+										}
 									}
 								}
 							}
 						}
 					}
 				}
+				logger->information("Done");
 			}
-			logger->information("Done");
-		}		
+		}
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
+		logger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
 		system("pause");
 		return false;
 	}
 	catch(...)
 	{
-		consoleLogger->fatal("Unspecified Init() Exception.");
+		logger->fatal("Unspecified Init() Exception.");
 		system("pause");
 		return false;
 	}
@@ -930,11 +619,11 @@ Item * GServer::GetItemByName(string name)
 	for (int x = 0; x < MAXITEMTYPES; x++)
 	{
 		Item * item = m_pItemConfigList[x];
-		if (item && item->m_cName == name) {
+		if (item && item->name == name) {
 			return item;
 		}
 	}
-	logger->information("Could not find item %s", name);
+	logger->information(Poco::format("Could not find item %s", name));
 	return 0;
 }
 
@@ -1059,7 +748,7 @@ void GServer::ChatThread()
 				catch (int test)
 				{
 					//-193 data length error
-					consoleLogger->error(Poco::format("Error: %?d", test));
+					logger->error(Poco::format("ChatThread() : %?d", test));
 				}
 			}
 		}
@@ -1109,6 +798,25 @@ void GServer::TimerThread()
 			{
 				//run delay events
 				DelayEventProcessor();
+
+				//send queued packets to players
+				{
+					boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+					for (auto client : Gate::GetSingleton()->clientlist)
+					{
+						std::lock_guard<std::mutex> lock(client->mutsocket);
+						std::list<StreamWrite> outgoingqueue = client->outgoingqueue;
+						client->outgoingqueue.clear();
+						if (client->socket == nullptr)
+							continue;
+						while (outgoingqueue.size() > 0)
+						{
+							StreamWrite packet = outgoingqueue.front();
+							client->socket->write(packet);
+							outgoingqueue.pop_front();
+						}
+					}
+				}
 				t100msectimer += 100;
 			}
 			if (t1sectimer < ltime)
@@ -1148,11 +856,11 @@ void GServer::TimerThread()
 		}
 		catch (Poco::Data::MySQL::MySQLException * e)
 		{
-			consoleLogger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText()));
+			logger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText()));
 		}
 		catch (...)
 		{
-			consoleLogger->fatal("Unspecified TimerThread() Exception.");
+			logger->fatal("Unspecified GServer::TimerThread() Exception.");
 			return;
 		}
 	}
@@ -1161,305 +869,6 @@ void GServer::TimerThread()
 #ifndef WIN32
 	mysql_thread_end();
 #endif
-}
-
-void GServer::ParseChat(Client * client, string message)
-{
-	if (client->m_iAdminUserLevel > 0)
-	{
-		//TODO: log gm chat
-	}
-
-	char sendmode = 0;
-
-	if (message.length() > 0)
-	{
-		switch (message[0])
-		{
-			case '$':
-				message[0] = ' ';
-				sendmode = CHAT_PARTY;
-				break;
-			case '@':
-			case '^':
-				message[0] = ' ';
-				if (!client->guild)
-					break;
-				sendmode = CHAT_GUILD;
-				break;
-			case '!':
-				message[0] = ' ';
-				if (/*client->m_iLevel <= 10 ||*/ client->IsDead())
-					break;
-				sendmode = CHAT_SHOUT;
-				break;
-			case '%':
-				message[0] = ' ';
-				if (!client->IsGM())
-					break;
-				sendmode = CHAT_GM;
-				break;
-			case '~':
-				message[0] = ' ';
-				if (client->IsDead())
-					break;
-				sendmode = CHAT_NATIONSHOUT;
-				break;
-			case '/':
-				//TODO: create functions for all the individual commands like classic hb? could even Lua-ize this
-
-				//elegant solution
-				std::vector<string> tokens;
-				boost::split(tokens, message, boost::is_any_of(" "));
-
-
-				if (tokens[0] == "/tp")
-				{
-					if (tokens.size() < 2)
-					{
-						SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid command parameters");
-						return;
-					}
-					string mapname = tokens[1];
-					int16_t x = -1, y = -1;
-
-					if (tokens.size() > 3)
-					{
-						x = atoi(tokens[2].c_str());
-						y = atoi(tokens[3].c_str());
-					}
-
-					Map * pmap = GetMap(mapname);
-					if (!pmap)
-					{
-						SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Map does not exist");
-						return;
-					}
-					RequestTeleportHandler(client, 2, mapname, x, y);
-					return;
-				}
-				else if (tokens[0] == "/createitem")
-				{
-					if (tokens.size() < 2)
-					{
-						SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid syntax");
-						return;
-					}
-					Item * pItem = new Item;
-					if (pItem->InitItemAttr(tokens[1], m_pItemConfigList) == false)
-					{
-						delete pItem;
-						SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid item name");
-						return;
-					}
-					if (tokens.size() > 2)
-					{
-						pItem->m_ItemColor = _atoi64(tokens[2].c_str());
-					}
-
-					int iEraseReq;
-					if (_bAddClientItemList(client->self.lock(), pItem, &iEraseReq) == true)
-					{
-
-						SendItemNotifyMsg(client->self.lock(), NOTIFY_ITEMOBTAINED, pItem, 0);
-
-						if (iEraseReq == 1)
-						{
-							delete pItem;
-							pItem = nullptr;
-						}
-
-						logger->information(Poco::format("GM Order(%s): Create ItemName(%s)", client->name, tokens[1]));
-						return;
-					}
-					else
-					{
-						delete pItem;
-						return;
-					}
-				}
-				else if (tokens[0] == "/summon")
-				{
-					uint16_t pX, pY;
-					pX = client->x;
-					pY = client->y;
-					char cWaypoint;
-					if (tokens.size() < 2)
-					{
-						SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid summon");
-						return;
-					}
-					int16_t mobnum = 1;
-					if (tokens.size() > 2)
-					{
-						mobnum = atoi(tokens[2].c_str());
-						if (mobnum < 1) mobnum = 1;
-						if (mobnum > 50) mobnum = 50;
-					}
-					shared_ptr<Npc> master = client->map->CreateNpc(tokens[1], /*cSA*/0, MOVETYPE_RANDOM,
-											 &pX, &pY, (Side)-1, &cWaypoint, 0, 0, false, /*bSummoned*/false, /*isBerserked*/false, true);
-					if (!master)
-					{
-						return;
-					}
-					for (int j = 0; j < (mobnum - 1); j++)
-					{
-						shared_ptr<Npc> slave = client->map->CreateNpc(tokens[1], /*cSA*/0, MOVETYPE_RANDOM,
-												&pX, &pY, (Side)-1, &cWaypoint, 0, 0, false, /*bSummoned*/false, /*isBerserked*/false, true);
-
-						if (!slave)
-							break;
-						
-						slave->Follow(master);
-					}
-					return;
-				}
-
-				break;
-				if (message == "/to")
-				{
-					//TODO: tokenize to get client name and such
-					client->whisperTarget = this->clientlist.back();
-					SendNotifyMsg(0, client, NOTIFY_WHISPERMODEON, 0, 0, 0, client->whisperTarget.lock()->name);
-					return;
-				}
-				break;
-		}
-
-		if (sendmode == CHAT_PARTY && !client->GetParty())
-		{
-			SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "You are not in a party");
-			return;
-		}
-
-		if (sendmode == 0 && !client->whisperTarget.expired())
-		{
-			sendmode = CHAT_WHISPER;
-
-			if (message[0] == '#') sendmode = CHAT_NORMAL;
-
-			if (client->m_iTimeLeft_ShutUp > 0) sendmode = CHAT_NORMAL;
-		}
-
-		if ((client->magicEffectStatus[MAGICTYPE_CONFUSE] == 1) && (dice(1, 2) != 2))
-		{
-			//mess up message
-			string temp;
-			temp.resize(message.size() + 2);
-			transform(message.begin(), message.end(), temp.begin(), [&](char letter)
-			{
-				if (dice(1, 3) == 2)
-					return char(letter + 5);
-				return letter;
-			});
-			message = temp;
-		}
-
-		StreamWrite sw;
-		sw.WriteInt(MSGID_COMMAND_CHATMSG);
-		sw.WriteShort(uint16_t(client->handle));
-		sw.WriteShort(client->x);
-		sw.WriteShort(client->y);
-		sw.WriteString(client->name, 10);
-		sw.WriteByte(sendmode);
-		sw.WriteString(message, message.length() + 1);
-
-		if (sendmode == CHAT_GUILD)
-		{
-			if (!client->guild)
-				return;
-			//client->m_guild->Broadcast();//TODO: guild message
-		}
-		else if (sendmode != CHAT_WHISPER)
-		{
-			gate->mutclientlist.lock_shared();
-			for (shared_ptr<Client> target : client->gserver->clientlist)
-			{
-				if (target->socket && (target->disconnecttime == 0))
-				{
-					if (!target->m_bIsInitComplete)
-						continue;
-
-					bool bsend = true;
-					if (m_bIsCrusadeMode)
-					{
-						if ((!client->IsNeutral()) && (!target->IsNeutral()) && (client->side != target->side))
-							bsend = false;
-					}
-
-					switch (sendmode)
-					{
-						//TODO: change how chat works? should make a chat mode for:
-						// mapwide shout, mapwide town, global town - and make them "channels" that can be
-						// /join'd so players can choose to participate in them (or let them be on by default
-						// but able to be toggled)
-						case CHAT_NORMAL:
-							if (bsend && (target->map == client->map)
-								&& (target->x > client->x - 13) && (target->x < client->x + 13)
-								&& (target->y > client->y - 10) && (target->y < client->y + 10))
-							{
-								target->mutsocket.lock();
-								if (target->socket)
-									target->socket->write(sw.data, sw.size);
-								target->mutsocket.unlock();
-							}
-							break;
-						case CHAT_SHOUT://both town shout chat - local to map only
-							if (bsend && (target->map == client->map))
-							{
-								target->mutsocket.lock();
-								if (target->socket)
-									target->socket->write(sw.data, sw.size);
-								target->mutsocket.unlock();
-							}
-							break;
-						case CHAT_GM://GM chat, sent global and always overrides
-						{
-							target->mutsocket.lock();
-							if (target->socket)
-								target->socket->write(sw.data, sw.size);
-							target->mutsocket.unlock();
-						}
-							break;
-						case CHAT_NATIONSHOUT://your town only shout chat - local to map only
-							if (bsend && (target->side == client->side) && (target->map == client->map))
-							{
-								target->mutsocket.lock();
-								if (target->socket)
-									target->socket->write(sw.data, sw.size);
-								target->mutsocket.unlock();
-							}
-							break;
-						case CHAT_PARTY:
-							if (target->GetParty() && client->GetParty() == target->GetParty())
-								break;
-					}
-				}
-			}
-			gate->mutclientlist.unlock_shared();
-		}
-		else//CHAT_WHISPER
-		{
-			gate->mutclientlist.lock_shared();//have to make sure a client isn't deleted when dereferencing
-			if (client->whisperTarget.expired())
-			{
-				SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Player is not online");
-				return;
-			}
-			shared_ptr<Client> whisperTarget = client->whisperTarget.lock();
-			whisperTarget->mutsocket.lock();
-			if (whisperTarget->socket)
-				whisperTarget->socket->write(sw.data, sw.size);
-			whisperTarget->mutsocket.unlock();
-
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw.data, sw.size);
-			client->mutsocket.unlock();
-
-			gate->mutclientlist.unlock_shared();
-		}
-	}
 }
 
 void GServer::RequestTeleportHandler(Client * client, char teleportType, string cMapName, int dX, int dY)
@@ -1547,15 +956,15 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 
 	if (bRet && cMapName.length() == 0)
 	{
-		for (std::vector<Map*>::iterator iter = maplist.begin(); iter != maplist.end(); ++iter)
+		for (auto map : maplist)
 		{
-			if ((*iter)->name == DestMapName, 10)
+			if (map->name == DestMapName, 10)
 			{
 				client->x   = destx;
 				client->y   = desty;
 				client->direction = direction;
-				client->map = (*iter);
-				client->mapName = (*iter)->name;
+				client->map = map;
+				client->mapName = map->name;
 				PlayerMapEntry(client->self.lock(), setRecallTime);
 				if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
 				return;
@@ -1581,13 +990,13 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 				TempMapName = client->lockedMapName;
 			}
 			
-			for (std::vector<Map*>::iterator iter = maplist.begin(); iter != maplist.end(); ++iter)
+			for (auto map : maplist)
 			{
-				if ((*iter)->name == TempMapName, 10)
+				if (map->name == TempMapName, 10)
 				{
-					(*iter)->GetInitialPoint(&client->x, &client->y, client->faction);
-					client->map = (*iter);
-					client->mapName = (*iter)->name;
+					map->GetInitialPoint(&client->x, &client->y, client->faction);
+					client->map = map;
+					client->mapName = map->name;
 					PlayerMapEntry(client->self.lock(), setRecallTime);
 					if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
 					return;
@@ -1610,7 +1019,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 			}
 
 			pmap = GetMap(TempMapName);
-			if (pmap == 0)
+			if (pmap == nullptr)
 			{
 				//all else has failed. no map can be found to send the player to - would normally be a server transfer
 				//with the login server either giving them the hg with the map, or saying that the game server is not online
@@ -1624,6 +1033,16 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 				else if (client->faction.substr(0, 3) == "elv")
 				{
 					pmap = GetMap("elvine");
+				}
+				if (pmap == nullptr)
+				{
+					//map still does not exist - //TODO: log error in future, for now respawn on same map
+					client->map->GetInitialPoint(&client->x, &client->y, client->faction);
+					client->x = 50;// dX; //-1;	  			
+					client->y = 50;// dY; //-1;	 
+					PlayerMapEntry(client->self.lock(), setRecallTime);
+					if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
+					return;
 				}
 				pmap->GetInitialPoint(&client->x, &client->y, client->faction);
 				client->map = pmap;
@@ -1739,12 +1158,9 @@ void GServer::PlayerMapEntry(shared_ptr<Client> client, bool setRecallTime)
 	char * temp = sw.data + oldpos;
 	*((short *)temp) = total;
 
-	client->mutsocket.lock();//TODO: put (un)locks in socket->write - also put the client->socket sanity check in a client function
-	if (client->socket)
-		client->socket->write(sw.data, sw.position);
-	client->mutsocket.unlock();
+	client->SWrite(sw);
 
-//	SendEventToNearClient_TypeA(client, MSGID_MOTION_EVENT_CONFIRM, NULL, NULL, NULL);
+	//	SendEventToNearClient_TypeA(client, MSGID_MOTION_EVENT_CONFIRM, NULL, NULL, NULL);
 
 // 	if(m_astoria.get() && strcmp(player->m_cMapName, "astoria") == 0)
 // 	{
@@ -1924,7 +1340,7 @@ void GServer::PlayerMapEntry(shared_ptr<Client> client, bool setRecallTime)
 			if (m_pMapList[player->m_cMapIndex]->m_magicLimited[i])
 				SendNotifyMsg(NULL, iClientH, NOTIFY_EVENTSPELL, true, i, NULL, NULL, NULL);
 
-		poco_warning(*consoleLogger, Poco::format("Char(%s)-Enter(%s) Observer(%?d)", (string)player->m_cCharName, (string)player->m_cMapName, player->m_bIsObserverMode));
+		poco_warning(*logger, Poco::format("Char(%s)-Enter(%s) Observer(%?d)", (string)player->m_cCharName, (string)player->m_cMapName, player->m_bIsObserverMode));
 	}
 
 	if (player->GetParty())
@@ -2056,29 +1472,23 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		sw.WriteShort(uint16_t(sV2));
 		sw.WriteShort(uint16_t(sV3));
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
-	case NOTIFY_TELEPORT_REJECTED:
-		sw.WriteShort(uint16_t(sV1));
-		sw.WriteShort(uint16_t(sV2));
-		to->SWrite(sw);
-		//to->socket->write(sw);
-		break;
+
 	case NOTIFY_LOCKEDMAP:
 		sw.WriteShort(uint16_t(sV1));
 		sw.WriteString(pString, 10);
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
+
+		//Single Int
 	case NOTIFY_REQDEF:
-		sw.WriteInt(uint16_t(sV1));
+	case NOTIFY_SLATE_CREATESUCCESS:
+		sw.WriteInt(uint32_t(sV1));
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 	case NOTIFY_RESPONSE_HUNTMODE:
 		sw.WriteString(pString, 10);
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 	case NOTIFY_PARTY:
 		switch (sV1) {
@@ -2089,7 +1499,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 			sw.WriteShort(uint16_t(sV3));
 			sw.WriteString(pString, 10);
 			to->SWrite(sw);
-			//to->socket->write(sw);
 			break;
 
 		case 5:
@@ -2098,7 +1507,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 			sw.WriteShort(uint16_t(sV3));
 			sw.WriteString(pString, sV3*11);
 			to->SWrite(sw);
-			//to->socket->write(sw);
 			break;
 
 		default:
@@ -2107,7 +1515,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 			sw.WriteShort(uint16_t(sV3));
 			sw.WriteShort(uint16_t(sV4));
 			to->SWrite(sw);
-			//to->socket->write(sw);
 			break;
 		}
 		break;
@@ -2117,8 +1524,9 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		sw.WriteShort(uint16_t(sV1));
 		sw.WriteShort(uint16_t(sV2));
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
+
+		//Single Short
 	case NOTIFY_CANNOTCONSTRUCT:
 	case NOTIFY_METEORSTRIKECOMING:
 	case NOTIFY_METEORSTRIKEHIT:
@@ -2127,9 +1535,41 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 	case NOTIFY_OBSERVERMODE:
 	case NOTIFY_QUESTCOMPLETED:
 	case NOTIFY_QUESTABORTED:
+	case NOTIFY_SLATE_STATUS:
+	case NOTIFY_ITEMUPGRADEFAIL:
+	case NOTIFY_SKILLUSINGEND:
+	case NOTIFY_FORCERECALLTIME:
 		sw.WriteShort(uint16_t(sV1));
 		to->SWrite(sw);
-		//to->socket->write(sw);
+		break;
+
+		//Double Short
+	case NOTIFY_TELEPORT_REJECTED:
+	case NOTIFY_SKILL:
+	case NOTIFY_ITEMRELEASED:
+	case NOTIFY_ITEMLIFESPANEND:
+		sw.WriteShort(uint16_t(sV1));
+		sw.WriteShort(uint16_t(sV2));
+		to->SWrite(sw);
+		break;
+
+		//empty packets (just ID)
+	case NOTIFY_SLATE_EXP:
+	case NOTIFY_SLATE_MANA:
+	case NOTIFY_SLATE_INVINCIBLE:
+	case NOTIFY_SLATE_CREATEFAIL:
+	case NOTIFY_RESURRECTPLAYER:
+	case NOTIFY_EVENTRESET:
+	case NOTIFY_CRAFTING_SUCCESS:
+	case NOTIFY_PORTIONSUCCESS:
+	case NOTIFY_LOWPORTIONSKILL:
+	case NOTIFY_PORTIONFAIL:
+	case NOTIFY_NOMATCHINGPORTION:
+	case NOTIFY_CRAFTING_FAIL:
+	case NOTIFY_NOMATCHINGCRAFTING:
+	case NOTIFY_NO_CRAFT_CONTRIB:
+	case NOTIFY_ADMINUSERLEVELLOW:
+		to->SWrite(sw);
 		break;
 	case NOTIFY_ITEMPOSLIST:
  		for (ItemWrap * var : to->itemList)
@@ -2138,7 +1578,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 			sw.WriteShort(var->_item->y);
  		}
 		to->SWrite(sw);
-		//to->socket->write(sw);
  		break;
 	case NOTIFY_WHISPERMODEON:
 	case NOTIFY_WHISPERMODEOFF:
@@ -2146,45 +1585,38 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		sw.WriteString(pString, 10);
 		sw.WriteString("          ", 10);
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 
 	case NOTIFY_NOTICEMSG:
 		sw.WriteString(pString, pString.length());
 		sw.WriteByte(0);
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 	case NOTIFY_EXP:
 		sw.WriteInt(uint32_t(to->experience));//TODO: make 64bit client side still?
 		sw.WriteInt(to->m_reputation);
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 
 	case NOTIFY_HP:
 		sw.WriteInt(uint32_t(to->health));
 		sw.WriteInt(uint32_t(to->mana));
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 
 	case NOTIFY_MP:
 		sw.WriteInt(uint32_t(to->mana));
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 
 	case NOTIFY_SP:
 		sw.WriteInt(to->m_iSP);
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 
 	case NOTIFY_CHARISMA:
 		sw.WriteInt(to->m_iCharisma);
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 
 	case NOTIFY_SETTING_SUCCESS:
@@ -2197,7 +1629,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		sw.WriteInt(to->GetMag());
 		sw.WriteInt(to->GetAgi());
 		to->SWrite(sw);
-		//to->socket->write(sw);
 		break;
 
 	case NOTIFY_CHANGETITLE:
@@ -2216,6 +1647,336 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 	case NOTIFY_KILLED:
 
 		sw.WriteString(pString, 20);//ActiveTitle
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_REQGUILDNAMEANSWER:
+
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteString(pString);
+
+		to->SWrite(sw);
+		break;
+
+
+	case NOTIFY_GRANDMAGICRESULT:
+
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteShort(sV3);
+		sw.WriteString(pString, 10);
+		sw.WriteShort(sV4);
+
+		if (sV9 > 0)  {
+			sw.WriteString(pString2, (sV9 + 1) * 2);
+		}
+		else
+		{
+			sw.WriteShort(0);
+		}
+
+		to->SWrite(sw);
+		break;
+
+
+	case NOTIFY_MAPSTATUSNEXT:
+	case NOTIFY_MAPSTATUSLAST:
+		sw.WriteString(pString, sV1);
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_BUILDITEMSUCCESS:
+	case NOTIFY_BUILDITEMFAIL:
+		if (sV1 >= 0) {
+			sw.WriteShort(sV1);
+		}
+		else {
+			sw.WriteShort(sV1 + 10000);
+		}
+
+		sw.WriteShort(sV2);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_QUESTREWARD:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteInt(sV3);
+		sw.WriteString(pString, 20);
+		sw.WriteInt(sV4);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_QUESTCONTENTS:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteShort(sV3);
+		sw.WriteShort(sV4);
+		sw.WriteShort(sV5);
+		sw.WriteShort(sV6);
+		sw.WriteShort(sV7);
+		sw.WriteShort(sV8);
+		sw.WriteShort(sV9);
+		if (pString2.length() > 0) sw.WriteString(pString2, 20);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_GIZONITEMUPGRADELEFT:
+	case NOTIFY_ITEMATTRIBUTECHANGE:
+		sw.WriteShort(sV1);
+		sw.WriteInt(sV2);
+		sw.WriteInt(sV3);
+		sw.WriteInt(sV4);
+
+		to->SWrite(sw);
+		break;
+
+
+	case NOTIFY_GIZONEITEMCHANGE:
+		sw.WriteShort(sV1);
+		sw.WriteByte(sV2);
+		sw.WriteShort(sV3);
+		sw.WriteShort(sV4);
+		sw.WriteShort(sV5);
+		sw.WriteByte(sV6);
+		sw.WriteByte(sV7);
+		sw.WriteInt(sV8);
+		sw.WriteString(pString, 20);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_ITEMCOLORCHANGE:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+
+		to->SWrite(sw);
+		break;
+	case NOTIFY_ENEMYKILLS:
+		sw.WriteInt(sV1);
+		sw.WriteInt(sV2);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_CRUSADE:
+		sw.WriteInt(sV1);
+		sw.WriteInt(sV2);
+		sw.WriteInt(sV3);
+		sw.WriteInt(sV4);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_CONSTRUCTIONPOINT:
+	case NOTIFY_SPECIALABILITYSTATUS:
+	case NOTIFY_DAMAGEMOVE:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteShort(sV3);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_NPCTALK:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteShort(sV3);
+		sw.WriteShort(sV4);
+		sw.WriteShort(sV5);
+		sw.WriteShort(sV6);
+		sw.WriteShort(sV7);
+		sw.WriteShort(sV8);
+		sw.WriteShort(sV9);
+		if (pString.length() > 0) sw.WriteString(pString, 20);
+		if (pString2.length() > 0) sw.WriteString(pString2, 20);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_SUPERATTACKLEFT:
+		sw.WriteShort(to->superAttack);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_SAFEATTACKMODE:
+		sw.WriteByte(to->safeAttackMode);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_SERVERSHUTDOWN:
+	case NOTIFY_GLOBALATTACKMODE:
+	case NOTIFY_WEATHERCHANGE:
+		sw.WriteByte(sV1);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_CANNOTRATING:
+		sw.WriteShort(sV1);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_RATINGPLAYER:
+		sw.WriteByte(sV1);
+		sw.WriteString(pString, 10);
+		sw.WriteInt(to->m_reputation);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_PLAYERSHUTUP:
+		sw.WriteShort(sV1);
+		sw.WriteString(pString, 10);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_PLAYERPROFILE:
+		if (pString.length() > 100) {
+			sw.WriteString(pString, 100);
+		}
+		else {
+			sw.WriteString(pString, pString.length());
+		}
+		sw.WriteByte(0);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_REPAIRITEMPRICE:
+	case NOTIFY_SELLITEMPRICE:
+		sw.WriteInt(sV1);
+		sw.WriteInt(sV2);
+		sw.WriteInt(sV3);
+		sw.WriteInt(sV4);
+		sw.WriteString(pString, 20);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_CANNOTREPAIRITEM:
+	case NOTIFY_CANNOTSELLITEM:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteString(pString, 20);
+
+		to->SWrite(sw);
+		break;
+
+
+	case NOTIFY_TOTALUSERS:
+		sw.WriteShort(m_iTotalGameServerClients);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_MAGICEFFECTOFF:
+	case NOTIFY_MAGICEFFECTON:
+		sw.WriteShort(sV1);
+		sw.WriteInt(sV2);
+		sw.WriteInt(sV3);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_SETITEMCOUNT:
+		sw.WriteShort(sV1);
+		sw.WriteInt(sV2);
+		sw.WriteByte(sV3);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_ITEMDEPLETED_ERASEITEM:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_DROPITEMFIN_COUNTCHANGED:
+	case NOTIFY_DROPITEMFIN_ERASEITEM:
+		sw.WriteShort(sV1);
+		sw.WriteInt(sV2);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_CANNOTGIVEITEM:
+	case NOTIFY_GIVEITEMFIN_COUNTCHANGED:
+	case NOTIFY_GIVEITEMFIN_ERASEITEM:
+		sw.WriteShort(sV1);
+		sw.WriteInt(sV2);
+		sw.WriteString(pString, 20);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_ENEMYKILLREWARD:
+		sw.WriteInt(to->experience);
+		sw.WriteInt(to->enemyKillCount);
+		sw.WriteString(pString, 10);
+		sw.WriteString(pString2, 20);
+		sw.WriteShort(sV1);//Guild Rank
+		sw.WriteShort(sV2);//War Contribution
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_PKCAPTURED:
+		sw.WriteShort(sV1);
+		sw.WriteShort(sV2);
+		sw.WriteString(pString, 10);
+		sw.WriteInt(to->m_iRewardGold);
+		sw.WriteInt(to->experience);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_PKPENALTY:
+		sw.WriteInt(to->experience);
+		sw.WriteInt(to->GetStr());
+		sw.WriteInt(to->GetVit());
+		sw.WriteInt(to->GetDex());
+		sw.WriteInt(to->GetInt());
+		sw.WriteInt(to->GetMag());
+		sw.WriteInt(to->GetAgi());
+		sw.WriteInt(to->playerKillCount);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_TRAVELERLIMITEDLEVEL:
+	case NOTIFY_LIMITEDLEVEL:
+		sw.WriteInt(to->experience);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_CANNOTRECALL:
+	case NOTIFY_CANNOTCRUSADE:
+		sw.WriteByte(sV1);
+
+		to->SWrite(sw);
+		break;
+
+	case NOTIFY_SPELL_SKILL:
+		for (int i = 0; i < MAXMAGICTYPE; i++) {
+			sw.WriteByte(to->magicMastery[i]);
+		}
+
+		for (int i = 0; i < MAXSKILLTYPE; i++) {
+			sw.WriteByte(to->m_cSkillMastery[i]);
+		}
 
 		to->SWrite(sw);
 		break;
@@ -2471,30 +2232,11 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 6);
 		break;
 
-
-
 	case NOTIFY_LGNPTS:
 		dwp = (uint32*)cp;
 		*dwp = sV1;
 
 		iRet = player->socket->write(cData, 10);
-		break;
-
-
-
-	case NOTIFY_REQGUILDNAMEANSWER:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV2;
-		cp += 2;
-
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 32);
 		break;
 
 	case NOTIFY_TCLOC:
@@ -2523,13 +2265,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 34);
 		break;
 
-	case NOTIFY_SLATE_STATUS:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
 
-		iRet = player->socket->write(cData, 8);
-		break;
 
 	case NOTIFY_QUESTCOUNTER:
 		ip  = (int *)cp;
@@ -2539,248 +2275,15 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 24);
 		break;
 
-	case NOTIFY_SLATE_EXP:
-	case NOTIFY_SLATE_MANA:
-	case NOTIFY_SLATE_INVINCIBLE:
-	case NOTIFY_RESURRECTPLAYER:
-		iRet = player->socket->write(cData, 6);
-		break;
 
-	case NOTIFY_SLATE_CREATEFAIL:
-		iRet = player->socket->write(cData, 6);
-		break;
 
-	case NOTIFY_SLATE_CREATESUCCESS:
-		dwp  = (uint32_t *)cp;
-		*dwp = sV1;
-		cp += 4;
 
-		iRet = player->socket->write(cData, 10);
-		break;
 
 
 
-	case NOTIFY_GRANDMAGICRESULT:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
 
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV2;
-		cp += 2;
 
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV3;
-		cp += 2;
 
-		memcpy(cp, pString, 10);
-		cp += 10;
-
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV4;
-		cp += 2;
-
-		//		sp = (short *)cp;
-		//		*sp = (short)sV9;
-		//		cp += 2;
-
-		if (sV9 > 0)  {
-			memcpy(cp,pString2, (sV9+1)*2) ;
-			cp += (sV9+1)*2;
-		}
-		else 
-		{
-			sp = (short *)cp;
-			*sp = (short)0;
-			cp += 2;
-		}
-
-		iRet = player->socket->write(cData, 24 + (sV9+1)*2 );
-		break;
-
-	case NOTIFY_MAPSTATUSNEXT:
-		memcpy(cp, pString, sV1);
-		cp += sV1;
-		iRet = player->socket->write(cData, 6+sV1);
-		break;
-
-	case NOTIFY_MAPSTATUSLAST:
-		memcpy(cp, pString, sV1);
-		cp += sV1;
-		iRet = player->socket->write(cData, 6+sV1);
-		break;
-
-
-
-	case NOTIFY_BUILDITEMSUCCESS:
-	case NOTIFY_BUILDITEMFAIL:
-		if (sV1 >= 0) {
-			sp = (short *)cp;
-			*sp = (short)sV1;
-			cp += 2;
-		}
-		else {
-			sp = (short *)cp;
-			*sp = (short)sV1 + 10000;
-			cp += 2;
-		}
-
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 10);
-		break;
-
-	case NOTIFY_QUESTREWARD:
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-
-		ip = (int *)cp;
-		*ip = (int)sV3;
-		cp += 4;
-
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-		ip = (int *)cp;
-		*ip = (int)sV4;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 38);
-		break;
-
-
-
-	case NOTIFY_QUESTCONTENTS:
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV3;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV4;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV5;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV6;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV7;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV8;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV9;
-		cp += 2;
-
-		if (pString2 != NULL) memcpy(cp, pString2, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 44);
-		break;
-
-	case NOTIFY_GIZONITEMUPGRADELEFT:
-	case NOTIFY_ITEMATTRIBUTECHANGE:
-
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-
-		dwp = (uint32_t *)cp;
-		*dwp = (uint32_t)sV2;
-		cp += 4;
-
-		dwp = (uint32_t *)cp;
-		*dwp = (uint32_t)sV3;
-		cp += 4;
-
-		dwp = (uint32_t *)cp;
-		*dwp = (uint32_t)sV4;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 20);
-		break; 
-
-	case NOTIFY_ITEMUPGRADEFAIL:
-
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 8);
-
-		break ;
-
-	case NOTIFY_GIZONEITEMCHANGE:
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-
-		*cp = (char)sV2;
-		cp++;
-
-		sp = (short *)cp;
-		*sp = (short)sV3;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV4;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV5;
-		cp += 2;
-
-		*cp = (char)sV6;
-		cp++;
-
-		*cp = (char)sV7;
-		cp++;
-
-
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)sV8;
-		cp += 4;
-
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-
-		iRet = player->socket->write(cData, 41);
-		break;
-
-	case NOTIFY_ITEMCOLORCHANGE:
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 10);
-		break;
 
 	case NOTIFY_ENERGYSPHERECREATED:
 		sp = (short *)cp;
@@ -2878,53 +2381,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 
 
 
-	case NOTIFY_ENEMYKILLS:
-		ip  = (int *)cp;
-		*ip = (int)sV1;
-		ip++;
-		*ip = (int)sV2;
-
-		iRet = player->socket->write(cData, 14);
-		break;
-
-	case NOTIFY_CRUSADE:
-		ip = (int *)cp;
-		*ip = (int)sV1;
-		cp += 4;
-
-		ip = (int *)cp;
-		*ip = (int)sV2;
-		cp += 4;
-
-		ip = (int *)cp;
-		*ip = (int)sV3;
-		cp += 4;
-
-		ip = (int *)cp;
-		*ip = (int)sV4;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 22);
-		break;
-
-	case NOTIFY_CONSTRUCTIONPOINT:
-	case NOTIFY_SPECIALABILITYSTATUS:
-	case NOTIFY_DAMAGEMOVE:
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV3;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 12);
-		break;
-
 	case NOTIFY_DOWNSKILLINDEXSET:
 		sp = (short *)cp;
 		*sp = (short)sV1;
@@ -2974,51 +2430,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		}
 		break;
 
-	case NOTIFY_NPCTALK:
-		sp = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
 
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV3;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV4;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV5;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV6;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV7;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV8;
-		cp += 2;
-
-		sp = (short *)cp;
-		*sp = (short)sV9;
-		cp += 2;
-
-		if (pString != NULL) memcpy(cp, pString, 20);
-		cp += 20;
-
-		if (pString2 != NULL) memcpy(cp, pString2, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 64);
-		break;
 	case NOTIFY_EVENTILLUSION:
 	case NOTIFY_EVENTTP:
 		*cp = (char)sV1;
@@ -3050,32 +2462,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 8);
 		break;
 
-	case NOTIFY_EVENTRESET:
-	case NOTIFY_CRAFTING_SUCCESS:
-	case NOTIFY_PORTIONSUCCESS:
-	case NOTIFY_LOWPORTIONSKILL:
-	case NOTIFY_PORTIONFAIL:
-	case NOTIFY_NOMATCHINGPORTION:
-	case NOTIFY_CRAFTING_FAIL:
-	case NOTIFY_NOMATCHINGCRAFTING:
-	case NOTIFY_NO_CRAFT_CONTRIB: 
-		iRet = player->socket->write(cData, 6);
-		break;
 
-	case NOTIFY_SUPERATTACKLEFT:
-		sp = (short *)cp;
-		*sp = player->m_iSuperAttackLeft;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 8);
-		break;
-
-	case NOTIFY_SAFEATTACKMODE:
-		*cp = player->m_bIsSafeAttackMode;
-		cp++;
-
-		iRet = player->socket->write(cData, 7);
-		break;
 
 	case NOTIFY_QUERY_JOINPARTY:
 	case NOTIFY_IPACCOUNTINFO:
@@ -3093,20 +2480,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 10);
 		break;
 
-	case NOTIFY_SERVERSHUTDOWN:
-		*cp = (char)sV1;
-		cp++;
 
-		iRet = player->socket->write(cData, 7);
-		break;
-
-	case NOTIFY_GLOBALATTACKMODE:
-	case NOTIFY_WEATHERCHANGE:
-		*cp = (char)sV1;
-		cp++;
-
-		iRet = player->socket->write(cData, 7);
-		break;
 
 	case NOTIFY_MONSTEREVENT_POSITION:
 		*cp = (char)sV3;
@@ -3170,52 +2544,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 32);
 		break;
 
-	case NOTIFY_NOTICEMSG:
-		memcpy(cp, pString, strlen(pString));
-		cp += strlen(pString);
 
-		*cp = NULL;
-		cp++;
-
-		iRet = player->socket->write(cData, strlen(pString) + 7);
-		break;
-
-	case NOTIFY_CANNOTRATING:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 8);
-		break;
-
-	case NOTIFY_RATINGPLAYER:
-		*cp = (char)sV1;
-		cp++;
-
-		memcpy(cp, pString, 10);
-		cp += 10;
-
-		ip = (int *)cp;
-		*ip = player->m_reputation;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 22);
-		break;
-
-	case NOTIFY_ADMINUSERLEVELLOW:
-		iRet = player->socket->write(cData, 6);
-		break;
-
-	case NOTIFY_PLAYERSHUTUP:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		memcpy(cp, pString, 10);
-		cp += 10;
-
-		iRet = player->socket->write(cData, 19);
-		break;
 
 	case NOTIFY_TIMECHANGE:
 		*cp = (char)sV1;
@@ -3249,20 +2578,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = m_pClientList[iToH]->socket->write(cData, 7);
 		break;
 #endif
-	case NOTIFY_PLAYERPROFILE:
-		if (strlen(pString) > 100) {
-			memcpy(cp, pString, 100);
-			cp += 100;
-		}
-		else {
-			memcpy(cp, pString, strlen(pString));
-			cp += strlen(pString);
-		}
-		*cp = NULL;
-		cp++;
 
-		iRet = player->socket->write(cData, 7 + strlen(pString));
-		break;
 
 	case NOTIFY_PLAYERONGAME:
 	case NOTIFY_FRIENDONGAME:
@@ -3289,43 +2605,8 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 14);
 		break;
 
-	case NOTIFY_REPAIRITEMPRICE:
-	case NOTIFY_SELLITEMPRICE:
-		dwp = (uint32_t *)cp;
-		*dwp = (uint32_t)sV1;
-		cp += 4;
-		dwp = (uint32_t *)cp;
-		*dwp = (uint32_t)sV2;
-		cp += 4;
-		dwp = (uint32_t *)cp;
-		*dwp = (uint32_t)sV3;
-		cp += 4;
-		dwp = (uint32_t *)cp;
-		*dwp = (uint32_t)sV4;
-		cp += 4;
 
-		memcpy(cp, pString, 20);
-		cp += 20;
 
-		iRet = player->socket->write(cData, 42);
-		break;
-
-	case NOTIFY_CANNOTREPAIRITEM:
-	case NOTIFY_CANNOTSELLITEM:
-		wp = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		wp = (uint16_t *)cp;
-		*wp = (uint16_t)sV2;
-		cp += 2;
-
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 30);
-
-		break;
 
 		//(word)sV1, sV2
 	case NOTIFY_SHOWMAP:
@@ -3341,21 +2622,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		break;
 
 		//(word)sV1
-	case NOTIFY_SKILLUSINGEND:
-		wp  = (uint16_t *)cp;  
-		*wp = (uint16_t)sV1;
-		cp += 2;
 
-		iRet = player->socket->write(cData, 8);
-		break;
-
-	case NOTIFY_TOTALUSERS:
-		wp  = (uint16_t *)cp;    
-		*wp = (uint16_t)(m_iTotalGameServerClients/ * + m_onlineCntAdd* /) ; //_iGetTotalClients();
-		cp += 2;
-
-		iRet = player->socket->write(cData, 8);
-		break;
 
 		// (char)sV1
 	case NOTIFY_EVENTSTART:
@@ -3426,22 +2693,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 17);
 		break;
 
-	case NOTIFY_MAGICEFFECTOFF:
-	case NOTIFY_MAGICEFFECTON:
-		wp  = (uint16_t *)cp;  
-		*wp = (uint16_t)sV1;
-		cp += 2;
 
-		dwp  = (uint32_t *)cp;  
-		*dwp = (uint32_t)sV2;
-		cp += 4;
-
-		dwp  = (uint32_t *)cp;  
-		*dwp = (uint32_t)sV3;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 16);
-		break;
 
 	case NOTIFY_CANNOTITEMTOBANK:
 	case NOTIFY_SETTING_FAILED:
@@ -3464,196 +2716,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 
 		iRet = player->socket->write(cData, 16 +19);
 		break;
-
-	case NOTIFY_SKILL:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV2;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 10);
-		break;
-
-	case NOTIFY_SETITEMCOUNT:
-		wp  = (uint16_t *)cp;  
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		dwp  = (uint32_t *)cp;  
-		*dwp = (uint32_t)sV2;
-		cp += 4;
-
-		*cp = (char)sV3;
-		cp++;
-
-		iRet = player->socket->write(cData, 13);
-		break;
-
-	case NOTIFY_ITEMDEPLETED_ERASEITEM:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		wp = (uint16_t *)cp;
-		*wp = (uint16_t)sV2;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 10);
-		break;
-
-	case NOTIFY_DROPITEMFIN_COUNTCHANGED:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		ip  = (int *)cp;
-		*ip = (int)sV2;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 12);
-		break;
-
-	case NOTIFY_DROPITEMFIN_ERASEITEM:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		ip  = (int *)cp;
-		*ip = (int)sV2;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 12);
-		break;
-
-	case NOTIFY_CANNOTGIVEITEM:
-	case NOTIFY_GIVEITEMFIN_COUNTCHANGED:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		ip  = (int *)cp;
-		*ip = (int)sV2;
-		cp += 4;
-
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 32);
-		break;
-
-	case NOTIFY_GIVEITEMFIN_ERASEITEM:
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-
-		ip  = (int *)cp;
-		*ip = (int)sV2;
-		cp += 4;
-
-		memcpy(cp, pString, 20);
-		cp += 20;
-
-		iRet = player->socket->write(cData, 32);
-		break;
-
-	case NOTIFY_ENEMYKILLREWARD:
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iExp;
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iEnemyKillCount;
-		cp += 4;
-		memcpy(cp, m_pClientList[sV1]->m_cCharName, 10);
-		cp += 10;
-		memcpy(cp, m_pClientList[sV1]->m_cGuildName, 20);
-		cp += 20;
-		sp  = (short *)cp;
-		*sp = (short)m_pClientList[sV1]->m_iGuildRank;
-		cp += 2;
-		sp  = (short *)cp;
-		*sp = (short)player->m_iWarContribution;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 48);
-		break;
-
-	case NOTIFY_PKCAPTURED:
-
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV1;
-		cp += 2;
-		wp  = (uint16_t *)cp;
-		*wp = (uint16_t)sV2;
-		cp += 2;
-		memcpy(cp, pString, 10);
-		cp += 10;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iRewardGold;
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = player->m_iExp;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 28);
-		break;
-
-	case NOTIFY_PKPENALTY:
-
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iExp;
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->GetStr();
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iVit;
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->GetDex();
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->GetInt();
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->GetMag();
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iCharisma;
-		cp += 4;
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iPKCount;
-		cp += 4;
-
-		iRet = player->socket->write(cData, 38);
-		break;
-
-	case NOTIFY_TRAVELERLIMITEDLEVEL:
-	case NOTIFY_LIMITEDLEVEL:
-
-		dwp  = (uint32_t *)cp;
-		*dwp = (uint32_t)player->m_iExp;
-		cp += 4;
-		iRet = player->socket->write(cData, 10);
-		break;
-
-	case NOTIFY_ITEMRELEASED:
-	case NOTIFY_ITEMLIFESPANEND:
-		sp  = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 10);
-		break;
-
-
-
-
 
 	case NOTIFY_QUERY_DISMISSGUILDREQPERMISSION:
 	case NOTIFY_QUERY_JOINGUILDREQPERMISSION:
@@ -3720,43 +2782,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		iRet = player->socket->write(cData, 6);
 		break;
 
-	case NOTIFY_CANNOTRECALL:
-	case NOTIFY_CANNOTCRUSADE:
-		Push(cp, (uint8_t)sV1);
-		iRet = player->socket->write(cData, 7);
-		break;
 
-	case NOTIFY_FORCERECALLTIME:
-		sp = (short *)cp ;
-		*sp = (short )sV1;
-		cp += 2;
-
-		iRet = player->socket->write(cData, 8);
-		break;
-
-	case NOTIFY_TELEPORT_REJECTED:
-		sp  = (short *)cp;
-		*sp = (short)sV1;
-		cp += 2;
-		sp = (short *)cp;
-		*sp = (short)sV2;
-		cp += 2;
-		iRet = player->socket->write(cData, 10);
-		break;
-
-	case NOTIFY_SPELL_SKILL:
-		for (i = 0; i < MAXMAGICTYPE; i++) {
-			*cp = player->m_cMagicMastery[i];
-			cp++;
-		}
-
-		for (i = 0; i < MAXSKILLTYPE; i++) {
-			*cp = player->m_cSkillMastery[i];
-			cp++;
-		}
-
-		iRet = player->socket->write(cData, 6 + MAXMAGICTYPE + MAXSKILLTYPE);
-		break;
 
 	case NOTIFY_REPAIRALLPRICE:
 		Push(cp, (uint32_t)sV1);
@@ -3956,15 +2982,6 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		// Monster kill event xRisenx
 
 	}
-
-	switch (iRet) {
-	case XSOCKEVENT_QUENEFULL:
-	case XSOCKEVENT_SOCKETERROR:
-	case XSOCKEVENT_CRITICALERROR:
-	case XSOCKEVENT_SOCKETCLOSED:
-
-		//DeleteClient(iToH, true, true);
-		return;
 	}*/
 }
 
@@ -4072,7 +3089,7 @@ Item * GServer::_iGetArrowItemIndex(Client * client)
 	if (client == 0) return 0;
 
 	for (std::vector<ItemWrap*>::iterator iter = client->itemList.begin(); iter != client->itemList.end(); ++iter)
-		if ((*iter)->_item && ((*iter)->_item->m_cItemType == ITEMTYPE_ARROW) && ((*iter)->_item->m_dwCount > 0))
+		if ((*iter)->_item && ((*iter)->_item->m_cItemType == ITEMTYPE_ARROW) && ((*iter)->_item->count > 0))
 			return (*iter)->_item;
 
 	return 0;
@@ -4133,10 +3150,7 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 			sw.WriteInt(MSGID_RESPONSE_INITPLAYER);
 			sw.WriteShort(MSGTYPE_CONFIRM);
 
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw.data, sw.position);
-			client->mutsocket.unlock();
+			client->SWrite(sw);
 		}
 		{
 			StreamWrite sw;
@@ -4160,7 +3174,7 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 
 			sw.WriteShort(0);//LU_Pool
 			sw.WriteInt(uint32_t(client->experience));//TODO: make 64bit in client? shouldn't matter for a 150 server though
-			sw.WriteInt(client->m_iEnemyKillCount);
+			sw.WriteInt(client->enemyKillCount);
 			sw.WriteInt(client->playerKillCount);
 			sw.WriteInt(client->m_iRewardGold);
 
@@ -4171,10 +3185,7 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 			sw.WriteInt(client->arenaNumber);
 			sw.WriteInt(client->m_iEnemyKillTotalCount);
 
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw.data, sw.position);
-			client->mutsocket.unlock();
+			client->SWrite(sw);
 		}
 		{
 			StreamWrite sw = StreamWrite();
@@ -4198,10 +3209,7 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 				sw.WriteByte(client->m_cSkillMastery[i]);
 			}
 
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw.data, sw.position);
-			client->mutsocket.unlock();
+			client->SWrite(sw);
 		}
 		{
 			StreamWrite sw = StreamWrite();
@@ -4284,10 +3292,7 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 			*((short *)temp) = total;
 			client->m_bIsInitComplete = true;
 
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw);
-			client->mutsocket.unlock();
+			client->SWrite(sw);
 
 			SendEventToNearClient_TypeA(client.get(), MSGID_MOTION_EVENT_CONFIRM, 0, 0, 0);
 		}
@@ -4296,11 +3301,11 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 	{
 		if (reason == -192)
 		{
-			consoleLogger->error("(data == 0)");
+			logger->error("(data == 0)");
 		}
 		else if (reason == -193)
 		{
-			consoleLogger->error("(position+a > size)");
+			logger->error("(position+a > size)");
 		}
 	}
 	catch (std::exception& e)
@@ -4443,10 +3448,7 @@ void GServer::SendObjectMotionRejectMsg(Client * client)
 	sw.WriteShort(client->x);
 	sw.WriteShort(client->y);
 
-	client->mutsocket.lock();
-	if (client->socket)
-		client->socket->write(sw.data, sw.position);
-	client->mutsocket.unlock();
+	client->SWrite(sw);
 }
 
 int GServer::iClientMotion_Stop_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir)
@@ -4487,10 +3489,7 @@ int GServer::iClientMotion_Stop_Handler(shared_ptr<Client> client, uint16_t sX, 
 	sw.WriteInt(MSGID_RESPONSE_MOTION);
 	sw.WriteShort(OBJECTMOTION_CONFIRM);
 
-	client->mutsocket.lock();
-	if (client->socket)
-		client->socket->write(sw.data, sw.position);
-	client->mutsocket.unlock();
+	client->SWrite(sw);
 
 	return 1;
 }
@@ -4606,35 +3605,29 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 
 		if(bOwnerSend)
 		{
-			player->mutsocket.lock();
-			if (player->socket)
-				player->socket->write(sw.data, sw.size);
-			player->mutsocket.unlock();
+			player->SWrite(sw);
 		}
 
 		if(player->IsEthereal())
 		{
 			return;
 		}
-
-		gate->mutclientlist.lock_shared();
-		for (shared_ptr<Client> client : clientlist)
 		{
-			if ((client->handle != player->handle) && (client->m_bIsInitComplete) && (player->map == client->map)
-				&& ((client->x > player->x - 15) && (client->x < player->x + 15)//screen res location
-				  && (client->y > player->y - 13) && (client->y < player->y + 13)))
+			boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+			for (shared_ptr<Client> client : clientlist)
 			{
-				client->mutsocket.lock();
-				if(_bGetIsPlayerHostile(player,client.get()) && client->m_iAdminUserLevel == 0)
-					*pstatus = player->status & STATUS_ENEMYFLAGS;
-// 				else
-// 					*pstatus = status;
-				if (client->socket)
-					client->socket->write(sw.data, sw.size);
-				client->mutsocket.unlock();
+				if ((client->handle != player->handle) && (client->m_bIsInitComplete) && (player->map == client->map)
+					&& ((client->x > player->x - 15) && (client->x < player->x + 15)//screen res location
+					&& (client->y > player->y - 13) && (client->y < player->y + 13)))
+				{
+					if (_bGetIsPlayerHostile(player, client.get()) && client->m_iAdminUserLevel == 0)
+						*pstatus = player->status & STATUS_ENEMYFLAGS;
+					// 				else
+					// 					*pstatus = status;
+					client->SWrite(sw);
+				}
 			}
 		}
-		gate->mutclientlist.unlock_shared();
 	}
 	else {
 		Npc * npc = static_cast<Npc*>(owner);
@@ -4685,24 +3678,22 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 		}
 
 
-		gate->mutclientlist.lock_shared();
-		for (shared_ptr<Client> client : clientlist)
 		{
-			if (/*(client->m_handle != npc->m_handle) && */(client->m_bIsInitComplete) && (npc->map == client->map)
-				&& ((client->x > npc->x - 15) && (client->x < npc->x + 15)//screen res location
-				&& (client->y > npc->y - 12) && (client->y < npc->y + 12)))
+			boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+			for (shared_ptr<Client> client : clientlist)
 			{
-				client->mutsocket.lock();
-// 				if(_bGetIsPlayerHostile(player,client.get()) && client->m_iAdminUserLevel == 0)//can add flag modifiers here
-// 					*pstatus = status & STATUS_ENEMYFLAGS;
-// 				else
-// 					*pstatus = status;
-				if (client->socket)
-					client->socket->write(sw.data, sw.size);
-				client->mutsocket.unlock();
+				if (/*(client->m_handle != npc->m_handle) && */(client->m_bIsInitComplete) && (npc->map == client->map)
+					&& ((client->x > npc->x - 15) && (client->x < npc->x + 15)//screen res location
+					&& (client->y > npc->y - 12) && (client->y < npc->y + 12)))
+				{
+					// 				if(_bGetIsPlayerHostile(player,client.get()) && client->m_iAdminUserLevel == 0)//can add flag modifiers here
+					// 					*pstatus = status & STATUS_ENEMYFLAGS;
+					// 				else
+					// 					*pstatus = status;
+					client->SWrite(sw);
+				}
 			}
 		}
-		gate->mutclientlist.unlock_shared();
 	}
 }
 
@@ -4737,20 +3728,16 @@ void GServer::SendEventToNearClient_TypeB(uint32_t msgid, uint16_t msgtype, Map 
 
 
 
-	gate->mutclientlist.lock_shared();
+	boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
 	for (shared_ptr<Client> client : clientlist)
 	{
 		if ((client->m_bIsInitComplete) && (client->map == mapIndex)
 			&& ((client->x > sX - 15) && (client->x < sX + 15)//screen res location
 			&& (client->y > sY - 13) && (client->y < sY + 13)))
 		{
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw.data, sw.size);
-			client->mutsocket.unlock();
+			client->SWrite(sw);
 		}
 	}
-	gate->mutclientlist.unlock_shared();
 }
 
 int GServer::iClientMotion_GetItem_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir)
@@ -4810,10 +3797,7 @@ int GServer::iClientMotion_GetItem_Handler(shared_ptr<Client> client, uint16_t s
 
 
 	//TODO: make all these locks (bool)try_lock_for() to prevent perma locking -just in case?-
-	client->mutsocket.lock();
-	if (client->socket)
-		client->socket->write(sw.data, sw.size);
-	client->mutsocket.unlock();
+	client->SWrite(sw);
 
 	return 1;
 }
@@ -4958,14 +3942,14 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 
 				if (sItemIndex != -1 && client->itemList[sItemIndex] != nullptr) {
 
-					if (client->Equipped.RightHand->m_sItemEffectType == ITEMEFFECTTYPE_ATTACK_MAGICITEM) {
+					if (client->Equipped.RightHand->itemEffectType == ITEMEFFECTTYPE_ATTACK_MAGICITEM) {
 						short sType;
 						if (wType >= 20) {
-							sType = client->Equipped.RightHand->m_sItemEffectValue3;
+							sType = client->Equipped.RightHand->itemEffectV3;
 							//PlayerMagicHandler(iClientH, dX, dY, sType, TRUE);
 						}
 						else {
-							sType = client->Equipped.RightHand->m_sItemEffectValue2;
+							sType = client->Equipped.RightHand->itemEffectV2;
 							//PlayerMagicHandler(iClientH, dX, dY, sType, TRUE);
 						}
 					}
@@ -5078,7 +4062,7 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 			if (client->m_dwMoveLAT != 0) {
 			
 				if ((dwTime - client->m_dwMoveLAT) < (72*8*7 -3000)) {
-					consoleLogger->information(Poco::format("(!) Speed hack suspect(%s) - move-lat(%?d)",
+					logger->information(Poco::format("(!) Speed hack suspect(%s) - move-lat(%?d)",
 						(string)client->name, dwTime - client->m_dwMoveLAT)); 
 					DeleteClient(client, true, false);
 					return 0;
@@ -5308,10 +4292,7 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 //#else
 		//iSize = iComposeMoveMapData((short)(dX - 10), (short)(dY - 7), iClientH, cDir, cp);
 //#endif
-		client->mutsocket.lock();
-		if (client->socket)
-			client->socket->write(sw.data, sw.position);
-		client->mutsocket.unlock();
+		client->SWrite(sw);
 	}
 	else {
 		client->rejectedMove = true; 
@@ -5338,10 +4319,7 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 		sw.WriteShort(client->m_sLegApprValue);
 		sw.WriteInt(client->status);
 
-		client->mutsocket.lock();
-		if (client->socket)
-			client->socket->write(sw.data, sw.position);
-		client->mutsocket.unlock();
+		client->SWrite(sw);
 
 		shared_ptr<Unit> owner = client->map->GetOwner(dX, dY);
 		if(owner)
@@ -5601,7 +4579,7 @@ void GServer::ClientCommonHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 // 		ReqRepairAllConfirmHandler(iClientH, iV1);
 // 		break;
 	default:
-		consoleLogger->error(Poco::format("Unknown common packet received from client - 0x%.2X", (uint32_t)command));
+		logger->error(Poco::format("Unknown common packet received from client - 0x%.2X", (uint32_t)command));
 		break;
 	}
 }
@@ -5674,7 +4652,7 @@ bool GServer::_bAddClientItemList(shared_ptr<Client> client, Item * pItem, int *
 
 
 	if ((pItem->m_cItemType == ITEMTYPE_CONSUME) || (pItem->m_cItemType == ITEMTYPE_ARROW)) {
-		if ((client->m_iCurWeightLoad + pItem->GetWeight(pItem->m_dwCount)) > _iCalcMaxLoad(client)) 
+		if ((client->m_iCurWeightLoad + pItem->GetWeight(pItem->count)) > _iCalcMaxLoad(client)) 
 			return false;
 	}
 	else {
@@ -5685,9 +4663,9 @@ bool GServer::_bAddClientItemList(shared_ptr<Client> client, Item * pItem, int *
 	if ((pItem->m_cItemType == ITEMTYPE_CONSUME) || (pItem->m_cItemType == ITEMTYPE_ARROW)) {
 		for (i = 0; i < client->itemList.size(); i++)
 			if ( (client->itemList[i]->_item != nullptr) && 
-				(client->itemList[i]->_item->m_cName == pItem->m_cName) ) {
+				(client->itemList[i]->_item->name == pItem->name) ) {
 
-					client->itemList[i]->_item->m_dwCount += pItem->m_dwCount;
+					client->itemList[i]->_item->count += pItem->count;
 					//delete pItem;
 					*pDelReq = 1;
 
@@ -5745,18 +4723,18 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 	if( (itemDrop->m_cItemType == ITEMTYPE_CONSUME || 
 		itemDrop->m_cItemType == ITEMTYPE_ARROW) &&
 		iAmount == -1) 
-		iAmount = itemDrop->m_dwCount;
+		iAmount = itemDrop->count;
 
 
-	if(itemDrop->m_cName != pItemName) return;
+	if(itemDrop->name != pItemName) return;
 	if(client->map->iCheckItem(player->x, player->y) == ITEM_RELIC)
 		return;
 
 	if ( ( (itemDrop->m_cItemType == ITEMTYPE_CONSUME) ||
 		(itemDrop->m_cItemType == ITEMTYPE_ARROW) ) &&
-		(((int)itemDrop->m_dwCount - iAmount) > 0) ) {
+		(((int)itemDrop->count - iAmount) > 0) ) {
 			pItem = new Item;
-			if (pItem->InitItemAttr(itemDrop->m_cName, m_pItemConfigList) == false) {
+			if (pItem->InitItemAttr(itemDrop->name, m_pItemConfigList) == false) {
 
 				delete pItem;
 				return;
@@ -5767,18 +4745,18 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 					delete pItem;
 					return;
 				}
-				pItem->m_dwCount = (uint32_t)iAmount;
+				pItem->count = (uint32_t)iAmount;
 			}
 
 
-			if ((uint32_t)iAmount > itemDrop->m_dwCount) {
+			if ((uint32_t)iAmount > itemDrop->count) {
 				delete pItem;
 				return;
 			}
 
-			itemDrop->m_dwCount -= iAmount;
+			itemDrop->count -= iAmount;
 
-			SetItemCount(client, sItemIndex, itemDrop->m_dwCount);
+			SetItemCount(client, sItemIndex, itemDrop->count);
 
 			player->map->bSetItem(player->x,	player->y, pItem);
 
@@ -5788,7 +4766,7 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 
 			SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, player->map,
 				player->x, player->y,  
-				pItem->m_sSprite, pItem->m_sSpriteFrame, pItem->m_ItemColor); 
+				pItem->spriteID, pItem->spriteFrame, pItem->color); 
 
 			SendNotifyMsg(nullptr, client.get(), NOTIFY_DROPITEMFIN_COUNTCHANGED, sItemIndex, iAmount, 0);
 	}
@@ -5799,7 +4777,7 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 		if ( player->itemList[sItemIndex]->_item->equipped == true)
 			SendNotifyMsg(nullptr, client.get(), NOTIFY_ITEMRELEASED, itemDrop->m_cEquipPos, sItemIndex, 0);
 
-		if ((itemDrop->m_sItemEffectType == ITEMEFFECTTYPE_ALTERITEMDROP) && 
+		if ((itemDrop->itemEffectType == ITEMEFFECTTYPE_ALTERITEMDROP) && 
 			(itemDrop->m_wCurLifeSpan == 0)) {
 				delete itemDrop;
 				itemDrop = nullptr;
@@ -5823,9 +4801,9 @@ void GServer::DropItemHandler(shared_ptr<Client> client, short sItemIndex, int i
 
 				SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, player->map,
 					player->x, player->y,  
-					itemDrop->m_sSprite, 
-					itemDrop->m_sSpriteFrame, 
-					itemDrop->m_ItemColor);
+					itemDrop->spriteID, 
+					itemDrop->spriteFrame, 
+					itemDrop->color);
 			}/*else{
 				// delete the fake relic
 				delete itemDrop;
@@ -5878,7 +4856,7 @@ void GServer::SendItemNotifyMsg(shared_ptr<Client> client, uint16_t msgtype, Ite
 	case NOTIFY_ITEMOBTAINED:
 		WriteItemData(sw, pItem);
 
-		sw.WriteByte((char)pItem->m_sItemSpecEffectValue2);
+		sw.WriteByte((char)pItem->itemSpecialEffectV2);
 		sw.WriteInt(pItem->m_dwAttribute);
 
 		for(int j = 0; j < MAXITEMSOCKETS; j++)
@@ -5886,10 +4864,7 @@ void GServer::SendItemNotifyMsg(shared_ptr<Client> client, uint16_t msgtype, Ite
 			sw.WriteByte(pItem->m_sockets[j]);
 		}
 
-		client->mutsocket.lock();
-		if (client->socket)
-			client->socket->write(sw.data, sw.size);
-		client->mutsocket.unlock();
+		client->SWrite(sw);
 		break;
 
 	case NOTIFY_ITEMPURCHASED:
@@ -5897,17 +4872,11 @@ void GServer::SendItemNotifyMsg(shared_ptr<Client> client, uint16_t msgtype, Ite
 
 		sw.WriteShort(iV1); // (iCost - iDiscountCost);
 
-		client->mutsocket.lock();
-		if (client->socket)
-			client->socket->write(sw.data, sw.size);
-		client->mutsocket.unlock();
+		client->SWrite(sw);
 		break;
 
 	case NOTIFY_CANNOTCARRYMOREITEM:
-		client->mutsocket.lock();
-		if (client->socket)
-			client->socket->write(sw.data, sw.size);
-		client->mutsocket.unlock();
+		client->SWrite(sw);
 		break;
 	}
 }
@@ -5918,18 +4887,18 @@ void GServer::WriteItemData(StreamWrite & sw, Item * pItem) const
 	uint16_t * wp;
 	short * sp;
 
-	sw.WriteString(pItem->m_cName, 20);
-	sw.WriteInt(pItem->m_dwCount);
+	sw.WriteString(pItem->name, 20);
+	sw.WriteInt(pItem->count);
 	sw.WriteByte(pItem->m_cItemType);
 	sw.WriteByte(pItem->m_cEquipPos);
 	sw.WriteByte(0);
-	sw.WriteShort(pItem->m_sLevelLimit);
-	sw.WriteByte(pItem->m_cGenderLimit);
+	sw.WriteShort(pItem->levelLimit);
+	sw.WriteByte(pItem->genderLimit);
 	sw.WriteShort(pItem->m_wCurLifeSpan);
-	sw.WriteShort(pItem->m_wWeight);
-	sw.WriteShort(pItem->m_sSprite);
-	sw.WriteShort( pItem->m_sSpriteFrame);
-	sw.WriteInt(pItem->m_ItemColor);
+	sw.WriteShort(pItem->weight);
+	sw.WriteShort(pItem->spriteID);
+	sw.WriteShort( pItem->spriteFrame);
+	sw.WriteInt(pItem->color);
 
 	return;
 }
@@ -5950,7 +4919,7 @@ int GServer::SetItemCount(shared_ptr<Client> client, int32_t iItemID, uint32_t d
 			}
 			else
 			{
-				pitemw->_item->m_dwCount = dwCount;
+				pitemw->_item->count = dwCount;
 				SendNotifyMsg(0, client.get(), NOTIFY_SETITEMCOUNT, iItemID, dwCount, (char)true);
 			}
 			return wWeight;
@@ -6154,9 +5123,9 @@ bool GServer::WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, u
 
 		if (pTile->m_pItem.size() > 0)
 		{
-			sw.WriteShort(pTile->m_pItem[0]->m_sSprite);
-			sw.WriteShort(pTile->m_pItem[0]->m_sSpriteFrame);
-			sw.WriteInt(pTile->m_pItem[0]->m_ItemColor);
+			sw.WriteShort(pTile->m_pItem[0]->spriteID);
+			sw.WriteShort(pTile->m_pItem[0]->spriteFrame);
+			sw.WriteInt(pTile->m_pItem[0]->color);
 		}
 
 		if (pTile->m_sDynamicObjectType != 0)
@@ -6208,10 +5177,7 @@ void GServer::RequestFullObjectData(shared_ptr<Client> client, Unit * target)
 			sw.WriteInt(temp);
 			sw.WriteByte(uint8_t(object->_dead ? true : false));
 
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw.data, sw.position);
-			client->mutsocket.unlock();
+			client->SWrite(sw);
 		}
 		else
 		{
@@ -6234,10 +5200,7 @@ void GServer::RequestFullObjectData(shared_ptr<Client> client, Unit * target)
 			sw.WriteInt(object->status);
 			sw.WriteByte(uint8_t(object->_dead ? true : false));
 
-			client->mutsocket.lock();
-			if (client->socket)
-				client->socket->write(sw.data, sw.position);
-			client->mutsocket.unlock();
+			client->SWrite(sw);
 		}
 	}
 }
@@ -6275,8 +5238,14 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 		{
 			Session ses(sqlpool->get());
 			Statement select(ses);
-			select << "SELECT * FROM char_database WHERE account_name=? AND char_name=? AND servername=?;", use(client->account), use(client->name), use(servername), now;
+			select << "SELECT * FROM char_database WHERE account_name=? AND char_name=? AND servername=?;", use(client->account), use(client->name), use(worldname), now;
 			RecordSet rs(select);
+
+			if (rs.rowCount() == 0)
+			{
+				//wut - character does not exist
+				return false;
+			}
 
 			rs.moveFirst();
 
@@ -6312,7 +5281,7 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 			client->health = rs.value("hp").convert<uint64_t>();
 			client->mana = rs.value("mp").convert<uint64_t>();
 			client->m_iSP = rs.value("sp").convert<uint64_t>();
-			client->m_iEnemyKillCount = rs.value("ek").convert<int32_t>();
+			client->enemyKillCount = rs.value("ek").convert<int32_t>();
 			client->playerKillCount = rs.value("pk").convert<int32_t>();
 			client->level = rs.value("level").convert<uint32_t>();
 			client->experience = rs.value("exp").convert<uint64_t>();
@@ -6400,10 +5369,6 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 		return true;
 	}
 	SQLCATCH(/*DeleteClient(client, true);*/ return false)
-	catch (SessionPoolExhaustedException & e)
-	{
-		poco_error(*logger, "SessionPoolExhaustedException - CheckLogin()");
-	}
 	return false;
 }
 //how to delete client?
@@ -6425,7 +5390,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 	if (!client) return;
 
-	gate->mutclientlist.lock();
+	Gate::GetSingleton()->mutclientlist.lock();
 
 	client->socket->stop();
 
@@ -6648,7 +5613,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 		//data not being saved
 		//if anything was performed by the client in game, it should be saved unless
 		//it was something that does not affect theirs or anyone else's data
-		gate->clientlist.remove(client);
+		Gate::GetSingleton()->clientlist.remove(client);
 		clientlist.remove(client);
 		// 		if (!client->m_bIsOnServerChange)
 // 		{
@@ -6668,7 +5633,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 // 	m_pClientList[iClientH] = NULL;
 //
 // 	RemoveClientShortCut(iClientH);
-	gate->mutclientlist.unlock();
+	Gate::GetSingleton()->mutclientlist.unlock();
 }
 
 bool GServer::bCheckClientAttackFrequency(Client * client)
@@ -7240,13 +6205,13 @@ void GServer::CalculateSSN_SkillIndex(Client * client, short sSkillIndex, int iV
 
 		if (client->m_iSkillSSN[sSkillIndex] == 0) {
 			if (client->Equipped.TwoHand != nullptr) {
-				if (client->Equipped.RightHand->m_sRelatedSkill == sSkillIndex) {
+				if (client->Equipped.RightHand->relatedSkill == sSkillIndex) {
 					client->m_iHitRatio++;
 				}
 			}
 
 			if (client->Equipped.RightHand != nullptr) {
-				if (client->Equipped.RightHand->m_sRelatedSkill == sSkillIndex) {
+				if (client->Equipped.RightHand->relatedSkill == sSkillIndex) {
 					client->m_iHitRatio++;
 				}
 			}
@@ -7269,7 +6234,7 @@ void GServer::CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue)
 	if (Weapon == nullptr) return;
 	if (client->_dead == true) return;
 
-	sSkillIndex = Weapon->m_sRelatedSkill;
+	sSkillIndex = Weapon->relatedSkill;
 
 	CalculateSSN_SkillIndex(client, sSkillIndex, iValue);
 
@@ -7333,7 +6298,7 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 		wWeaponType = ((cattacker->m_sAppr2 & 0x0FF0) >> 4);
 		// Battle Mages xRisenx
 		if ((wWeaponType == 35 && cattacker->Equipped.TwoHand != nullptr)
-			&& (cattacker->Equipped.TwoHand->m_sItemEffectType == ITEMEFFECTTYPE_ATTACK_MAGICITEM)) {
+			&& (cattacker->Equipped.TwoHand->itemEffectType == ITEMEFFECTTYPE_ATTACK_MAGICITEM)) {
 			return 0;
 		}
 		// Battle Mages xRisenx
@@ -8090,6 +7055,7 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 	}
 	if (iAttackerHitRatio < 0)   iAttackerHitRatio = 0;
 
+	//TODO: use Unit* base, save a switch call
 	switch (target->OwnerType())
 	{
 	case OWNERTYPE_PLAYER:
@@ -8106,7 +7072,7 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 	{
 		if (cattacker->Equipped.TwoHand != nullptr)
 		{
-			if (cattacker->Equipped.TwoHand->m_sItemEffectType == ITEMEFFECTTYPE_ATTACK_ARROW)
+			if (cattacker->Equipped.TwoHand->itemEffectType == ITEMEFFECTTYPE_ATTACK_ARROW)
 			{
 				if (cattacker->Equipped.Arrow == nullptr)
 				{
@@ -8114,15 +7080,15 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 				}
 				else
 				{
-					cattacker->Equipped.Arrow->m_dwCount--;
-					if (cattacker->Equipped.Arrow->m_dwCount <= 0) {
+					cattacker->Equipped.Arrow->count--;
+					if (cattacker->Equipped.Arrow->count <= 0) {
 
 						ItemDepleteHandler(cattacker->self.lock(), cattacker->Equipped.Arrow, false);
 
 						cattacker->Equipped.Arrow = _iGetArrowItemIndex(cattacker);
 					}
 					else {
-						SendNotifyMsg(nullptr, cattacker, NOTIFY_SETITEMCOUNT, cattacker->Equipped.Arrow->m_slot, cattacker->Equipped.Arrow->m_dwCount, (char)false);
+						SendNotifyMsg(nullptr, cattacker, NOTIFY_SETITEMCOUNT, cattacker->Equipped.Arrow->m_slot, cattacker->Equipped.Arrow->count, (char)false);
 						iCalcTotalWeight(cattacker->self.lock());
 					}
 				}
@@ -10251,12 +9217,12 @@ void GServer::DelayEventProcessor()
 
 					Client * player = (Client*)delayevent->target;
 
-					if (!player->skillInUse[skillnum] || player->skillInUse[skillnum] != delayevent->m_iV2) break;
+					if (player->skillInUse[skillnum] == false || player->skillInUseTime[skillnum] != delayevent->m_iV2) break;
 
-					player->skillInUse[skillnum] = 0;
+					player->skillInUse[skillnum] = false;
 					player->skillInUseTime[skillnum] = 0;
 
-					int32_t result = CalculateUseSkillItemEffect(player, delayevent->m_iV1, skillnum, player->map, delayevent->m_dX);
+					int32_t result = CalculateUseSkillItemEffect(player, delayevent->m_iV1, skillnum, player->map, delayevent->m_dX, delayevent->m_dY);
 
 					SendNotifyMsg(nullptr, player, NOTIFY_SKILLUSINGEND, result);
 				}
@@ -10316,7 +9282,7 @@ int32_t GServer::CalculateUseSkillItemEffect(Client * player, int16_t skillvalue
 						if (item->InitItemAttr(itemid, m_pItemConfigList))
 						{
 							map->bSetItem(dX, dY, item);
-							SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, map, dX, dY, item->m_sSprite, item->m_sSpriteFrame, item->m_ItemColor);
+							SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, map, dX, dY, item->spriteID, item->spriteFrame, item->color);
 						}
 					}
 				}

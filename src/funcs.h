@@ -130,32 +130,32 @@ extern void __debugbreak();
 
 #define SQLCATCH(a)	catch (Poco::Data::MySQL::ConnectionException& e)\
 {\
-	consoleLogger->error(Poco::format("ConnectionException: %s", e.displayText() ));\
+	logger->error(Poco::format("ConnectionException: %s", e.displayText() ));\
 	a; \
 }\
 catch (Poco::Data::MySQL::StatementException& e)\
 {\
-	consoleLogger->error(Poco::format("StatementException: %s", e.displayText() ));\
+	logger->error(Poco::format("StatementException: %s", e.displayText() ));\
 	a; \
 }\
 catch (Poco::Data::MySQL::MySQLException& e)\
 {\
-	consoleLogger->error(Poco::format("MySQLException: %s", e.displayText() ));\
+	logger->error(Poco::format("MySQLException: %s", e.displayText() ));\
 	a; \
 }\
 catch (Poco::InvalidArgumentException& e)\
 {\
-	consoleLogger->error(Poco::format("InvalidArgumentException: %s", e.displayText() ));\
+	logger->error(Poco::format("InvalidArgumentException: %s", e.displayText() ));\
 	a; \
 }\
 catch (Poco::NotFoundException&e)\
 {\
-	consoleLogger->error(Poco::format("NotFoundException: %s", e.displayText() ));\
+	logger->error(Poco::format("NotFoundException: %s", e.displayText() ));\
 	a; \
 }\
 catch (Poco::Exception& e)\
 {\
-	consoleLogger->fatal(Poco::format("Uncaught Exception: %s", e.displayText()));\
+	logger->fatal(Poco::format("Uncaught Exception: %s", e.displayText()));\
 	a; \
 }
 

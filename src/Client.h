@@ -19,6 +19,7 @@
 #include "InventoryMgr.h"
 #include "Guild.h"
 #include <mutex>
+#include <list>
 
 class Guild;
 class Party;
@@ -86,6 +87,8 @@ public:
 	//TODO: potentially redo this fire hazard? as useful as it is, checking 500,000 mutexes nonstop is loads of
 	// fun on a bun. messagequeue send data and bulk process?
 	std::mutex mutsocket;
+
+	std::list<StreamWrite> outgoingqueue;
 
 	string address;
 
@@ -191,15 +194,15 @@ public:
 	void Notify(Client * from, uint16_t wMsgType, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, string pString = "",
 		uint32_t sV4 = 0, uint32_t sV5 = 0, uint32_t sV6 = 0, uint32_t sV7 = 0, uint32_t sV8 = 0, uint32_t sV9 = 0,
 		string pString2 = "");
-	void NotifyGuildInfo(bool memberList = false) const;
-	void NotifyGuildsmanStatus(Client const * const player, bool online = true) const;
-	void NotifyGuildSummons(Client const * const player) const;
+	void NotifyGuildInfo(bool memberList = false);
+	void NotifyGuildsmanStatus(Client * player, bool online = true);
+	void NotifyGuildSummons(Client * player);
 
 	int32_t GetWeight()	const { return m_iCurWeightLoad; }
 	void UpdateWeight();
-	uint32_t HasItem(string name) const;
-	uint32_t HasItem(uint64_t id) const;
-	uint32_t GetItemCount(uint64_t id) const;
+	uint32_t HasItem(string name);
+	uint32_t HasItem(uint64_t id);
+	uint32_t GetItemCount(uint64_t id);
 	void SetItemCount(uint64_t id, uint32_t val, bool notify = true);
 
 
@@ -325,7 +328,7 @@ public:
 	int32_t  m_iLU_Pool;
 
 	int32_t m_elo;
-	int32_t  m_iEnemyKillCount, playerKillCount, m_iRewardGold;
+	int32_t  enemyKillCount, playerKillCount, m_iRewardGold;
 	int32_t m_iEnemyKillTotalCount;
 	int32_t  m_iCurWeightLoad;
 	uint64_t logoutHackCheck;

@@ -316,11 +316,11 @@ Map::~Map()
 void Map::run()
 {
 	TimerThreadRunning = true;
-	actionthread = new std::thread(std::bind(std::mem_fun(&Map::ActionThread), this));
+	actionthread = new std::thread(std::bind(std::mem_fun(&Map::SocketThread), this));
 	timerthread = new std::thread(std::bind(std::mem_fun(&Map::TimerThread), this));
 }
 
-void Map::ActionThread()
+void Map::SocketThread()
 {
 #ifndef WIN32
 	struct timespec req = { 0 };
@@ -346,7 +346,7 @@ void Map::ActionThread()
 			uint32_t msgid = sr.ReadInt();
 			uint32_t cmd = sr.ReadShort();
 
-			//consoleLogger->error(Poco::format("Packet received from client - 0x%.4X - 0x%.2X", msgid, cmd));
+			//logger->error(Poco::format("Packet received from client - 0x%.4X - 0x%.2X", msgid, cmd));
 
 			if (msgid & MSGIDTYPE_MOTION)
 			{
@@ -354,7 +354,7 @@ void Map::ActionThread()
 			}
 			else if (msgid == MSGID_COMMAND_COMMON)
 			{
-				//this first as it will be the most oftenly sent packet type
+				//this first as it will be the most often sent packet type
 				try
 				{
 					gserver->ClientCommonHandler(msg->client, msg);
@@ -362,23 +362,25 @@ void Map::ActionThread()
 				catch (int test)
 				{
 					//-193 data length error
-					gserver->consoleLogger->error(Poco::format("Error: %?d", test));
+					gserver->logger->error(Poco::format("Error: %?d", test));
 				}
 			}
 			else switch (msgid)
 			{
+			case MSGID_REQUEST_SETITEMPOS:
+				break;
+
 			case MSGID_REQUEST_TELEPORT:
 				gserver->RequestTeleportHandler(client.get(), 4);
 				break;
 
 			case MSGID_REQUEST_INITPLAYER:
 
-				if (!client->m_bIsInitComplete)
-					if (!gserver->LoadCharacterData(client))
-					{
+				if (!client->m_bIsInitComplete && !gserver->LoadCharacterData(client))
+				{
 					gserver->DeleteClient(msg->client, false, true);
 					continue;
-					}
+				}
 				gserver->InitPlayerData(client);
 				break;
 
@@ -387,7 +389,7 @@ void Map::ActionThread()
 				break;
 
 			default:
-				gserver->consoleLogger->error(Poco::format("Unknown packet received from client - 0x%.4X", msgid));
+				gserver->logger->error(Poco::format("Unknown packet received from client - 0x%.4X", msgid));
 				//DeleteClient(msg->client, false, true);
 				break;
 			}
@@ -440,6 +442,7 @@ void Map::TimerThread()
 			if (t100msectimer < ltime)
 			{
 				NpcProcess();
+				DelayEventProcessor();
 
 				t100msectimer += 100;
 			}
@@ -452,16 +455,14 @@ void Map::TimerThread()
 				//test code - keep this until beta?
 
 				//regenerates stamina at a drastically increased rate
-				gserver->gate->mutclientlist.lock_shared();
-				for (shared_ptr<Client> client : gserver->clientlist)
 				{
-					client->m_iSP = client->GetStr() + 17;
-					client->mutsocket.lock();
-					if (client->socket)
+					boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+					for (shared_ptr<Client> client : gserver->clientlist)
+					{
+						client->m_iSP = client->GetStr() + 17;
 						gserver->SendNotifyMsg(0, client.get(), NOTIFY_SP);
-					client->mutsocket.unlock();
+					}
 				}
-				gserver->gate->mutclientlist.unlock_shared();
 
 				//check connections for recent data (ghost sockets)
 				// 				for (shared_ptr<Client> client : clientlist)
@@ -506,13 +507,19 @@ void Map::TimerThread()
 		}
 		catch (Poco::Data::MySQL::MySQLException * e)
 		{
-			gserver->consoleLogger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText()));
+			gserver->logger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText()));
+		}
+		catch (boost::system::system_error & e)
+		{
+			gserver->logger->fatal(Poco::format("Map::TimerThread() boost::Exception: %s", e.what()));
+		}
+		catch (std::exception & e)
+		{
+			gserver->logger->fatal(Poco::format("Map::TimerThread() std::Exception: %s", e.what()));
 		}
 		catch (...)
 		{
-			gserver->consoleLogger->fatal("Unspecified TimerThread() Exception.");
-			TimerThreadRunning = false;
-			return;
+			gserver->logger->fatal("Unspecified Map::TimerThread() Exception.");
 		}
 	}
 	TimerThreadRunning = false;
@@ -756,9 +763,9 @@ Item * Map::pGetItem(short sX, short sY, short * pRemainItemSprite, short * pRem
 // 	}
 // 	else
 	{
-		*pRemainItemSprite      = pItem->m_sSprite;
-		*pRemainItemSpriteFrame = pItem->m_sSpriteFrame;
-		*pRemainItemColor       = pItem->m_ItemColor;
+		*pRemainItemSprite      = pItem->spriteID;
+		*pRemainItemSpriteFrame = pItem->spriteFrame;
+		*pRemainItemColor       = pItem->color;
 	}
 
 	return pItem;
@@ -812,7 +819,7 @@ bool Map::bDecodeMapConfig()
 	{
 		if (luaL_dofile(L, mapfile.c_str()) != 0)
 		{
-			gserver->consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
+			gserver->logger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
 			return false;
 		}
 		lua_getglobal(L, "mapdata");
@@ -1103,12 +1110,12 @@ bool Map::bDecodeMapConfig()
 	}
 	catch (std::exception& e)
 	{
-		gserver->consoleLogger->fatal(Poco::format("bDecodeMapConfig() Exception: %s", (string)e.what()));
+		gserver->logger->fatal(Poco::format("bDecodeMapConfig() Exception: %s", (string)e.what()));
 		return false;
 	}
 	catch(...)
 	{
-		gserver->consoleLogger->fatal("Unspecified bDecodeMapConfig() Exception.");
+		gserver->logger->fatal("Unspecified bDecodeMapConfig() Exception.");
 		return false;
 	}
 
@@ -1955,7 +1962,7 @@ shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint
 		{
 			if (!newnpc->initNpcAttr(npc, cSA))
 			{
-				poco_error(*gserver->logger, Poco::format("(!) Error in Npc Creation (%s) Ignored.", pNpcName));
+				gserver->logger->error(Poco::format("(!) Error in Npc Creation (%s) Ignored.", pNpcName));
 				return 0;
 			}
 			break;
@@ -1963,7 +1970,7 @@ shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint
 	}
 	if (newnpc->name.length() == 0)
 	{
-		poco_error(*gserver->logger, Poco::format("(!) Non-existing NPC creation request! (%s) Ignored.", pNpcName));
+		gserver->logger->error(Poco::format("(!) Non-existing NPC creation request! (%s) Ignored.", pNpcName));
 		return 0;
 	}
 
@@ -2340,9 +2347,10 @@ void Map::RemoveFromTarget(shared_ptr<Unit> target, int iCode)
 
 void Map::NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc)
 {
+	return;
 	if (!npc || !attacker) return;
 	if (!gserver->m_npcDropData[npc->Type()]) {
-		gserver->logger->information("NPC has no drop data: %d", npc->Type());
+		gserver->logger->information(Poco::format("NPC has no drop data: %d", npc->Type()));
 	}
 	uint32_t dwTime = unixtime();
 	srand(time(0));
@@ -2374,23 +2382,24 @@ void Map::NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc)
 			npcItemCount++;
 		}
 	}
-	gserver->logger->information("Item drop rolling. Chance: %d, Items: %d", currentChance, npcItemCount);
+	gserver->logger->information(Poco::format("Item drop rolling. Chance: %d, Items: %d", currentChance, npcItemCount));
 	for (int ii = 0; ii <= npcItemCount; ii++) {
 		if (gserver->m_pItemConfigList[npcItems[ii]] != 0) {
 			int aProb = gserver->m_npcDropData[npc->Type()][npcItems[ii]];
 			if (aProb < currentChance) {
 				int itemID = npcItems[ii];
 				// Winner, winner, chicken dinner
-				if (gserver->m_pItemConfigList[itemID] != 0 && gserver->m_pItemConfigList[itemID]->m_cName != "") {
+				if (gserver->m_pItemConfigList[itemID] != 0 && gserver->m_pItemConfigList[itemID]->name != "") {
 					Item * newItem = new Item(itemID, gserver->m_pItemConfigList);
 					bSetItem(npc->x, npc->y, newItem);
-					gserver->logger->information("Dropping %s for player #%?d", gserver->m_pItemConfigList[npcItems[ii]]->m_cName, attacker->m_uid);
+					gserver->logger->information(Poco::format("Dropping %s for from npc #%?d",
+						gserver->m_pItemConfigList[npcItems[ii]]->name, attacker->m_uid));
 					gserver->SendEventToNearClient_TypeB(
 						MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, attacker->map,
-						npc->x, npc->y, newItem->m_sSprite, newItem->m_sSpriteFrame, newItem->m_ItemColor
-						);
+						npc->x, npc->y, newItem->spriteID, newItem->spriteFrame, newItem->color);
 
-					gserver->SendNotifyMsg(nullptr, (gserver->GetClient(attacker->handle)).get(), NOTIFY_DROPITEMFIN_COUNTCHANGED, itemID, 1, 0);
+// 					gserver->SendNotifyMsg(nullptr, (Client*)attacker.get(),
+// 						NOTIFY_DROPITEMFIN_COUNTCHANGED, itemID, 1, 0);
 					return;
 				}
 			}
@@ -2404,7 +2413,7 @@ void Map::NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16
 
 	npc->behavior_death(attacker, damage);
 
-	if (attacker->IsPlayer())
+	if (attacker && attacker->IsPlayer())
 	{
 		// 		if (m_pClientList[sAttackerH] != NULL)
 		// 		{
@@ -2645,4 +2654,57 @@ bool Map::bGetEmptyPosition(short & x, short & y, shared_ptr<Unit> client)
 		GetInitialPoint(&sX, &sY, npt);
 	}
 	return false;
+}
+
+void Map::DelayEventProcessor()
+{
+	uint64_t _time = unixtime();
+	delayMutex.lock();
+	std::list<shared_ptr<DelayEvent>> tempDelayEventList = DelayEventList;
+	for (auto delayevent : tempDelayEventList)
+	{
+		if (delayevent->m_dwTriggerTime < _time)
+		{
+			switch (delayevent->m_iDelayType)
+			{
+			case DELAYEVENTTYPE_CALCMETEORSTRIKEEFFECT:
+				//CalcMeteorStrikeEffectHandler(delayevent->map);//good ol' HB handlers for handling handlers
+				break;
+
+			case DELAYEVENTTYPE_DOMETEORSTRIKEDAMAGE:
+				//DoMeteorStrikeDamageHandler(delayevent->map);
+				break;
+
+			case DELAYEVENTTYPE_METEORSTRIKE:
+				//MeteorStrikeHandler(delayevent->map);
+				break;
+
+			case DELAYEVENTTYPE_USEITEM_SKILL:
+				if (delayevent->target != nullptr && delayevent->target->IsPlayer())
+				{
+					int skillnum = delayevent->m_iEffectType;
+
+					Client * player = (Client*)delayevent->target;
+
+					if (player->skillInUse[skillnum] == 0 || player->skillInUse[skillnum] != delayevent->m_iV2) break;
+
+					player->skillInUse[skillnum] = 0;
+					player->skillInUseTime[skillnum] = 0;
+
+					int32_t result = gserver->CalculateUseSkillItemEffect(player, delayevent->m_iV1, skillnum, player->map, delayevent->m_dX, delayevent->m_dY);
+
+					gserver->SendNotifyMsg(nullptr, player, NOTIFY_SKILLUSINGEND, result);
+				}
+				break;
+
+			case DELAYEVENTTYPE_DAMAGEOBJECT:
+				break;
+			case DELAYEVENTTYPE_MAGICRELEASE:
+				break;
+			}
+
+			DelayEventList.remove(delayevent);
+		}
+	}
+	delayMutex.unlock();
 }

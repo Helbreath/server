@@ -101,7 +101,7 @@ Client::Client()
 	//m_iHitRatio_ItemEffect_SM = 0;
 	//m_iHitRatio_ItemEffect_L  = 0;
 
-	m_iEnemyKillCount = 0;
+	enemyKillCount = 0;
 	m_iEnemyKillTotalCount = 0;
 	playerKillCount = 0;
 	m_iRewardGold = 0;
@@ -379,10 +379,6 @@ Client::~Client()
 	}
 }
 
-//TODO: do we want clients invoking packets being sent? or should the server know to send them when this function is called?
-//these functions aren't called that often - only on level up stat change or resetting of stats
-// ultimately, will the client class itself be accessing the server class?
-//^ ideally no, need a way for the server to update the client data. Make encaps server function to handle these?
 void Client::SetStr(int str, bool check) 
 {
 	_str = str;
@@ -391,12 +387,12 @@ void Client::SetStr(int str, bool check)
 		if(health > GetMaxHP())
 		{
 			health = GetMaxHP();
-			Notify(NULL, NOTIFY_HP, NULL, NULL, NULL, NULL);
+			Notify(0, NOTIFY_HP, 0, 0, 0, 0);
 		}
 		if(m_iSP > GetMaxSP())
 		{
 			m_iSP = GetMaxSP();
-			Notify(NULL, NOTIFY_SP, NULL, NULL, NULL, NULL);
+			Notify(0, NOTIFY_SP, 0, 0, 0, 0);
 		}
 	}
 }
@@ -407,7 +403,7 @@ void Client::SetMag(int mag)
 	if(mana > GetMaxMP())
 	{
 		mana = GetMaxMP();
-		Notify(NULL, NOTIFY_MP, NULL, NULL, NULL, NULL);
+		Notify(0, NOTIFY_MP, 0, 0, 0, 0);
 	}
 }
 
@@ -419,7 +415,7 @@ void Client::SetInt(int __int, bool check)
 		if(mana > GetMaxMP())
 		{
 			mana = GetMaxMP();
-			Notify(NULL, NOTIFY_MP, NULL, NULL, NULL, NULL);
+			Notify(0, NOTIFY_MP, 0, 0, 0, 0);
 		}
 	}
 }
@@ -1305,12 +1301,11 @@ void Client::SWrite(StreamWrite & sw)
 {
 	if (socket == nullptr)
 		return;
-	socket->write(sw);
+	outgoingqueue.push_back(sw);
+	//socket->write(sw);
+
 }
-//TODO: let client class send packets directly?
-// no pls.
-// Server function -> Server function -> Client function -> Returned to server function -> Packet sent (ideally)
-// This is temporary and only for compatibility with existing code being pulled in.
+
 void Client::Notify(Client * from, uint16_t wMsgType, uint32_t sV1, uint32_t sV2, uint32_t sV3, string pString, 
 	uint32_t sV4, uint32_t sV5, uint32_t sV6, uint32_t sV7, uint32_t sV8, uint32_t sV9, string pString2)
 {
@@ -1318,7 +1313,7 @@ void Client::Notify(Client * from, uint16_t wMsgType, uint32_t sV1, uint32_t sV2
  		sV4, sV5, sV6, sV7, sV8, sV9, pString2);
 }
 
-void Client::NotifyGuildInfo(bool memberList) const
+void Client::NotifyGuildInfo(bool memberList)
 {
 // 	char * index = packet;
 // 
@@ -1338,7 +1333,7 @@ void Client::NotifyGuildInfo(bool memberList) const
 // 	//socket->write(packet, index - packet);
 }
 
-void Client::NotifyGuildsmanStatus(Client const * const player, bool online) const
+void Client::NotifyGuildsmanStatus(Client * player, bool online)
 {
 // 	char * index = packet;
 // 
@@ -1356,15 +1351,13 @@ void Client::NotifyGuildsmanStatus(Client const * const player, bool online) con
 // 	//socket->write(packet, index - packet);
 }
 
-void Client::NotifyGuildSummons(Client const * const player) const
+void Client::NotifyGuildSummons(Client * player)
 {
-// 	char * index = packet;
-// 
-// 	Push(index, (uint32_t)MSGID_REQGUILDSUMMONS);
-// 	Push(index, gserver->m_mapNameList[ player->m_cMapName ]);
-// 	
-// 	socket->write(packet, index - packet);
-// 	//socket->write(packet, index - packet);
+	StreamWrite sw;
+	sw.WriteInt(MSGID_REQGUILDSUMMONS);
+	sw.WriteString(player->map->name);
+
+	SWrite(sw);
 }
 
 void Client::UpdateWeight()
@@ -1380,11 +1373,11 @@ void Client::UpdateWeight()
 	}
 }
 
-uint32_t Client::HasItem(string name) const
+uint32_t Client::HasItem(string name)
 {
 	for (int i = 0; i < itemList.size(); i++)
 	{
-		if (itemList[i]->_item && itemList[i]->_item->m_cName == name) 
+		if (itemList[i]->_item && itemList[i]->_item->name == name) 
 		{
 			return i;
 		}
@@ -1393,7 +1386,7 @@ uint32_t Client::HasItem(string name) const
 	return ITEM_NONE;
 }
 
-uint32_t Client::HasItem(uint64_t id) const
+uint32_t Client::HasItem(uint64_t id)
 {
 	for (int i = 0; i < itemList.size(); i++)
 	{
@@ -1406,13 +1399,13 @@ uint32_t Client::HasItem(uint64_t id) const
 	return ITEM_NONE;
 }
 
-uint32_t Client::GetItemCount(uint64_t id) const
+uint32_t Client::GetItemCount(uint64_t id)
 {
 	for (int i = 0; i < itemList.size(); i++)
 	{
 		if (itemList[i]->_item && itemList[i]->_item->m_sIDnum == id) 
 		{
-			return itemList[i]->_item->m_dwCount;
+			return itemList[i]->_item->count;
 		}
 	}
 
@@ -1429,7 +1422,7 @@ void Client::SetItemCount(uint64_t id, uint32_t val, bool notify)
 				gserver->ItemDepleteHandler(self.lock(), itemList[i]->_item, false);
 			}
 			else {
-				itemList[i]->_item->m_dwCount = val;
+				itemList[i]->_item->count = val;
 				if(notify)
 					Notify(0, NOTIFY_SETITEMCOUNT, i, val, (char)true, 0);
 			}

@@ -3,10 +3,8 @@
 #include "streams.h"
 #include "netmessages.h"
 
-Server::Server(string config)
+Server::Server()
 {
-	configfile = config;
-
 	currentplayersonline = 0;
 	currentconnections = 0;
 
@@ -50,7 +48,7 @@ void Server::run()
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Server::run() Exception: %s", e.what() ));
+		logger->fatal(Poco::format("Server::run() Exception: %s", e.what() ));
 	}
 }
 
@@ -64,10 +62,10 @@ bool Server::Init()
 {
 	try
 	{
-		consoleLogger->information("Loading Config.");
+		logger->information("Loading Config.");
 		if (luaL_dofile(L, configfile.c_str()) != 0)
 		{
-			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
+			logger->fatal(Poco::format("%s", (string)lua_tostring(L, -1)));
 			return false;
 		}
 		lua_getglobal(L, "config");
@@ -78,12 +76,12 @@ bool Server::Init()
 		{
 			lua_getfield(L, -1, "bindip");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid bindip setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid bindip setting."); return false; }
 			bindaddress = temp;
 			logger->information(Poco::format("bindip: %s", bindaddress));
 			if (bindaddress.length() == 0 || bindaddress.length() > 15)
 			{
-				consoleLogger->fatal("Invalid bindip setting.");
+				logger->fatal("Invalid bindip setting.");
 				return false;
 			}
 			lua_pop(L, 1);
@@ -95,12 +93,12 @@ bool Server::Init()
 			uint16_t tbp = 0;
 			lua_getfield(L, -1, "bindport");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid bindport setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid bindport setting."); return false; }
 			tbp = atoi(temp);
 			logger->information(Poco::format("bindport: %?d", tbp));
 			if (tbp < 1 || tbp > 65534)
 			{
-				consoleLogger->fatal("Invalid bindport setting.");
+				logger->fatal("Invalid bindport setting.");
 				return false;
 			}
 			bindport = temp;
@@ -111,7 +109,7 @@ bool Server::Init()
 		{
 			lua_getfield(L, -1, "sqlhost");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlhost setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid sqlhost setting."); return false; }
 			sqlhost = temp;
 			logger->information(Poco::format("sqlhost: %s", sqlhost));
 			lua_pop(L, 1);
@@ -121,7 +119,7 @@ bool Server::Init()
 		{
 			lua_getfield(L, -1, "sqluser");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqluser setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid sqluser setting."); return false; }
 			sqluser = temp;
 			logger->information(Poco::format("sqluser: %s", sqluser));
 			lua_pop(L, 1);
@@ -131,7 +129,7 @@ bool Server::Init()
 		{
 			lua_getfield(L, -1, "sqlpass");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlpass setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid sqlpass setting."); return false; }
 			logger->information("sqlpass set");
 			sqlpass = temp;
 			lua_pop(L, 1);
@@ -143,13 +141,13 @@ bool Server::Init()
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
+		logger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
 		system("pause");
 		return false;
 	}
 	catch(...)
 	{
-		consoleLogger->fatal("Unspecified Init() Exception.");
+		logger->fatal("Unspecified Init() Exception.");
 		system("pause");
 		return false;
 	}
@@ -163,7 +161,7 @@ bool Server::ConnectSQL()
 	}
 	catch (Poco::Exception& exc)
 	{
-		consoleLogger->fatal(Poco::format("ConnectSQL() Exception: %s", exc.displayText()));
+		logger->fatal(Poco::format("ConnectSQL() Exception: %s", exc.displayText()));
 		return false;
 	}
 	return true;

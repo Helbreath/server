@@ -222,9 +222,9 @@ public:
 	static Item * CreateItem();
 
 	uint32_t GetWeight(int count) const;
-	uint32_t GetWeight()			const { return GetWeight( m_dwCount ); }
+	uint32_t GetWeight()			const { return GetWeight( count ); }
 	uint32_t GetBaseWeight()		const { return GetWeight(1); }
-	uint32_t GetManuCompletion()	const { return m_sItemSpecEffectValue2 + 100; }
+	uint32_t GetManuCompletion()	const { return itemSpecialEffectV2 + 100; }
 	bool IsValid()		const { return (m_sIDnum != ITEM_INVALID); }
 	bool IsLogged() 	const;
 	bool IsManued()	const;
@@ -240,44 +240,44 @@ public:
 
 	uint16_t m_slot;
 
-	string m_cName;
+	string name;
 
 	uint64_t m_sIDnum;
 	char  m_cItemType;
 	char  m_cEquipPos;
-	short m_sItemEffectType;
-	short m_sItemEffectValue1, m_sItemEffectValue2, m_sItemEffectValue3;
-	short m_sItemEffectValue4, m_sItemEffectValue5, m_sItemEffectValue6;
-	uint64_t ItemUniqueID;
-	uint16_t  m_wMaxLifeSpan;
-	short m_sSpecialEffect;
-	short m_sSpecialEffectValue1, m_sSpecialEffectValue2;
+	short itemEffectType;
+	short itemEffectV1, itemEffectV2, itemEffectV3;
+	short itemEffectV4, itemEffectV5, itemEffectV6;
+	uint64_t uid;
+	uint16_t  durability;
+	int16_t specialEffect;
+	int16_t specialEffectV1, specialEffectV2;
 
-	short m_sSprite;
-	short m_sSpriteFrame;
+	int16_t spriteID;
+	int16_t spriteFrame;
 
-	char  m_cApprValue;
-	char  m_cSpeed;
+	char  appearanceValue;
+	char  swingSpeed;
 
 	//uint32_t m_wPrice;
-	uint32_t m_wPrice;
-	uint16_t  m_wWeight;
-	short m_sLevelLimit;
-	char  m_cGenderLimit;
+	int32_t price;
+	uint16_t  weight;
+	short levelLimit;
+	int8_t genderLimit;
 
-	short m_sRelatedSkill;
+	int16_t relatedSkill;
 
-	char  m_cCategory;
-	bool  m_bIsForSale;
-	bool m_isLogged;
+	char category;
+	bool m_bIsForSale;
+	bool logAction;
 
-	uint32_t m_dwCount;
-	short m_sTouchEffectType;
-	short m_sTouchEffectValue1, m_sTouchEffectValue2, m_sTouchEffectValue3;
-	uint32_t m_ItemColor; 
-	short m_sItemSpecEffectValue1, m_sItemSpecEffectValue2, m_sItemSpecEffectValue3;
+	uint32_t count;
+	int16_t effectType;
+	int16_t effectV1, effectV2, effectV3;
+	uint32_t color; 
+	int16_t itemSpecialEffectV1, itemSpecialEffectV2, itemSpecialEffectV3;
 
-	int  m_wCurLifeSpan;
+	int32_t  m_wCurLifeSpan;
 	uint32_t m_dwAttribute;
 	uint8_t m_sockets[MAXITEMSOCKETS];
 

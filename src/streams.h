@@ -87,6 +87,13 @@ public:
 class StreamWrite
 {
 public:
+	StreamWrite(const StreamWrite & sw)
+	{
+		size = sw.size;
+		data = new char[size];
+		memcpy(data, sw.data, size);
+		position = sw.position;
+	}
 	StreamWrite(uint32_t initsize = 100)
 	{
 		size = initsize;

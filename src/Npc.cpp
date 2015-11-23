@@ -878,161 +878,161 @@ void Npc::behavior_attack()
 				switch (m_cMagicLevel)
  				{
  				case 1:
-					if (map->gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[0]->manaCost <= mana)
  						iMagicType = 0;
  					break;
  				case 2:
-					if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[10]->manaCost <= mana)
  						iMagicType = 10;
-					else if (map->gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[0]->manaCost <= mana)
  						iMagicType = 0;
  					break;
  				case 3:
-					if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[20]->manaCost <= mana)
  						iMagicType = 20;
-					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 4:
-					if (map->gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[30]->manaCost <= mana)
  						iMagicType = 30;
-					else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[37]->manaCost <= mana)
  						iMagicType = 37;
-					else if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[20]->manaCost <= mana)
  						iMagicType = 20;
-					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 5:
-					if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[43]->manaCost <= mana)
  						iMagicType = 43;
-					else if (map->gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[30]->manaCost <= mana)
  						iMagicType = 30;
-					else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[37]->manaCost <= mana)
  						iMagicType = 37;
-					else if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[20]->manaCost <= mana)
  						iMagicType = 20;
-					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 6:
-					if (map->gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[51]->manaCost <= mana)
  						iMagicType = 51;
-					else if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[43]->manaCost <= mana)
  						iMagicType = 43;
-					else if (map->gserver->m_pMagicConfigList[30]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[30]->manaCost <= mana)
  						iMagicType = 30;
-					else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[37]->manaCost <= mana)
  						iMagicType = 37;
-					else if (map->gserver->m_pMagicConfigList[20]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[20]->manaCost <= mana)
  						iMagicType = 20;
-					else if (map->gserver->m_pMagicConfigList[10]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[10]->manaCost <= mana)
  						iMagicType = 10;
  					break;
  				case 7:
-					if ((map->gserver->m_pMagicConfigList[70]->m_manaCost <= mana) && (dice(1, 5) == 3))
+					if ((map->gserver->m_pMagicConfigList[70]->manaCost <= mana) && (dice(1, 5) == 3))
  						iMagicType = 70;
-					else if (map->gserver->m_pMagicConfigList[61]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[61]->manaCost <= mana)
  						iMagicType = 61;
-					else if (map->gserver->m_pMagicConfigList[60]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[60]->manaCost <= mana)
  						iMagicType = 60;
-					else if (map->gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[51]->manaCost <= mana)
  						iMagicType = 51;
-					else if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[43]->manaCost <= mana)
  						iMagicType = 43;
 					break;
  				case 8:
-					if ((map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[35]->manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 35;
-					else if (map->gserver->m_pMagicConfigList[60]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[60]->manaCost <= mana)
  						iMagicType = 60;
-					else if (map->gserver->m_pMagicConfigList[51]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[51]->manaCost <= mana)
  						iMagicType = 51;
-					else if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[43]->manaCost <= mana)
  						iMagicType = 43;
  					break;
 
  				case 9:
-					if ((map->gserver->m_pMagicConfigList[74]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[74]->manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 74;
  					break;
  				case 10:
-					if ((map->gserver->m_pMagicConfigList[57]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[57]->manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 57;
  					break;
  				case 11:
  					goto NBA_CHASE;
  					break;
  				case 12: // Wyvern
-					if ((map->gserver->m_pMagicConfigList[91]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[91]->manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 91;//blizzard
-					else if (map->gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[63]->manaCost <= mana)
  						iMagicType = 63;
  					break;
  				case 13: // Abaddon
-					if ((map->gserver->m_pMagicConfigList[96]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[96]->manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 96;
-					else if (map->gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[81]->manaCost <= mana)
  						iMagicType = 81;
  					break;
  				case 14: // Earth Wyvern
-					if ((map->gserver->m_pMagicConfigList[64]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[64]->manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 64;
-					else if (map->gserver->m_pMagicConfigList[96]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[96]->manaCost <= mana)
  						iMagicType = 96;
  					break;
  				case 15: // Black Demon
-					if (map->gserver->m_pMagicConfigList[92]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[92]->manaCost <= mana)
  						iMagicType = 92;
-					else if ((map->gserver->m_pMagicConfigList[73]->m_manaCost <= mana) && (dice(1, 30) == 2))
+					else if ((map->gserver->m_pMagicConfigList[73]->manaCost <= mana) && (dice(1, 30) == 2))
  						iMagicType = 73;
-					else if ((map->gserver->m_pMagicConfigList[83]->m_manaCost <= mana) && (dice(1, 10) == 2))
+					else if ((map->gserver->m_pMagicConfigList[83]->manaCost <= mana) && (dice(1, 10) == 2))
  						iMagicType = 83;
  					break;
  				case 16: // Fire Wyvern
-					if ((map->gserver->m_pMagicConfigList[61]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[61]->manaCost <= mana) && (dice(1, 3) == 2))
  						iMagicType = 61;
-					else if (map->gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[81]->manaCost <= mana)
  						iMagicType = 81;
  					break;
  				case 17: // Barlog
-					if (map->gserver->m_pMagicConfigList[92]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[92]->manaCost <= mana)
  						iMagicType = 92;
-					else if (map->gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[63]->manaCost <= mana)
  						iMagicType = 63;
  					break;
  				case 18: // Enraged Troll / Enraged Stalker
-					if ((map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[35]->manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 35;
  					break;
  				case 19: // Enraged Cyclops
-					if (map->gserver->m_pMagicConfigList[74]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[74]->manaCost <= mana)
  						iMagicType = 74;
-					else if (map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[35]->manaCost <= mana)
 						iMagicType = 35;
 					break;
  				case 20: // Enraged Gargoyle
-					if ((map->gserver->m_pMagicConfigList[41]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[41]->manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 41;
-					else if (map->gserver->m_pMagicConfigList[81]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[81]->manaCost <= mana)
 						iMagicType = 81;
 				break;
  				case 21: // Enraged Hellclaw
-					if ((map->gserver->m_pMagicConfigList[55]->m_manaCost <= mana) && (dice(1, 3) == 2))
+					if ((map->gserver->m_pMagicConfigList[55]->manaCost <= mana) && (dice(1, 3) == 2))
 						iMagicType = 55;
-					else if (map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[35]->manaCost <= mana)
  						iMagicType = 35;
 					break;
 				case 22: // Enraged Tigerworm
-					if (map->gserver->m_pMagicConfigList[88]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[88]->manaCost <= mana)
  						iMagicType = 88;
-					else if (map->gserver->m_pMagicConfigList[35]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[35]->manaCost <= mana)
  						iMagicType = 35;
  					break;
  				case 23: // Wind Wyvern
-					if (map->gserver->m_pMagicConfigList[63]->m_manaCost <= mana)
+					if (map->gserver->m_pMagicConfigList[63]->manaCost <= mana)
  						iMagicType = 63;
-					else if (map->gserver->m_pMagicConfigList[93]->m_manaCost <= mana)
+					else if (map->gserver->m_pMagicConfigList[93]->manaCost <= mana)
  						iMagicType = 93;
  					break;
  				}
@@ -1077,11 +1077,11 @@ void Npc::behavior_attack()
  		if ((m_cMagicLevel < 0) && (dice(1,2) == 1) &&
  			(abs(sX - dX) <= 9) && (abs(sY - dY) <= 7)) {
  				iMagicType = -1;
-				if (map->gserver->m_pMagicConfigList[43]->m_manaCost <= mana)
+				if (map->gserver->m_pMagicConfigList[43]->manaCost <= mana)
  					iMagicType = 43;
-				else if (map->gserver->m_pMagicConfigList[37]->m_manaCost <= mana)
+				else if (map->gserver->m_pMagicConfigList[37]->manaCost <= mana)
  					iMagicType = 37;
-				else if (map->gserver->m_pMagicConfigList[0]->m_manaCost <= mana)
+				else if (map->gserver->m_pMagicConfigList[0]->manaCost <= mana)
 					iMagicType = 0;
  				if (iMagicType != -1) {
 					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_ATTACK, x + _tmp_cTmpDirX[cDir], y + _tmp_cTmpDirY[cDir], 1);
@@ -1592,8 +1592,8 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 
 
 
-	if (spell->m_dwDelayTime == 0) {
-		switch (spell->m_sType)
+	if (spell->delayTime == 0) {
+		switch (spell->magicType)
 		{
 		case MAGICTYPE_CANCELLATION:
 			if (target){
@@ -1622,7 +1622,7 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 					for (short iy = dY - 8; iy <= dY + 8; iy++){
 						target = map->GetOwner(ix, iy).get();
 						if (target){
-							target->RemoveMagicEffect(spell->m_sType);
+							target->RemoveMagicEffect(spell->magicType);
 							map->RemoveFromTarget(shared_ptr<Unit>(target));
 						}
 					}
@@ -1635,7 +1635,7 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 			if (target && map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false) {
 				if (target->IsNPC() && ((Npc*)target)->m_cMagicLevel >= 6)
 					break;
-				if (!target->AddMagicEffect(spell->m_sType, spell->m_dwLastTime))
+				if (!target->AddMagicEffect(spell->magicType, spell->lastTime))
 					break;
 			}
 			break;
@@ -1789,12 +1789,12 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 			target = map->GetOwner(dX, dY).get();
 			if (target && target->IsPlayer()) map->gserver->SendNotifyMsg(0, (Client*)target, NOTIFY_NOTICEMSG, 0, 0, 0, "Magic cast");
 			if (target && map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
-				map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
+				map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->element);
 
 			target = map->GetDeadOwner(dX, dY).get();
 			if (target && target->IsPlayer() && target->health > 0 ) {
 				if (map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
-					map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->m_element);
+					map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->element);
 			}
 			break;
 
@@ -2606,7 +2606,7 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 //
 // NMH_NOEFFECT:;
 //
-	mana -= spell->m_manaCost;
+	mana -= spell->manaCost;
 	if (mana < 0)
 		mana = 0;
 

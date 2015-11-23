@@ -10,8 +10,6 @@
 #include "streams.h"
 #include "netmessages.h"
 
-extern Gate * gateserver;
-
 request_handler::request_handler()
 {
 }
@@ -44,5 +42,5 @@ void request_handler::handle_request(const request& req)
 	{
 		//client already disconnected - old message
 	}
-	gateserver->PutMsgQueue(client, gateserver->socketpipe, req.data, req.size);
+	Gate::GetSingleton()->PutMsgQueue(client, Gate::GetSingleton()->socketpipe, req.data, req.size);
 }

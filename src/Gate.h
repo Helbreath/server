@@ -29,15 +29,22 @@ using namespace Poco::Data;
 class Gate : public Server
 {
 public:
-	Gate(void);
-	~Gate(void);
+	static void CreateInstance() { _instance = new Gate(); }
+	static Gate * GetSingleton() { return _instance; }
+	static void DestroyInstance() { delete _instance; }
+
+private:
+	Gate();
+	static Gate * _instance;
+public:
+	~Gate();
 
 	//temporary solution
 	void PutLogFileList(char * str);
 	void PutLogList(char * str);
 
 	// Initialize Server
-	bool Init();
+	bool Init(string config);
 
 	void TimerThread();
 	void ChatThread();
@@ -45,12 +52,10 @@ public:
 
 	void DeleteClient(shared_ptr<Client> client, bool save = true, bool deleteobj = false);
 
-	LServer * loginserver;
 	std::list<GServer*> gameserver;
 
 	//READ access instances use shared_lock()
 	//WRITE access instances use lock()
-	// Gate has the only mutex to prevent lockups
 	shared_mutex mutclientlist;
 
 	uint8_t thread_pool_size_;

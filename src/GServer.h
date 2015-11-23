@@ -6,6 +6,8 @@
 #include "Party.h"
 #include "streams.h"
 #include "DelayEvent.h"
+#include "XLogger.h"
+#include "Guild.h"
 #include "Poco/JSON/Json.h"
 #include "Poco/JSON/Parser.h"
 #include "Poco/Dynamic/Var.h"
@@ -203,19 +205,16 @@
 #pragma endregion
 
 class Map;
+class ChatHandler;
 
 class GServer : public Server
 {
 public:
-	GServer(string servername, string config);
-	~GServer(void);
-
-	//temporary solution
-	void PutLogFileList(char * str);
-	void PutLogList(char * str);
+	GServer(string servername);
+	~GServer();
 
 	// Initialize Server
-	bool Init();
+	bool Init(string config);
 
 	void run();
 	void handle_stop();
@@ -224,7 +223,11 @@ public:
 	std::thread * runthread;
 	std::thread * timerthread;
 
-	Gate * gate;
+	XLogger * logger;
+
+	string worldname;
+
+	ChatHandler * chathandler;
 
 #pragma region sort these
 	void ChatThread();
@@ -324,6 +327,8 @@ public:
 
 	//TODO: guilds - load all the guilds from the db and keep them in memory
 	//Give guilds more purpose than just another chat channel in game
+
+	std::list<Guild*> guildlist;
 
 
 	//need a config array for variables moving forward, temporary solution for like a day (/cough week)
@@ -513,5 +518,6 @@ public:
 	bool m_bNpcHunt;
 
 	bool bDeleteMineral(int iIndex);
+
 };
 

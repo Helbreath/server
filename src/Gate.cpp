@@ -6,16 +6,15 @@
 #include "streams.h"
 #include "netmessages.h"
 
+Gate * Gate::_instance = nullptr;
+
 Gate::Gate()
 	: io_service_(),
 	signals_(io_service_),
 	acceptor_(io_service_),
 	new_connection_(new connection(io_service_,
-	*this, request_handler_)),
-	Server(string("config.lua"))
+	*this, request_handler_))
 {
-	loginserver = 0;
-
 	//asio socket thread count
 	thread_pool_size_ = 1;
 
@@ -23,33 +22,6 @@ Gate::Gate()
 	currentconnections = 0;
 
 	sqlpool = 0;
-
-	pFCConsole = new FormattingChannel(new PatternFormatter("Gate: %p: %t"));
-	pFCConsole->setChannel(new ConsoleChannel);
-	pFCConsole->open();
-
-	pFCDefault= new FormattingChannel(new PatternFormatter("Gate: %t"));
-	pFCDefault->setChannel(new ConsoleChannel);
-	pFCDefault->open();
-
-	pFCFile = new FormattingChannel(new PatternFormatter("%Y-%m-%d %H:%M:%S.%c | %s:%q:%t"));
-	pFCFile->setChannel(new FileChannel("gateserver.log"));
-	pFCFile->setProperty("rotation", "daily");
-	pFCFile->setProperty("times", "local");
-	pFCFile->open();
-
-	consoleLogger = &Poco::Logger::create("ConsoleLogger", pFCConsole, Message::PRIO_TRACE);
-	logger		  = &Poco::Logger::create("DefaultLogger", pFCDefault, Message::PRIO_TRACE);
-	fileLogger    = &Poco::Logger::create("FileLogger", pFCFile, Message::PRIO_TRACE);
-	poco_information(*logger, "");
-// 	consoleLogger->error("An error message");
-// 	consoleLogger->warning("A warning message");
-// 	consoleLogger->information("An information message");
-// 	fileLogger->warning("An information message");
-// 	if ((consoleLogger)->information())
-// 		(consoleLogger)->information("Another informational message", __FILE__, __LINE__);
-// 	Poco::Logger::get("ConsoleLogger").error("Another error message");
-
 
 	MySQL::Connector::registerConnector();
 	SQLite::Connector::registerConnector();
@@ -73,22 +45,17 @@ Gate::Gate()
 
 Gate::~Gate()
 {
-	loginserver->runthread->join();
-	delete loginserver;
 	for (GServer * server : gameserver)
 	{
 		server->runthread->join();
 		delete server;
 	}
-	delete sqlpool;
+	if (sqlpool)
+		delete sqlpool;
 	MySQL::Connector::unregisterConnector();
 	SQLite::Connector::unregisterConnector();
-	Poco::Logger::destroy("ConsoleLogger");
-	Poco::Logger::destroy("FileLogger");
-	pFCConsole->close();
-	pFCDefault->close();
-	pFCFile->close();
 }
+
 void Gate::run()
 {
 	try
@@ -125,7 +92,7 @@ void Gate::run()
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Gate::run() Exception: %s", e.what() ));
+		logger->fatal(Poco::format("Gate::run() Exception: %s", e.what() ));
 	}
 }
 
@@ -147,7 +114,7 @@ void Gate::handle_accept(const boost::system::error_code& e)
 		boost::asio::ip::tcp::endpoint endp = clientsocket->socket().remote_endpoint();
 		boost::asio::ip::address address = endp.address();
 		clientsocket->address = address.to_string();
-		consoleLogger->information(Poco::format("Client connected [%?d]: %s:%?d", currentconnections, address.to_string(), (int)endp.port()));
+		logger->information(Poco::format("Client connected [%?d]: %s:%?d", currentconnections, address.to_string(), (int)endp.port()));
 
 
 		shared_ptr<Client> client(new Client());
@@ -186,7 +153,7 @@ void Gate::handle_stop()
 	// operations. Once all operations have finished the io_service::run() call
 	// will exit.
 	serverstatus = SERVERSTATUS_SHUTDOWN;
-	loginserver->serverstatus = SERVERSTATUS_SHUTDOWN;
+	LServer::GetSingleton()->serverstatus = SERVERSTATUS_SHUTDOWN;
 	for (GServer * server : gameserver)
 	{
 		server->serverstatus = SERVERSTATUS_SHUTDOWN;
@@ -205,13 +172,13 @@ void Gate::stop(connection_ptr c)
 {
 	if (c == nullptr)
 	{
-		consoleLogger->trace("Invalid socket being closed");
+		logger->error("Invalid socket being closed");
 		return;
 	}
 	shared_ptr<Client> client = c->client_.lock();
 	if (!client)
 	{
-		consoleLogger->trace(Poco::format("Socket with no client attached closed <%s>", c->address));
+		logger->error(Poco::format("Socket with no client attached closed <%s>", c->address));
 		return;
 	}
 	if (client->disconnecttime > 0)
@@ -224,15 +191,15 @@ void Gate::stop(connection_ptr c)
 		//fyi, client_ should always be set, the question is whether m_handle is set (indicates actually made it in game)
 		if (client->handle > 0)
 		{
-			consoleLogger->error(Poco::format("<%?d> Client Disconnected! (%s) (%s)", client->handle, client->name, c->address));
+			logger->error(Poco::format("<%?d> Client Disconnected! (%s) (%s)", client->handle, client->name, c->address));
 			if ((unixtime() - client->logoutHackCheck) < 10000)
 			{
-				consoleLogger->error(Poco::format("Logout Hack: (%s) Player: (%s) - disconnected within 10 seconds of most recent damage. Hack? Lag?", c->address, client->name));
+				logger->error(Poco::format("Logout Hack: (%s) Player: (%s) - disconnected within 10 seconds of most recent damage. Hack? Lag?", c->address, client->name));
 			}
 		}
 		else
 		{
-			consoleLogger->error(Poco::format("Client Disconnected! (%s)", c->address));
+			logger->error(Poco::format("Client Disconnected! (%s)", c->address));
 		}
 		//TODO: force player entities to stay in game for a few seconds after a disconnect? - guarantees no logout hack occurs. 10 seconds? resets on being attacked in case they pre-emptively logout?
 
@@ -243,7 +210,7 @@ void Gate::stop(connection_ptr c)
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->error(Poco::format("exception: ", e.what()));
+		logger->error(Poco::format("exception: ", e.what()));
 	}
 }
 
@@ -258,144 +225,90 @@ void Gate::stop_all()
 // 		boost::bind(&connection::stop, _1));
 	connections_.clear();
 }
+
 void stack_dump(lua_State *stack);
 
-bool Gate::Init()
+bool Gate::Init(string config)
 {
+	configfile = config;
 	try
 	{
-		consoleLogger->information("Loading Config.");
-		if (luaL_dofile(L, "config.lua") != 0)
-		{
-			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
-			return false;
-		}
-		lua_getglobal(L, "config");
+		using Poco::JSON::Parser;
+		using Poco::Dynamic::Var;
+		using Poco::JSON::Object;
+		using Poco::JSON::Array;
 
-		char * temp;
+		Parser * parser = new Parser();
+		ifstream config(configfile.c_str());
+		Var parsed = parser->parse(config);
+		Var parsedResult = parser->result();
 
-		//ip address
-		{
-			lua_getfield(L, -1, "bindip");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid bindip setting."); return false; }
-			bindaddress = temp;
-			logger->information(Poco::format("bindip: %s", bindaddress));
-			if (bindaddress.length() == 0 || bindaddress.length() > 15)
-			{
-				consoleLogger->fatal("Invalid bindip setting.");
-				return false;
-			}
-			lua_pop(L, 1);
-		}
+		logger->information(Poco::format("Loading %s", configfile));
 
-		//player connect port
+		Object::Ptr configOptions = parsedResult.extract<Object::Ptr>();
+		if (configOptions)
 		{
-			uint16_t tbp = 0;
-			lua_getfield(L, -1, "bindport");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid bindport setting."); return false; }
-			tbp = atoi(temp);
-			logger->information(Poco::format("bindport: %?d", tbp));
-			if (tbp < 1 || tbp > 65534)
-			{
-				consoleLogger->fatal("Invalid bindport setting.");
-				return false;
-			}
-			bindport = temp;
-			lua_pop(L, 1);
-		}
-
-		//sql host
-		{
-			lua_getfield(L, -1, "sqlhost");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlhost setting."); return false; }
-			sqlhost = temp;
+			bindaddress = configOptions->get("bindaddress").convert<string>();
+			logger->information(Poco::format("bindaddress: %s", bindaddress));
+			
+			bindport = configOptions->get("bindport").convert<string>();
+			logger->information(Poco::format("bindport: %s", bindport));
+			
+			sqlhost = configOptions->get("sqlhost").convert<string>();
 			logger->information(Poco::format("sqlhost: %s", sqlhost));
-			lua_pop(L, 1);
-		}
-
-		//sql user
-		{
-			lua_getfield(L, -1, "sqluser");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqluser setting."); return false; }
-			sqluser = temp;
+			
+			sqluser = configOptions->get("sqluser").convert<string>();
 			logger->information(Poco::format("sqluser: %s", sqluser));
-			lua_pop(L, 1);
-		}
-
-		//sql pass
-		{
-			lua_getfield(L, -1, "sqlpass");
-			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlpass setting."); return false; }
+			
+			sqlpass = configOptions->get("sqlpass").convert<string>();
 			logger->information("sqlpass set");
-			sqlpass = temp;
-			lua_pop(L, 1);
-		}
+			
+			sqldb = configOptions->get("sqldb").convert<string>();
+			logger->information(Poco::format("sqldb: %s", sqldb));
 
-		//server configs
-		{
-			lua_getfield(L, -1, "servers");
-			if(lua_istable(L,-1))
+			if (configOptions->has("servers"))
 			{
-				uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-				for (uint8_t i = 1; i <= tableSize; ++i)
+				Array::Ptr servers = configOptions->getArray("servers");
+				for (int i = 0; i < servers->size(); ++i)
 				{
-					lua_pushinteger(L, i);
-					lua_gettable(L, -2);
-
-					lua_pushinteger(L, 1);
-					lua_gettable(L, -2);
-					string servername = (char*)lua_tostring(L, -1);
-					lua_pop(L, 1);
-
-					lua_pushinteger(L, 2);
-					lua_gettable(L, -2);
-					string serverconfig = (char*)lua_tostring(L, -1);
-					lua_pop(L, 1);
-
-					lua_pop(L, 1);
-
-					GServer * hg = new GServer(servername, serverconfig);
-					if (!hg->Init())
+					Object::Ptr server = servers->getObject(i);
+					string servername;
+					string serverconfig;
+					if (server->has("name"))
+						servername = server->get("name").convert<string>();
+					if (server->has("config"))
+						serverconfig = server->get("config").convert<string>();
+					GServer * hg = new GServer(servername);
+					hg->logger = XLogger::GetSingleton();
+					if (!hg->Init(serverconfig))
 					{
-						lua_pop(L,1);
-						lua_pop(L,1);
-						lua_pop(L,1);
 						return false;
 					}
-					hg->gate = this;
 					hg->runthread = new std::thread(std::bind(std::mem_fun(&GServer::run), hg));
 					gameserver.push_back(hg);
 				}
-				lua_pop(L,1);
 			}
-			lua_pop(L, 1);
 		}
 
-		lua_pop(L, 1);
-
-		loginserver = new LServer(string("loginserver.lua"));
-		loginserver->Init();
-		loginserver->gate = this;
-		loginserver->runthread = new std::thread(std::bind(std::mem_fun(&LServer::run), loginserver));
+		LServer::CreateInstance();
+		LServer::GetSingleton()->logger = XLogger::GetSingleton();
+		LServer::GetSingleton()->Init("loginserver.lua");
+		LServer::GetSingleton()->runthread = new std::thread(std::bind(std::mem_fun(&LServer::run), LServer::GetSingleton()));
 
 		return true;
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
+		logger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
 		return false;
 	}
 	catch(...)
 	{
-		consoleLogger->fatal("Unspecified Init() Exception.");
+		logger->fatal("Unspecified Init() Exception.");
 		return false;
 	}
 }
+
 void stack_dump(lua_State *stack)
 {
 	int stackSize = lua_gettop(stack);
@@ -463,12 +376,12 @@ bool Gate::InitSockets()
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
+		logger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
 		return 0;
 	}
 	catch(...)
 	{
-		consoleLogger->fatal("Unspecified Init() Exception.");
+		logger->fatal("Unspecified Init() Exception.");
 		return 0;
 	}
 }
@@ -499,7 +412,7 @@ void Gate::SocketThread()
 
 			if (client->currentstatus == 1)
 			{
-				loginserver->PutMsgQueue(msg, loginserver->socketpipe);
+				LServer::GetSingleton()->PutMsgQueue(msg, LServer::GetSingleton()->socketpipe);
 			}
 			else if (client->currentstatus == 2)
 			{
@@ -507,15 +420,13 @@ void Gate::SocketThread()
 				{
 					if (msgid == MSGID_COMMAND_CHATMSG || msgid == MSGID_COMMAND_CHECKCONNECTION)
 					{
-						client->gserver->mutchat.lock();
+						lock_guard<std::mutex> lock(client->gserver->mutchat);
 						client->gserver->PutMsgQueue(msg, client->gserver->chatpipe);
-						client->gserver->mutchat.unlock();
 					}
 					else
 					{
-						client->map->mutaction.lock();
+						lock_guard<std::mutex> lock(client->map->mutaction);
 						client->gserver->PutMsgQueue(msg, msg->client->map->actionpipe);
-						client->map->mutaction.unlock();
 					}
 				}
 			}
@@ -579,7 +490,7 @@ void Gate::TimerThread()
 					if (client->disconnecttime != 0 && /*(*iter)->currentstatus == 2 &&*/ client->disconnecttime + 10000 < ltime)
 					{
 						//client persists for 10 seconds
-						poco_information(*logger, Poco::format("Client Object Deletion! <%s>", client->address));
+						logger->information(Poco::format("Client Object Deletion! <%s>", client->address));
 						if (client->currentstatus == 2)
 						{
 							DeleteClient(clnt, true, true);//in game
@@ -599,7 +510,7 @@ void Gate::TimerThread()
 					//5 mins to sit at char select screen
 					if ((client->currentstatus == 1) && (client->lastpackettime + 5*60*1000 < ltime))
 					{
-						poco_information(*logger, Poco::format("Client Char Select Timeout! <%s>", client->address));
+						logger->information(Poco::format("Client Char Select Timeout! <%s>", client->address));
 						DeleteClient(clnt, false, true);
 						mutclientlist.unlock_upgrade_and_lock();
 						iter = clientlist.erase(iter);
@@ -655,11 +566,11 @@ void Gate::TimerThread()
 		}
 		catch (Poco::Data::MySQL::MySQLException * e)
 		{
-			consoleLogger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText() ));
+			logger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText() ));
 		}
 		catch (std::exception & e)
 		{
-			consoleLogger->fatal(Poco::format("TimerThread() Exception: %s", string(e.what())));
+			logger->fatal(Poco::format("TimerThread() Exception: %s", string(e.what())));
 			TimerThreadRunning = false;
 			//TODO: invoke server shutdown/restart?
 			//timer thread should never exit - needs some sort of something here
@@ -667,7 +578,7 @@ void Gate::TimerThread()
 		}
 		catch (...)
 		{
-			consoleLogger->fatal("Unspecified TimerThread() Exception.");
+			logger->fatal("Unspecified Gate::TimerThread() Exception.");
 			TimerThreadRunning = false;
 			//TODO: invoke server shutdown/restart?
 			//timer thread should never exit - needs some sort of something here

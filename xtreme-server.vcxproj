@@ -47,7 +47,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>bin\$(Configuration)\</OutDir>
+    <OutDir>bin\Debug\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -89,7 +89,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ActionID.h" />
-    <ClInclude Include="src\chat_handler.h" />
+    <ClInclude Include="src\ChatHandler.h" />
     <ClInclude Include="src\Client.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\connection.h" />
@@ -101,6 +101,7 @@
     <ClInclude Include="src\Inventory.h" />
     <ClInclude Include="src\Item.h" />
     <ClInclude Include="src\Items.h" />
+    <ClInclude Include="src\XLogger.h" />
     <ClInclude Include="src\LServer.h" />
     <ClInclude Include="src\Magic.h" />
     <ClInclude Include="src\Map.h" />
@@ -122,7 +123,7 @@
     <ClInclude Include="src\Unit.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\chat_handler.cpp" />
+    <ClCompile Include="src\ChatHandler.cpp" />
     <ClCompile Include="src\Client.cpp" />
     <ClCompile Include="src\connection.cpp" />
     <ClCompile Include="src\DelayEvent.cpp" />
@@ -132,6 +133,7 @@
     <ClCompile Include="src\InventoryMgr.cpp" />
     <ClCompile Include="src\Inventory.cpp" />
     <ClCompile Include="src\Item.cpp" />
+    <ClCompile Include="src\XLogger.cpp" />
     <ClCompile Include="src\LServer.cpp" />
     <ClCompile Include="src\Magic.cpp" />
     <ClCompile Include="src\main.cpp" />

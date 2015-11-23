@@ -12,18 +12,18 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-Item::Item(uint32_t count) : m_dwCount(count)
+Item::Item(uint32_t count) : count(count)
 {
 	Init();
 }
 
-Item::Item(uint64_t itemID, Item ** itemconfig, uint32_t count) : m_dwCount(count)
+Item::Item(uint64_t itemID, Item ** itemconfig, uint32_t count) : count(count)
 {
 	Init();
 	InitItemAttr(itemID, itemconfig);
 }
 
-Item::Item(char * itemName, Item ** itemconfig, uint32_t count) : m_dwCount(count)
+Item::Item(char * itemName, Item ** itemconfig, uint32_t count) : count(count)
 {
 	Init();
 	InitItemAttr(itemName, itemconfig);
@@ -36,29 +36,29 @@ void Item::Init()
 	equipped = false;
 	x = y = 0;
 
-	m_sSprite = 0;
-	m_sSpriteFrame = 0;
+	spriteID = 0;
+	spriteFrame = 0;
 
-	m_sItemEffectValue1 = 0;
-	m_sItemEffectValue2 = 0;
-	m_sItemEffectValue3 = 0; 
+	itemEffectV1 = 0;
+	itemEffectV2 = 0;
+	itemEffectV3 = 0; 
 
-	m_sItemEffectValue4 = 0;
-	m_sItemEffectValue5 = 0;
-	m_sItemEffectValue6 = 0; 
+	itemEffectV4 = 0;
+	itemEffectV5 = 0;
+	itemEffectV6 = 0; 
 
-	m_sTouchEffectType   = 0;
-	m_sTouchEffectValue1 = 0;
-	m_sTouchEffectValue2 = 0;
-	m_sTouchEffectValue3 = 0;
+	effectType   = 0;
+	effectV1 = 0;
+	effectV2 = 0;
+	effectV3 = 0;
 
-	m_ItemColor = 0;
-	m_sItemSpecEffectValue1 = 0;
-	m_sItemSpecEffectValue2 = 0;
-	m_sItemSpecEffectValue3 = 0;
+	color = 0;
+	itemSpecialEffectV1 = 0;
+	itemSpecialEffectV2 = 0;
+	itemSpecialEffectV3 = 0;
 
-	m_sSpecialEffectValue1 = 0;
-	m_sSpecialEffectValue2 = 0;
+	specialEffectV1 = 0;
+	specialEffectV2 = 0;
 
 	m_wCurLifeSpan = 0;
 	m_dwAttribute   = 0;
@@ -66,11 +66,11 @@ void Item::Init()
 	for(int i = 0; i < MAXITEMSOCKETS; i++)
 		m_sockets[i] = ITEM_NONE;
 
-	m_cCategory = 0;
+	category = 0;
 	m_sIDnum    = ITEM_INVALID;
 
 	m_bIsForSale = false;
-	ItemUniqueID = 0;
+	uid = 0;
 
 	m_disabled = false;
 }
@@ -84,20 +84,20 @@ uint32_t Item::GetWeight(int count) const
 {
 	if(count < 0) count = 1;
 
-	uint32_t weight = m_wWeight * count;
+	uint32_t itemweight = weight * count;
 
 	if(m_sIDnum == ITEM_GOLD)
-		weight /= 20;
+		itemweight /= 20;
 
-	return (weight <= 0) ? 1 : weight;
+	return (itemweight <= 0) ? 1 : itemweight;
 }
 
 bool Item::IsLogged() const
 {
-	if(m_sIDnum == ITEM_GOLD && m_isLogged)
-		return (m_dwCount > 10000) ? true : false;
+	if(m_sIDnum == ITEM_GOLD && logAction)
+		return (count > 10000) ? true : false;
 
-	return m_isLogged;
+	return logAction;
 }
 
 bool Item::InitItemAttr(uint64_t itemID, Item ** itemconfig)
@@ -110,39 +110,39 @@ bool Item::InitItemAttr(uint64_t itemID, Item ** itemconfig)
 		if (itemconfig[i] != 0) {
 			if (itemID ==  itemconfig[i]->m_sIDnum) {
 
-				m_cName = itemconfig[i]->m_cName;
+				name = itemconfig[i]->name;
 				m_cItemType         = itemconfig[i]->m_cItemType;
 				m_cEquipPos         = itemconfig[i]->m_cEquipPos;
-				m_sItemEffectType   = itemconfig[i]->m_sItemEffectType;
-				m_sItemEffectValue1 = itemconfig[i]->m_sItemEffectValue1;
-				m_sItemEffectValue2 = itemconfig[i]->m_sItemEffectValue2;
-				m_sItemEffectValue3 = itemconfig[i]->m_sItemEffectValue3;
-				m_sItemEffectValue4 = itemconfig[i]->m_sItemEffectValue4;
-				m_sItemEffectValue5 = itemconfig[i]->m_sItemEffectValue5;
-				m_sItemEffectValue6 = itemconfig[i]->m_sItemEffectValue6;
-				m_wMaxLifeSpan      = itemconfig[i]->m_wMaxLifeSpan;
-				m_wCurLifeSpan	   = m_wMaxLifeSpan;
-				m_sSpecialEffect    = itemconfig[i]->m_sSpecialEffect;
+				itemEffectType   = itemconfig[i]->itemEffectType;
+				itemEffectV1 = itemconfig[i]->itemEffectV1;
+				itemEffectV2 = itemconfig[i]->itemEffectV2;
+				itemEffectV3 = itemconfig[i]->itemEffectV3;
+				itemEffectV4 = itemconfig[i]->itemEffectV4;
+				itemEffectV5 = itemconfig[i]->itemEffectV5;
+				itemEffectV6 = itemconfig[i]->itemEffectV6;
+				durability      = itemconfig[i]->durability;
+				m_wCurLifeSpan	   = durability;
+				specialEffect    = itemconfig[i]->specialEffect;
 
-				m_sSprite           = itemconfig[i]->m_sSprite;
-				m_sSpriteFrame      = itemconfig[i]->m_sSpriteFrame;
-				m_wPrice            = itemconfig[i]->m_wPrice;
-				m_wWeight           = itemconfig[i]->m_wWeight;
-				m_cApprValue        = itemconfig[i]->m_cApprValue;
-				m_cSpeed            = itemconfig[i]->m_cSpeed;
-				m_sLevelLimit       = itemconfig[i]->m_sLevelLimit;
-				m_cGenderLimit      = itemconfig[i]->m_cGenderLimit;
+				spriteID           = itemconfig[i]->spriteID;
+				spriteFrame      = itemconfig[i]->spriteFrame;
+				price            = itemconfig[i]->price;
+				weight           = itemconfig[i]->weight;
+				appearanceValue        = itemconfig[i]->appearanceValue;
+				swingSpeed            = itemconfig[i]->swingSpeed;
+				levelLimit       = itemconfig[i]->levelLimit;
+				genderLimit      = itemconfig[i]->genderLimit;
 
-				m_sSpecialEffectValue1 = itemconfig[i]->m_sSpecialEffectValue1;
-				m_sSpecialEffectValue2 = itemconfig[i]->m_sSpecialEffectValue2;
+				specialEffectV1 = itemconfig[i]->specialEffectV1;
+				specialEffectV2 = itemconfig[i]->specialEffectV2;
 
-				m_sRelatedSkill     = itemconfig[i]->m_sRelatedSkill;
-				m_cCategory         = itemconfig[i]->m_cCategory;
+				relatedSkill     = itemconfig[i]->relatedSkill;
+				category         = itemconfig[i]->category;
 				m_sIDnum			   = itemconfig[i]->m_sIDnum;
 
 				m_bIsForSale	       = itemconfig[i]->m_bIsForSale;
-				m_ItemColor        = itemconfig[i]->m_ItemColor;
-				m_isLogged			= itemconfig[i]->m_isLogged;
+				color        = itemconfig[i]->color;
+				logAction			= itemconfig[i]->logAction;
 				return true;
 			}
 		}
@@ -158,41 +158,41 @@ bool Item::InitItemAttr(const string pItemName, Item ** itemconfig)
 	for(int i = 0; i < MAXITEMTYPES; i++) 
 	{
 		if (itemconfig[i] != 0) {
-			if (cTmpName == itemconfig[i]->m_cName) {
+			if (cTmpName == itemconfig[i]->name) {
 
-				m_cName = itemconfig[i]->m_cName;
+				name = itemconfig[i]->name;
 				m_cItemType         = itemconfig[i]->m_cItemType;
 				m_cEquipPos         = itemconfig[i]->m_cEquipPos;
-				m_sItemEffectType   = itemconfig[i]->m_sItemEffectType;
-				m_sItemEffectValue1 = itemconfig[i]->m_sItemEffectValue1;
-				m_sItemEffectValue2 = itemconfig[i]->m_sItemEffectValue2;
-				m_sItemEffectValue3 = itemconfig[i]->m_sItemEffectValue3;
-				m_sItemEffectValue4 = itemconfig[i]->m_sItemEffectValue4;
-				m_sItemEffectValue5 = itemconfig[i]->m_sItemEffectValue5;
-				m_sItemEffectValue6 = itemconfig[i]->m_sItemEffectValue6;
-				m_wMaxLifeSpan      = itemconfig[i]->m_wMaxLifeSpan;
-				m_wCurLifeSpan	   = m_wMaxLifeSpan;
-				m_sSpecialEffect    = itemconfig[i]->m_sSpecialEffect;
+				itemEffectType   = itemconfig[i]->itemEffectType;
+				itemEffectV1 = itemconfig[i]->itemEffectV1;
+				itemEffectV2 = itemconfig[i]->itemEffectV2;
+				itemEffectV3 = itemconfig[i]->itemEffectV3;
+				itemEffectV4 = itemconfig[i]->itemEffectV4;
+				itemEffectV5 = itemconfig[i]->itemEffectV5;
+				itemEffectV6 = itemconfig[i]->itemEffectV6;
+				durability      = itemconfig[i]->durability;
+				m_wCurLifeSpan	   = durability;
+				specialEffect    = itemconfig[i]->specialEffect;
 
-				m_sSprite           = itemconfig[i]->m_sSprite;
-				m_sSpriteFrame      = itemconfig[i]->m_sSpriteFrame;
-				m_wPrice            = itemconfig[i]->m_wPrice;
-				m_wWeight           = itemconfig[i]->m_wWeight;
-				m_cApprValue        = itemconfig[i]->m_cApprValue;
-				m_cSpeed            = itemconfig[i]->m_cSpeed;
-				m_sLevelLimit       = itemconfig[i]->m_sLevelLimit;
-				m_cGenderLimit      = itemconfig[i]->m_cGenderLimit;
+				spriteID           = itemconfig[i]->spriteID;
+				spriteFrame      = itemconfig[i]->spriteFrame;
+				price            = itemconfig[i]->price;
+				weight           = itemconfig[i]->weight;
+				appearanceValue        = itemconfig[i]->appearanceValue;
+				swingSpeed            = itemconfig[i]->swingSpeed;
+				levelLimit       = itemconfig[i]->levelLimit;
+				genderLimit      = itemconfig[i]->genderLimit;
 
-				m_sSpecialEffectValue1 = itemconfig[i]->m_sSpecialEffectValue1;
-				m_sSpecialEffectValue2 = itemconfig[i]->m_sSpecialEffectValue2;
+				specialEffectV1 = itemconfig[i]->specialEffectV1;
+				specialEffectV2 = itemconfig[i]->specialEffectV2;
 
-				m_sRelatedSkill     = itemconfig[i]->m_sRelatedSkill;
-				m_cCategory         = itemconfig[i]->m_cCategory;
+				relatedSkill     = itemconfig[i]->relatedSkill;
+				category         = itemconfig[i]->category;
 				m_sIDnum			   = itemconfig[i]->m_sIDnum;
 
 				m_bIsForSale	       = itemconfig[i]->m_bIsForSale;
-				m_ItemColor        = itemconfig[i]->m_ItemColor;
-				m_isLogged			= itemconfig[i]->m_isLogged;
+				color        = itemconfig[i]->color;
+				logAction			= itemconfig[i]->logAction;
 				return true;
 			}
 		}
@@ -565,52 +565,52 @@ void Item::AdjustByStat()
 	switch (dwSWEType)
 	{
 	case ITEMSTAT_AGILE: 			
-		m_cSpeed--;
-		if (m_cSpeed < 0) m_cSpeed = 0;
+		swingSpeed--;
+		if (swingSpeed < 0) swingSpeed = 0;
 		break;
 
 	case ITEMSTAT_LIGHT: 
-		dV2 = (double)m_wWeight;
+		dV2 = (double)weight;
 		dV3 = (double)(dwSWEValue*5); // Changed Light % from *4 to *5 of a total 65%
 		dV1 = (dV3/100.0f)*dV2;
-		m_wWeight -= (int)dV1;
+		weight -= (int)dV1;
 
-		if (m_wWeight < 1) m_wWeight = 1;
+		if (weight < 1) weight = 1;
 		break;
 
 	case ITEMSTAT_STRONG: // Changed STRONG stat to be more usefull
-		dV2 = (double)m_wMaxLifeSpan;
+		dV2 = (double)durability;
 		dV3 = (double)(dwSWEValue*8); // changed from 91% to *8 = 104%
 		dV1 = (dV3/100.0f)*dV2;
-		m_wMaxLifeSpan += (int)dV1;
+		durability += (int)dV1;
 		break;
 
 	case ITEMSTAT_SHARP:
-		dV2 = (double)m_wMaxLifeSpan;
+		dV2 = (double)durability;
 		dV3 = (double)(dwSWEValue*2);
 		dV1 = (dV3/100.0f)*dV2;
-		m_wMaxLifeSpan += (int)dV1;
+		durability += (int)dV1;
 		break;
 
 	case ITEMSTAT_ANCIENT:
-		dV2 = (double)m_wMaxLifeSpan;
+		dV2 = (double)durability;
 		dV3 = (double)(dwSWEValue*4);
 		dV1 = (dV3/100.0f)*dV2;
-		m_wMaxLifeSpan += (int)dV1;
+		durability += (int)dV1;
 		break;
 
 	case ITEMSTAT_FLAWLESSSHARP:
-		dV2 = (double)m_wMaxLifeSpan;
+		dV2 = (double)durability;
 		dV3 = (double)(dwSWEValue*8);
 		dV1 = (dV3/100.0f)*dV2;
-		m_wMaxLifeSpan += (int)dV1;
+		durability += (int)dV1;
 		break;
 
 	case ITEMSTAT_FLAWLESSANCIENT:
-		dV2 = (double)m_wMaxLifeSpan;
+		dV2 = (double)durability;
 		dV3 = (double)(dwSWEValue*10);
 		dV1 = (dV3/100.0f)*dV2;
-		m_wMaxLifeSpan += (int)dV1;
+		durability += (int)dV1;
 		break;
 	}
 }
@@ -667,7 +667,7 @@ bool Item::AddSocket(Item * gem)
 			GetNibble(m_dwAttribute, 5)*/ )
 		{
 				m_sockets[0] = SG_VORTEXGEM;
-				m_ItemColor = ARGB(255,0,0,255); // blue? old: 10
+				color = ARGB(255,0,0,255); // blue? old: 10
 				return true;
 		} else {
 			return false;
@@ -697,7 +697,7 @@ bool Item::AddSocket(Item * gem)
 
 bool Item::IsManued() const
 {
-	 return (m_dwAttribute & 1) && m_sItemEffectType != ITEMEFFECTTYPE_VARIABLEADD;
+	 return (m_dwAttribute & 1) && itemEffectType != ITEMEFFECTTYPE_VARIABLEADD;
 }
 
 Item * Item::CreateItem()

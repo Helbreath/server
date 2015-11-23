@@ -248,7 +248,7 @@ public:
 	char m_cAttackDiceRange;
 	char m_cAttackBonus;
 	char m_cBravery;
-	char m_cResistMagic;
+	uint16_t m_cResistMagic;
 	char m_cMagicLevel;
 	char m_cDayOfWeekLimit;		    
 	char m_cChatMsgPresence;     

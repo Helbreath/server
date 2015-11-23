@@ -5,36 +5,15 @@
 #include "Map.h"
 #include "netmessages.h"
 
-LServer::LServer(string config)
-	: Server(config)
-{
-	gate = 0;
+LServer * LServer::_instance = nullptr;
 
+LServer::LServer()
+{
 	//asio socket thread count
 	currentplayersonline = 0;
 	currentconnections = 0;
 
 	sqlpool = 0;
-
-	pFCConsole = new FormattingChannel(new PatternFormatter("LServer: %p: %t"));
-	pFCConsole->setChannel(new ConsoleChannel);
-	pFCConsole->open();
-
-	pFCDefault= new FormattingChannel(new PatternFormatter("LServer: %t"));
-	pFCDefault->setChannel(new ConsoleChannel);
-	pFCDefault->open();
-
-	pFCFile = new FormattingChannel(new PatternFormatter("%Y-%m-%d %H:%M:%S.%c | %s:%q:%t"));
-	pFCFile->setChannel(new FileChannel("lserver.log"));
-	pFCFile->setProperty("rotation", "daily");
-	pFCFile->setProperty("times", "local");
-	pFCFile->open();
-
-	consoleLogger = &Poco::Logger::create("ConsoleLoggerLServer", pFCConsole, Message::PRIO_TRACE);
-	logger		  = &Poco::Logger::create("DefaultLoggerLServer", pFCDefault, Message::PRIO_TRACE);
-	fileLogger    = &Poco::Logger::create("FileLoggerLServer", pFCFile, Message::PRIO_TRACE);
-
-	poco_information(*logger, "Log server instantiated");
 
 	MySQL::Connector::registerConnector();
 	SQLite::Connector::registerConnector();
@@ -49,22 +28,17 @@ LServer::~LServer()
 {
 	MySQL::Connector::unregisterConnector();
 	SQLite::Connector::unregisterConnector();
-	Poco::Logger::destroy("ConsoleLoggerLServer");
-	Poco::Logger::destroy("DefaultLoggerLServer");
-	Poco::Logger::destroy("FileLoggerLServer");
-	pFCConsole->close();
-	pFCDefault->close();
-	pFCFile->close();
 }
 
-bool LServer::Init()
+bool LServer::Init(string config)
 {
 	try
 	{
-		consoleLogger->information("Loading Config.");
+		configfile = config;
+		logger->information("Loading Config.");
 		if (luaL_dofile(L, configfile.c_str()) != 0)
 		{
-			consoleLogger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
+			logger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
 			return false;
 		}
 		lua_getglobal(L, "config");
@@ -75,7 +49,7 @@ bool LServer::Init()
 		{
 			lua_getfield(L, -1, "sqlhost");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlhost setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid sqlhost setting."); return false; }
 			sqlhost = temp;
 			logger->information(Poco::format("sqlhost: %s", sqlhost));
 			lua_pop(L, 1);
@@ -85,7 +59,7 @@ bool LServer::Init()
 		{
 			lua_getfield(L, -1, "sqluser");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqluser setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid sqluser setting."); return false; }
 			sqluser = temp;
 			logger->information(Poco::format("sqluser: %s", sqluser));
 			lua_pop(L, 1);
@@ -95,7 +69,7 @@ bool LServer::Init()
 		{
 			lua_getfield(L, -1, "sqlpass");
 			temp = (char*)lua_tostring(L, -1);
-			if (temp == 0) { consoleLogger->fatal("Invalid sqlpass setting."); return false; }
+			if (temp == 0) { logger->fatal("Invalid sqlpass setting."); return false; }
 			logger->information("sqlpass set");
 			sqlpass = temp;
 			lua_pop(L, 1);
@@ -105,13 +79,13 @@ bool LServer::Init()
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
+		logger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
 		system("pause");
 		return false;
 	}
 	catch(...)
 	{
-		consoleLogger->fatal("Unspecified Init() Exception.");
+		logger->fatal("Unspecified Init() Exception.");
 		system("pause");
 		return false;
 	}
@@ -141,7 +115,7 @@ void LServer::run()
 	}
 	catch (std::exception& e)
 	{
-		consoleLogger->fatal(Poco::format("LServer::run() Exception: %s", e.what() ));
+		logger->fatal(Poco::format("LServer::run() Exception: %s", e.what() ));
 	}
 }
 
@@ -199,8 +173,8 @@ void LServer::TimerThread()
 					if (client->disconnecttime == 0 && client->lastpackettime + 30000 < ltime)
 					{
 						//socket idle for 30 seconds (should never happen unless disconnected)
-						poco_information(*logger, Poco::format("Client Timeout! <%s>", client->socket->address));
-						gate->stop(client->socket);
+						logger->information(Poco::format("Client Timeout! <%s>", client->socket->address));
+						Gate::GetSingleton()->stop(client->socket);
 						//when to delete client object...... ?
 						//force a ~10 second delay on object deletion to prevent logout hacking/plug pulling/etc? or destroy instantly?
 					}
@@ -236,11 +210,11 @@ void LServer::TimerThread()
 		}
 		catch (Poco::Data::MySQL::MySQLException * e)
 		{
-			consoleLogger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText() ));
+			logger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText() ));
 		}
 		catch (...)
 		{
-			consoleLogger->fatal("Unspecified TimerThread() Exception.");
+			logger->fatal("Unspecified LServer::TimerThread() Exception.");
 			TimerThreadRunning = false;
 			//TODO: invoke server shutdown/restart?
 			//timer thread should never exit - needs some sort of something here
@@ -287,10 +261,7 @@ void LServer::SocketThread()
 			{
 				sw.WriteInt(MSGID_RESPONSE_LOG);
 				sw.WriteShort(LOGRESMSGTYPE_PASSWORDMISMATCH);
-				client->mutsocket.lock();
-				if (client->socket)
-					client->socket->write(sw.data, sw.position);
-				client->mutsocket.unlock();
+				client->SWrite(sw);
 			}
 			else switch (msgid)
 			{//do everything inline because fuck it
@@ -313,11 +284,8 @@ void LServer::SocketThread()
 					SendCharList(client, sw);
 					sw.WriteInt(500);
 					sw.WriteInt(500);
-					client->mutsocket.lock();
-					if (client->socket)
-						client->socket->write(sw.data, sw.position);
-					client->mutsocket.unlock();
-				}
+					client->SWrite(sw);
+			}
 				break;
 			case MSGID_REQUEST_CREATENEWCHARACTER:
 				{
@@ -334,7 +302,7 @@ void LServer::SocketThread()
 						worldname = "Xtreme";
 
 						bool test = false;
-						for (const GServer * gs : gate->gameserver)
+						for (const GServer * gs : Gate::GetSingleton()->gameserver)
 						{
 							if (gs->servername == worldname)
 							{
@@ -348,10 +316,7 @@ void LServer::SocketThread()
 							//server doesn't exist
 							sw.WriteInt(MSGID_RESPONSE_LOG);
 							sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
-							client->mutsocket.lock();
-							if (client->socket)
-								client->socket->write(sw.data, sw.position);
-							client->mutsocket.unlock();
+							client->SWrite(sw);
 							break;
 						}
 
@@ -365,10 +330,7 @@ void LServer::SocketThread()
 							{
 								sw.WriteInt(MSGID_RESPONSE_LOG);
 								sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
-								client->mutsocket.lock();
-								if (client->socket)
-									client->socket->write(sw.data, sw.position);
-								client->mutsocket.unlock();
+								client->SWrite(sw);
 								break;
 							}
 						}
@@ -381,10 +343,7 @@ void LServer::SocketThread()
 							{
 								sw.WriteInt(MSGID_RESPONSE_LOG);
 								sw.WriteShort(LOGRESMSGTYPE_ALREADYEXISTINGCHARACTER);
-								client->mutsocket.lock();
-								if (client->socket)
-									client->socket->write(sw.data, sw.position);
-								client->mutsocket.unlock();
+								client->SWrite(sw);
 								break;
 							}
 						}
@@ -408,10 +367,7 @@ void LServer::SocketThread()
 						{
 							sw.WriteInt(MSGID_RESPONSE_LOG);
 							sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
-							client->mutsocket.lock();
-							if (client->socket)
-								client->socket->write(sw.data, sw.position);
-							client->mutsocket.unlock();
+							client->SWrite(sw);
 							break;
 						}
 						uint32_t appr1;
@@ -457,10 +413,7 @@ void LServer::SocketThread()
 						sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERCREATED);
 						sw.WriteString(playername.c_str(), 10);
 						SendCharList(client, sw);
-						client->mutsocket.lock();
-						if (client->socket)
-							client->socket->write(sw.data, sw.position);
-						client->mutsocket.unlock();
+						client->SWrite(sw);
 					}
 					SQLCATCH(DeleteClient(client, true));
 
@@ -472,9 +425,7 @@ void LServer::SocketThread()
 				// cannot be called
 				sw.WriteInt(MSGID_RESPONSE_LOG);
 				sw.WriteShort(LOGRESMSGTYPE_ALREADYEXISTINGACCOUNT);
-				client->mutsocket.lock();
-				if (client->socket)
-					client->socket->write(sw.data, sw.position);
+				client->SWrite(sw);
 				client->mutsocket.unlock();
 			}
 				break;
@@ -496,21 +447,15 @@ void LServer::SocketThread()
 					{
 						sw.WriteInt(MSGID_RESPONSE_LOG);
 						sw.WriteShort(LOGRESMSGTYPE_NOTEXISTINGCHARACTER);
-						client->mutsocket.lock();
-						if (client->socket)
-							client->socket->write(sw.data, sw.position);
-						client->mutsocket.unlock();
+						client->SWrite(sw);
 						break;
 					}
 
-					if (gate->AccountInUse(client))
+					if (Gate::GetSingleton()->AccountInUse(client))
 					{
 						sw.WriteInt(MSGID_RESPONSE_LOG);
 						sw.WriteShort(ENTERGAMERESTYPE_PLAYING);
-						client->mutsocket.lock();
-						if (client->socket)
-							client->socket->write(sw.data, sw.position);
-						client->mutsocket.unlock();
+						client->SWrite(sw);
 					}
 					else
 					{
@@ -530,10 +475,7 @@ void LServer::SocketThread()
 						sw.WriteShort(LOGRESMSGTYPE_CHARACTERDELETED);
 						sw.WriteByte(0x01);
 						SendCharList(client, sw);
-						client->mutsocket.lock();
-						if (client->socket)
-							client->socket->write(sw.data, sw.position);
-						client->mutsocket.unlock();
+						client->SWrite(sw);
 					}
 				}
 				SQLCATCH(DeleteClient(client, true));
@@ -544,10 +486,7 @@ void LServer::SocketThread()
 			{
 				sw.WriteInt(MSGID_RESPONSE_LOG);
 				sw.WriteShort(LOGRESMSGTYPE_PASSWORDCHANGEFAIL);
-				client->mutsocket.lock();
-				if (client->socket)
-					client->socket->write(sw.data, sw.position);
-				client->mutsocket.unlock();
+				client->SWrite(sw);
 			}
 				break;
 			case MSGID_REQUEST_ENTERGAME:
@@ -562,33 +501,29 @@ void LServer::SocketThread()
 					if (entertype == ENTERGAMEMSGTYPE_NOENTER_FORCEDISCONN)
 					{
 						//send disconnect to all online servers
-						for (auto gs : gate->gameserver)
+						for (auto gs : Gate::GetSingleton()->gameserver)
 						{
 							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 							sw.WriteShort(ENTERGAMERESTYPE_FORCEDISCONN);
-							client->mutsocket.lock();
-							if (client->socket)
-								client->socket->write(sw.data, sw.position);
-							client->mutsocket.unlock();
+							client->SWrite(sw);
 
 							//check if client is even in game
 							shared_ptr<Client> clientfound;
 
-							gate->mutclientlist.lock_shared();
-
-							bool accountfound = false;
-							for (shared_ptr<Client> & clnt : gs->clientlist)
 							{
-								if (clnt->account == client->account)
+								boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+								bool accountfound = false;
+								for (shared_ptr<Client> & clnt : gs->clientlist)
 								{
-									//account found
-									accountfound = true;
-									clientfound = clnt;
-									break;
+									if (clnt->account == client->account)
+									{
+										//account found
+										accountfound = true;
+										clientfound = clnt;
+										break;
+									}
 								}
 							}
-
-							gate->mutclientlist.unlock_shared();
 
 							//client found? send force disconnect if so
 
@@ -600,7 +535,7 @@ void LServer::SocketThread()
 						break;
 					}
 
-					worldname = "Xtreme";
+					//worldname = "Xtreme";
 
 					uint8_t charcount = 0;
 
@@ -614,35 +549,39 @@ void LServer::SocketThread()
 						sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 						sw.WriteShort(ENTERGAMERESTYPE_REJECT);
 						sw.WriteByte(4);
-						client->mutsocket.lock();
-						if (client->socket)
-							client->socket->write(sw.data, sw.position);
-						client->mutsocket.unlock();
+						client->SWrite(sw);
 					}
 					else
 					{
-						GServer * pgs = 0;
-
-
-						//check if world server up
-						for (auto gs : gate->gameserver)
-						{
-							if (gs->servername == worldname)
+						auto getGS = [&client,&worldname](string mapname){
+							//check if world server up
+							for (auto gs : Gate::GetSingleton()->gameserver)
 							{
-								pgs = gs;
-								break;
+								if (gs->worldname == worldname)
+								{
+									for (auto map : gs->maplist)
+									{
+										if (map->name == mapname)
+										{
+											client->map = map;
+											return gs;
+										}
+									}
+								}
 							}
-						}
-						if (pgs == 0)
+							return (GServer*)0;
+						};
+						GServer * pgs = getGS(mapname);
+
+
+
+						if (pgs == nullptr)
 						{
 							//server not up?
 							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 							sw.WriteShort(ENTERGAMERESTYPE_REJECT);
 							sw.WriteByte(5);
-							client->mutsocket.lock();
-							if (client->socket)
-								client->socket->write(sw.data, sw.position);
-							client->mutsocket.unlock();
+							client->SWrite(sw);
 						}
 						else
 						{
@@ -657,26 +596,25 @@ void LServer::SocketThread()
 
 							shared_ptr<Client> clientfound;
 
-							gate->mutclientlist.lock_shared();
-
 							bool accountfound = false;
-							for (shared_ptr<Client> & clnt : pgs->clientlist)
 							{
-								if (clnt->account == client->account)
+								boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+								for (shared_ptr<Client> & clnt : pgs->clientlist)
 								{
-									//BUG: potential bug point if charID == 0 - only occurs on unsuccessful login
-									//account found
-									accountfound = true;
-									if (clnt->charid == charid)
+									if (clnt->account == client->account)
 									{
-										//exact char found
-										clientfound = clnt;
-										break;
+										//BUG: potential bug point if charID == 0 - only occurs on unsuccessful login
+										//account found
+										accountfound = true;
+										if (clnt->charid == charid)
+										{
+											//exact char found
+											clientfound = clnt;
+											break;
+										}
 									}
 								}
 							}
-
-							gate->mutclientlist.unlock_shared();
 
 							if (clientfound && clientfound->disconnecttime > 0)
 							{
@@ -707,18 +645,7 @@ void LServer::SocketThread()
 
 									client = clientfound;
 
-									bool maptest = false;
-									for (Map * pmap : pgs->maplist)
-									{
-										if (pmap->name == mapname)
-										{
-											maptest = true;
-											client->map = pmap;
-											break;
-										}
-									}
-
-									if (maptest)
+									if (client->map != nullptr)
 									{
 										client->currentstatus = 2;
 										client->name = playername;
@@ -730,10 +657,7 @@ void LServer::SocketThread()
 										sw.WriteString(string("127.0.0.1"), 16);
 										sw.WriteShort(2848);
 										sw.WriteString(worldname, 20);
-										client->mutsocket.lock();
-										if (client->socket)
-											clientfound->socket->write(sw.data, sw.position);
-										client->mutsocket.unlock();
+										client->SWrite(sw);
 										client->gserver = pgs;
 									}
 									else
@@ -741,10 +665,7 @@ void LServer::SocketThread()
 										sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 										sw.WriteShort(ENTERGAMERESTYPE_REJECT);
 										sw.WriteByte(5);
-										client->mutsocket.lock();
-										if (client->socket)
-											client->socket->write(sw.data, sw.position);
-										client->mutsocket.unlock();
+										client->SWrite(sw);
 									}
 								}
 							}
@@ -753,25 +674,11 @@ void LServer::SocketThread()
 								//account already logged in and not resuming object
 								sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 								sw.WriteShort(ENTERGAMERESTYPE_PLAYING);
-								client->mutsocket.lock();
-								if (client->socket)
-									client->socket->write(sw.data, sw.position);
-								client->mutsocket.unlock();
+								client->SWrite(sw);
 							}
 							else
 							{
-								bool maptest = false;
-								for (Map * pmap : pgs->maplist)
-								{
-									if (pmap->name == mapname)
-									{
-										maptest = true;
-										client->map = pmap;
-										break;
-									}
-								};
-
-								if (maptest)
+								if (client->map != nullptr)
 								{
 									client->currentstatus = 2;
 									client->name = playername;
@@ -784,20 +691,14 @@ void LServer::SocketThread()
 									sw.WriteString(string("127.0.0.1"), 16);
 									sw.WriteShort(2848);
 									sw.WriteString(worldname, 20);
-									client->mutsocket.lock();
-									if (client->socket)
-										client->socket->write(sw.data, sw.position);
-									client->mutsocket.unlock();
+									client->SWrite(sw);
 								}
 								else
 								{
 									sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 									sw.WriteShort(ENTERGAMERESTYPE_REJECT);
 									sw.WriteByte(3);
-									client->mutsocket.lock();
-									if (client->socket)
-										client->socket->write(sw.data, sw.position);
-									client->mutsocket.unlock();
+									client->SWrite(sw);
 								}
 							}
 
@@ -809,18 +710,15 @@ void LServer::SocketThread()
 				catch(exception & e)
 				{
 					//this should never trigger - future info sake, this is thrown when a lock is attemtped to be obtained when already owning
-					consoleLogger->fatal(Poco::format("SocketThread() Exception: %s", string(e.what())));
+					logger->fatal(Poco::format("SocketThread() Exception: %s", string(e.what())));
 					sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
 					sw.WriteShort(ENTERGAMERESTYPE_REJECT);
 					sw.WriteByte(3);
-					client->mutsocket.lock();
-					if (client->socket)
-						client->socket->write(sw.data, sw.position);
-					client->mutsocket.unlock();
+					client->SWrite(sw);
 				}
 				break;
 			default:
-				consoleLogger->error(Poco::format("Unknown packet received from client - %X", msgid));
+				logger->error(Poco::format("Unknown packet received from client - %X", msgid));
 				DeleteClient(msg->client, true);
 				break;
 			}
@@ -829,11 +727,11 @@ void LServer::SocketThread()
 		{
 			if (reason == -192)
 			{
-				consoleLogger->error("(data == 0)");
+				logger->error("(data == 0)");
 			}
 			else if (reason == -193)
 			{
-				consoleLogger->error("(position+a > size)");
+				logger->error("(position+a > size)");
 			}
 		}
 		SQLCATCH(0);
@@ -866,7 +764,7 @@ void LServer::DeleteClient(shared_ptr<Client> client, bool deleteobj)
 {
 	if (!client) return;
 
-	gate->DeleteClient(client, false, deleteobj);
+	Gate::GetSingleton()->DeleteClient(client, false, deleteobj);
 }
 
 bool LServer::CheckLogin(shared_ptr<Client> client, string & account, string & pass)
@@ -900,10 +798,6 @@ bool LServer::CheckLogin(shared_ptr<Client> client, string & account, string & p
 		}
 	}
 	SQLCATCH(void(0))
-	catch (SessionPoolExhaustedException & e)
-	{
-		poco_error(*logger, "SessionPoolExhaustedException - CheckLogin()");
-	}
 
 	return false;
 }
@@ -957,9 +851,4 @@ void LServer::SendCharList(shared_ptr<Client> client, StreamWrite & sw)
 		//need a way to "organize"? outgoing packets
 	}
 	SQLCATCH(DeleteClient(client, true))
-	catch (SessionPoolExhaustedException & e)
-	{
-		poco_error(*logger, "SessionPoolExhaustedException - SendCharList()");
-	}
-	//exception
 }

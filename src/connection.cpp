@@ -54,6 +54,7 @@ void connection::start()
 void connection::stop()
 {
 	shared_ptr<Client> client = client_.lock();
+	std::lock_guard<std::mutex> lock(client->mutsocket);
 	//TODO: find out where client is emptied improperly - temp "fix" (likely involving DeleteClient via invalid DB access)
 	if (client == nullptr)
 		return;
@@ -82,7 +83,7 @@ void connection::write(const char * data, const uint64_t size)
 	}
 	catch (std::exception& e)
 	{
-		server.consoleLogger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
+		server.logger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
 	}
 }
 
@@ -99,7 +100,7 @@ void connection::write(StreamWrite & sw)
 	}
 	catch (std::exception& e)
 	{
-		server.consoleLogger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
+		server.logger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
 	}
 }
 
@@ -114,7 +115,7 @@ void connection::handle_read_header(const boost::system::error_code& e,
 			size = *(int16_t*)(((char*)buffer_.data())+1);
 			if (size > 2048)//temporary set size .. shouldn't really be more than this anyway
 			{
-				server.consoleLogger->error(Poco::format("Invalid packet size : %?d", size));
+				server.logger->error(Poco::format("Invalid packet size : %?d", size));
 				server.stop(shared_from_this());
 				return;
 			}
@@ -138,7 +139,7 @@ void connection::handle_read(const boost::system::error_code& e,
 	{
 		if (bytes_transferred != size-3)
 		{
-			server.consoleLogger->error(Poco::format("Did not receive proper amount of bytes : rcv: %?d needed: %?d", bytes_transferred, size));
+			server.logger->error(Poco::format("Did not receive proper amount of bytes : rcv: %?d needed: %?d", bytes_transferred, size));
 			server.stop(shared_from_this());
 			return;
 		}
@@ -147,7 +148,7 @@ void connection::handle_read(const boost::system::error_code& e,
 		if ((size > MAXPACKETSIZE) || (size <= 0))
 		{
 			//ERROR - object too large - close connection
-			server.consoleLogger->error(Poco::format("Invalid packet size : %?d", size));
+			server.logger->error(Poco::format("Invalid packet size : %?d", size));
 			server.stop(shared_from_this());
 			return;
 		}
@@ -161,7 +162,7 @@ void connection::handle_read(const boost::system::error_code& e,
 		}
 		catch (std::exception& e)
 		{
-			server.consoleLogger->error(Logger::format("handle_request() exception: ", e.what()));
+			server.logger->error(Poco::format("handle_request() exception: ", e.what()));
 		}
 
 		boost::asio::async_read(socket_, boost::asio::buffer(buffer_, 3), boost::bind(&connection::handle_read_header, shared_from_this(),

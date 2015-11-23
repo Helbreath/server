@@ -15,14 +15,14 @@ using namespace std;
 
 Magic::Magic()
 {
-	m_element = ELEMENT_NONE;
-	m_dwDelayTime = m_dwLastTime = 0;
+	element = ELEMENT_NONE;
+	delayTime = lastTime = 0;
 	m_vRange = 0;
-	m_sType = 0;
-	m_manaCost = 0;
-	m_iGoldCost = 0;
+	magicType = 0;
+	manaCost = 0;
+	goldCost = 0;
 	m_hRange = 0;
-	m_cCategory = 0;
+	category = 0;
 	m_sIntLimit = 0;
 }
 

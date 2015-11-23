@@ -98,18 +98,18 @@ public:
 
 	uint16_t num;
 
-	string m_cName;
+	string name;
 
-	uint16_t m_sType;
-	uint64_t m_dwDelayTime, m_dwLastTime;
-	uint16_t m_manaCost;
+	uint16_t magicType;
+	uint64_t delayTime, lastTime;
+	uint16_t manaCost;
 	uint8_t m_hRange, m_vRange;
 	uint16_t m_sValue[9];
 	uint16_t m_sIntLimit;
-	int32_t   m_iGoldCost;
+	int32_t   goldCost;
 
-	uint8_t  m_cCategory;
-	Element m_element;
+	uint8_t  category;
+	Element element;
 
 	void Effect_RecSP(Unit * caster, Unit * target, uint32_t dthrow, uint32_t droll, uint32_t dbonus);
 };

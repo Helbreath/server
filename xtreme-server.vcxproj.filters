@@ -108,10 +108,13 @@
     <ClInclude Include="src\DelayEvent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\chat_handler.h">
+    <ClInclude Include="src\Guild.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Guild.h">
+    <ClInclude Include="src\XLogger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ChatHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -182,10 +185,13 @@
     <ClCompile Include="src\DelayEvent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\chat_handler.cpp">
+    <ClCompile Include="src\Guild.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Guild.cpp">
+    <ClCompile Include="src\XLogger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ChatHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

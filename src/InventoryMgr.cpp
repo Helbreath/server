@@ -26,7 +26,7 @@ shared_ptr<Item> InventoryMgr::GetItem(uint32_t itemid)
 		{
 			for (shared_ptr<Item> Item : inv->Items)
 			{
-				if (Item->ItemUniqueID == itemid)
+				if (Item->uid == itemid)
 					return Item;
 			}
 		}

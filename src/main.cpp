@@ -9,22 +9,28 @@
 #include "LServer.h"
 #include "GServer.h"
 #include "Server.h"
+#include "XLogger.h"
 
-Gate * gateserver = 0;
 
+#ifdef WIN32
+#define X_PAUSE system("pause")
+#else
+#define X_PAUSE
+
+#endif
 #ifndef WIN32
 void sigfunc(int sig_no)
 {
-	gateserver->consoleLogger->critical(Poco::format("Signal received: %?d", sig_no));
+	GServer::GetInstance()->logger->critical(Poco::format("Signal received: %?d", sig_no));
     if (sig_no == SIGINT)
     {
-        gateserver->consoleLogger->critical("Received SIGINT. Shutting down.");
-        gateserver->serverstatus = SERVERSTATUS_SHUTDOWN;
-        gateserver->handle_stop();
+		GServer::GetInstance()->logger->critical("Received SIGINT. Shutting down.");
+		GServer::GetInstance()->serverstatus = SERVERSTATUS_SHUTDOWN;
+		GServer::GetInstance()->handle_stop();
 	}
 	else if (sig_no == SIGHUP)
     {
-        gateserver->consoleLogger->critical("Received SIGHUP. Reloading configs.");
+		GServer::GetInstance()->logger->critical("Received SIGHUP. Reloading configs.");
     }
 }
 #endif
@@ -48,26 +54,33 @@ int main(int argc, char * argv[])
 	// 	}//TODO: make a windows based control+c catch function?
 #endif
 
-	gateserver = new Gate();
+	XLogger::CreateInstance();
+	Gate::CreateInstance();
 
+	Gate::GetSingleton()->logger = XLogger::GetSingleton();
+	
 
 	//Initialize server and load config files
-	if (!gateserver->Init()) { delete gateserver;return 0; }
+	if (!Gate::GetSingleton()->Init("config.json")) { Gate::DestroyInstance(); X_PAUSE; return 0; }
 
 	//Connect to SQL server
-	if (!gateserver->ConnectSQL()) { delete gateserver;return 0; }
+	if (!Gate::GetSingleton()->ConnectSQL()) { Gate::DestroyInstance(); X_PAUSE; return 0; }
 
 	//Open sockets
-	if (!gateserver->InitSockets()) {delete gateserver;return 0; }
+	if (!Gate::GetSingleton()->InitSockets()) { Gate::DestroyInstance(); X_PAUSE; return 0; }
 
 
 	// Run the server until stopped.
-	gateserver->run();
+	Gate::GetSingleton()->run();
 
 	//shouldn't really be here - should be where the server is stopped via remote call or console or something (likely remote call)
-	gateserver->handle_stop();
+	Gate::GetSingleton()->handle_stop();
 
-	delete gateserver;
+	Gate::DestroyInstance();
+	LServer::DestroyInstance();
+	XLogger::DestroyInstance();
+
+	X_PAUSE;
 
 	return 0;
 }

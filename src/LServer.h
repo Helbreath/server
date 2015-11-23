@@ -7,13 +7,17 @@
 class LServer : public Server
 {
 public:
-	LServer(string config);
-	~LServer(void);
-
-	Gate * gate;
+	static void CreateInstance() { _instance = new LServer(); }
+	static LServer * GetSingleton() { return _instance; }
+	static void DestroyInstance() { delete _instance; }
+private:
+	LServer();
+	static LServer * _instance;
+public:
+	~LServer();
 
 	// Initialize Server
-	bool Init();
+	bool Init(string config);
 
 	void run();
 	void handle_stop();

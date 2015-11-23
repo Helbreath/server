@@ -4,6 +4,7 @@
 #include "funcs.h"
 #include "connection.h"
 #include "common.h"
+#include "XLogger.h"
 #include <set>
 #include <unordered_map>
 #include <mutex>
@@ -84,7 +85,7 @@ using namespace Poco::Data;
 class Server
 {
 public:
-	Server(string config);
+	Server();
 	~Server(void);
 
 	string configfile;
@@ -98,20 +99,9 @@ public:
 
 	// MySQL
 	string sqlhost, sqluser, sqlpass, bindaddress, bindport;
-	string dbmaintable;
-	string dbservertable;
+	string sqldb;
 
 	uint32_t serverstatus;
-
-	// Console and File log formatting
-	FormattingChannel* pFCConsole;
-	FormattingChannel* pFCDefault;
-	FormattingChannel* pFCFile;
-
-	// Console and File log handles
-	Poco::Logger * consoleLogger;
-	Poco::Logger * logger;
-	Poco::Logger * fileLogger;
 
 	// MySQL connection pools
 	SessionPool * sqlpool;
@@ -164,5 +154,7 @@ public:
 	void PutMsgQueue(std::shared_ptr<Client> client, MsgQueue & q, char * data, uint32_t size);
 	void PutMsgQueue(std::shared_ptr<MsgQueueEntry>, MsgQueue & q);
 	std::shared_ptr<MsgQueueEntry> GetMsgQueue(MsgQueue & q);
+
+	XLogger * logger;
 };
 
