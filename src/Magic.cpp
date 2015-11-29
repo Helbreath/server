@@ -6,7 +6,6 @@
 //#include "maths.h"
 #include "Unit.h"
 #include "Client.h"
-using namespace std;
 #include <math.h>
 
 //////////////////////////////////////////////////////////////////////

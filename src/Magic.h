@@ -14,8 +14,6 @@
 #include <string>
 #include <stdint.h>
 
-using namespace std;
-
 #define MAXMAGICEFFECTS			40
 
 enum magicValuesIndices{
