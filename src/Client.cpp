@@ -1,32 +1,18 @@
-// Client.cpp: implementation of the Client class.
-//
-//////////////////////////////////////////////////////////////////////
-
 #include "Client.h"
 #include "netmessages.h"
 #include "GServer.h"
-//#include "skilltypes.h"
-//#include "..\mgrs\GuildMgr.h"
-//#include "..\mgrs\PartyMgr.h"
-//#include "..\map\Map.h"
-//#include "..\map\OccupyFlag.h"
-//#include "combat.h"
-//#include "ActionID.h"
-//#include "Guild.h"
 #include "Map.h"
 #include "Npc.h"
 
 extern int * g_skillSSNpoint;
 
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
-
 Client::Client()
 {
 	int i;
 
-	gserver = 0;
+	guild = nullptr;
+	gserver = nullptr;
+	guildRank = 0;
 
 	m_iAddChargeCritical = 0;
 
@@ -36,7 +22,7 @@ Client::Client()
 
 	m_timeHackDif = 0;
 
-	m_iVit = m_iCharisma = m_iLuck = m_iLU_Pool = 0;
+	m_iVit = m_iCharisma = m_iLuck = levelUpPool = 0;
 
 	memset(m_iSkillSSN, 0, sizeof(m_iSkillSSN));
 
@@ -59,7 +45,7 @@ Client::Client()
 
 	crusadeLocation = false;
 
-	m_bIsHunter = false;
+	civilian = false;
 
 	currentstatus = 1;
 
@@ -389,9 +375,9 @@ void Client::SetStr(int str, bool check)
 			health = GetMaxHP();
 			Notify(0, NOTIFY_HP, 0, 0, 0, 0);
 		}
-		if(m_iSP > GetMaxSP())
+		if(stamina > GetMaxSP())
 		{
-			m_iSP = GetMaxSP();
+			stamina = GetMaxSP();
 			Notify(0, NOTIFY_SP, 0, 0, 0, 0);
 		}
 	}
@@ -686,18 +672,18 @@ int Client::GetPlayerRelationship(Client * target) const
 				iRet = 0;
 			}
 		}
-		else {
-			if ((guildName == target->guildName) &&
-				(guildName != "NONE")) {
+		else {//TODO: fix
+			if ((guild->name == target->guild->name) &&
+				(guild->name != "NONE")) {
 				if (target->guildRank == GUILDRANK_MASTER)
 						iRet = 5;
 					else iRet = 3;
 			}
 			else 
 				if ((side == target->side) &&
-					(guildName != "NONE") &&
-					(target->guildName != "NONE") &&
-					(guildName != target->guildName)) {
+					(guild->name != "NONE") &&
+					(target->guild->name != "NONE") &&
+					(guild->name != target->guild->name)) {
 						iRet = 4;
 				}
 				else iRet = 1;
@@ -783,7 +769,7 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 // 		gserver->_ClearExchangeStatus(m_handle);
 // 	}
 
-	map->RemoveFromTarget(self.lock());
+	map->RemoveFromTarget(shared_from_this());
 
 	if (attacker)
 		attackername = attacker->name;
@@ -795,7 +781,7 @@ void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 	else sAttackerWeapon = 1;
 	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DYING, sDamage, sAttackerWeapon, 0);
 	map->ClearOwner(x, y);
-	map->SetDeadOwner(self.lock(), x, y);
+	map->SetDeadOwner(shared_from_this(), x, y);
 
 // 	int itemInd;
 // 	if(gserver->m_astoria.get() && gserver->m_astoria->IsCapture() && (itemInd = HasItem(ITEM_RELIC)))
@@ -1419,7 +1405,7 @@ void Client::SetItemCount(uint64_t id, uint32_t val, bool notify)
 		if(itemList[i]->_item && itemList[i]->_item->m_sIDnum == id) 
 		{
 			if(val == 0) {
-				gserver->ItemDepleteHandler(self.lock(), itemList[i]->_item, false);
+				gserver->ItemDepleteHandler(shared_from_this(), itemList[i]->_item, false);
 			}
 			else {
 				itemList[i]->_item->count = val;

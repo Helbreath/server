@@ -1,14 +1,7 @@
-// Client.h: interface for the Client class.
-//
-//////////////////////////////////////////////////////////////////////
 
-#if !defined(AFX_CLIENT_H__39CC7700_789F_11D2_A8E6_00001C7030A6__INCLUDED_)
-#define AFX_CLIENT_H__39CC7700_789F_11D2_A8E6_00001C7030A6__INCLUDED_
-
-#if _MSC_VER >= 1000
 #pragma once
-#endif // _MSC_VER >= 1000
 
+#include "common.h"
 #include "funcs.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,8 +10,6 @@
 #include "Magic.h"
 #include "connection.h"
 #include "InventoryMgr.h"
-#include "Guild.h"
-#include <mutex>
 #include <list>
 
 class Guild;
@@ -73,7 +64,7 @@ enum skillIndexes
 	SKILL_POISONRES			// 23
 };
 
-class Client : public Unit
+class Client : public Unit, public boost::enable_shared_from_this<Client>, public boost::noncopyable
 {
 public:
 	Client();
@@ -83,11 +74,6 @@ public:
 	// can switch between 1 and 2 but can only be 0 when connection closing
 	uint8_t currentstatus;
 
-
-	//TODO: potentially redo this fire hazard? as useful as it is, checking 500,000 mutexes nonstop is loads of
-	// fun on a bun. messagequeue send data and bulk process?
-	std::mutex mutsocket;
-
 	std::list<StreamWrite> outgoingqueue;
 
 	string address;
@@ -96,10 +82,6 @@ public:
 	connection_ptr socket;//will force the smart_ptr to remain until client object is deleted - clear early? or leave until object destruction?
 	//boost::weak_ptr<connection> socket;//keeps the client object from keeping the socket object open, but the socket object can keep the client object
 	uint64_t socknum;
-
-	weak_ptr<Client> self;
-
-	//shared_ptr<Guild> guild;//TODO: placeholder
 
 	GServer * gserver;
 
@@ -249,7 +231,7 @@ public:
 	InventoryMgr invBank;
 	InventoryMgr invSelf;
 
-	bool m_bIsHunter;//TODO: either remove or redo the whole 17 year old civilian system
+	bool civilian;//TODO: either remove or redo the whole 17 year old civilian system
 
 	bool m_bActive;//??
 
@@ -265,8 +247,7 @@ public:
 
 
 	// Guild things
-	string  guildName;
-	int8_t  guildRank;
+	uint8_t guildRank;//keep this?
 	Guild * guild;
 	uint64_t guildSummonsTime;
 	
@@ -309,7 +290,7 @@ public:
 	int32_t  m_iHPstock;
 	int32_t  m_iHPStatic_stock;  
 	bool m_bIsBeingResurrected;
-	int32_t  m_iSP;
+	int32_t  stamina;
 	uint64_t  m_iNextLevelExp;
 
 	int32_t  m_iDefenseRatio;
@@ -325,7 +306,7 @@ public:
 	int32_t  level;
 	int32_t  m_iVit, m_iCharisma;
 	int32_t  m_iLuck; 
-	int32_t  m_iLU_Pool;
+	int32_t  levelUpPool;
 
 	int32_t m_elo;
 	int32_t  enemyKillCount, playerKillCount, m_iRewardGold;
@@ -625,5 +606,3 @@ private:
 	Party * _party;
 	PartyStatus _partyStatus;
 };
-
-#endif // !defined(AFX_CLIENT_H__39CC7700_789F_11D2_A8E6_00001C7030A6__INCLUDED_)
