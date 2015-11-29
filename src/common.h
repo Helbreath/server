@@ -2,14 +2,62 @@
 
 #pragma once
 
-#include	<iostream>
-#include	<sstream>
+#ifdef WIN32
+#include <SDKDDKVer.h>
+#include <tchar.h>
+#include <direct.h>
+#include <process.h>
+#endif
+
+#include <sys/timeb.h>
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
 #include <memory>
+#include <memory.h>
 #include <time.h>
 #include <string>
+#include <list>
+#include <vector>
+#include <set>
+#include <map>
+#include <unordered_map>
+#include <queue>
+#include <stdint.h>
+#include <stdarg.h>
+#include <algorithm>
+#include <stdio.h>
+#include <boost/thread.hpp>
+#include <boost/noncopyable.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
+#include <boost/thread/shared_lock_guard.hpp>
+#include <boost/algorithm/string.hpp>
+
+
 #include "maps.h"
 
-using namespace std;
+using boost::shared_ptr;
+using boost::mutex;
+using boost::shared_mutex;
+using boost::unique_lock;
+using boost::shared_lock;
+using boost::shared_lock_guard;
+using boost::lock;
+using boost::lock_guard;
+using boost::defer_lock;
+using boost::mutex;
+using boost::upgrade_to_unique_lock;
+using boost::upgrade_lock;
+using boost::weak_ptr;
+using boost::thread;
+using std::string;
+using std::vector;
+using std::unordered_map;
+using std::queue;
+using std::stringstream;
+using std::exception;
 
 #define DEFAULTBAGSIZE	20
 #define DEFAULTEXTRABAGSIZE	5
@@ -116,14 +164,14 @@ const uint32_t maxGWHItems[5] = { 0, 75, 75*2, 75*3, 75*4 };
 
 enum GuildRank
 {
+	GUILDRANK_NONE = 0,
 	GUILDRANK_MASTER,
 	GUILDRANK_CAPTAIN,
 	GUILDRANK_HUNTMASTER,
 	GUILDRANK_RAIDMASTER,
 	GUILDRANK_GUILDSMAN,
 	GUILDRANK_RECRUIT,
-	GUILDRANK_MAX,
-	GUILDRANK_NONE = -1
+	GUILDRANK_MAX
 };
 
 //TODO: Make this customizable ingame via UI?
@@ -444,3 +492,144 @@ typedef struct hbxpoint
 #define DYNAMICOBJECT_PCLOUD_END	12
 #define DYNAMICOBJECT_FIRE2			13
 #define DYNAMICOBJECT_FIRE3			14 //for FireBow
+
+
+
+
+//#include <cmath>
+//#include <math.h>
+
+//TODO: need a new way to detect speed hacking and not "you can speed hack 10 steps then slow down"
+#ifdef _DEBUG
+#define SPEEDCHECKTURNS 1
+#else
+#define DOSPEEDCHECK
+#define SPEEDCHECKTURNS 10
+#endif
+
+#define MAXCRUSADESTRUCTURES		300
+#define MAXAGRICULTURE				200
+
+#define PFMABSORBVAL					0.50
+
+//TODO: time you can spend in enemy maps - needs some changing to the system of raiding
+#define RAIDTIME				600
+
+//TODO: should not be hard coded
+#define GOLDDROPMULTIPLIER			2
+#define EXPMULTIPLIER				355
+
+//TODO: what are these and why do they exist hardcoded?
+#define BISLEGOLDCOST				100
+#define ARENAGOLDCOST				500
+
+
+#define HITRATIOFACTOR		80.0f
+#define MAXSKILLPOINTS		3000
+
+
+extern char itoh(int num);
+extern int htoi(char hex);
+extern void a_swap(unsigned char * a, unsigned char * b);
+extern void ByteSwap5(unsigned char * b, int n);
+extern uint64_t unixtime();
+
+extern char * strtolower(char * x);
+extern std::string makesafe(std::string in);
+extern size_t ci_find(const std::string& str1, const std::string& str2);
+extern bool ci_equal(char ch1, char ch2);
+extern double randn_notrig(double mu = 0.0, double sigma = 1.0);
+extern int32_t ndice(int _throw, int range);
+extern int32_t dice(int _throw, int range);
+extern void SetNibble(uint32_t &var, uint8_t index, uint8_t val);
+extern void SetBit(uint32_t &var, uint8_t index, bool val);
+
+#define SERVERSTATUS_STOPPED 1
+#define SERVERSTATUS_STARTING 2
+#define SERVERSTATUS_ONLINE 3
+#define SERVERSTATUS_SHUTDOWN 4
+
+
+#define ByteSwap(x) ByteSwap5((unsigned char *) &x, sizeof(x))
+
+#ifdef WIN32
+
+#define _CRT_SECURE_NO_WARNINGS
+
+#ifndef VA_COPY
+# ifdef HAVE_VA_COPY
+#  define VA_COPY(dest, src) va_copy(dest, src)
+# else
+#  ifdef HAVE___VA_COPY
+#   define VA_COPY(dest, src) __va_copy(dest, src)
+#  else
+#   define VA_COPY(dest, src) (dest) = (src)
+#  endif
+# endif
+#endif
+
+#define INIT_SZ 1024
+
+extern int vasprintf(char **str, const char *fmt, va_list ap);
+extern int asprintf(char **str, const char *fmt, ...);
+
+#else
+extern void __debugbreak();
+#endif
+
+#ifndef WIN32
+#define strtok_s strtok_r
+#define _atoi64 atoll
+#define sprintf_s snprintf
+#define strcpy_s(a,b,c) strcpy(a,c)
+#endif
+
+#ifdef WIN32
+#define DBL "%Lf"
+#define DBL2 "Lf"
+#define XI64 "%I64d"
+#else
+#define DBL "%f"
+#define DBL2 "f"
+#define XI64 "%lld"
+#endif
+
+#ifdef WIN32
+#define SLEEP(a) Sleep(a)
+#else
+#define SLEEP(a) { struct timespec req={0}; req.tv_sec = 0; req.tv_nsec = 1000000 * a; nanosleep(&req,0); }
+#endif
+
+
+#define SQLCATCH(a)	catch (Poco::Data::MySQL::ConnectionException& e)\
+{\
+	logger->error(Poco::format("ConnectionException: %s", e.displayText() ));\
+	a; \
+}\
+catch (Poco::Data::MySQL::StatementException& e)\
+{\
+	logger->error(Poco::format("StatementException: %s", e.displayText() ));\
+	a; \
+}\
+catch (Poco::Data::MySQL::MySQLException& e)\
+{\
+	logger->error(Poco::format("MySQLException: %s", e.displayText() ));\
+	a; \
+}\
+catch (Poco::InvalidArgumentException& e)\
+{\
+	logger->error(Poco::format("InvalidArgumentException: %s", e.displayText() ));\
+	a; \
+}\
+catch (Poco::NotFoundException&e)\
+{\
+	logger->error(Poco::format("NotFoundException: %s", e.displayText() ));\
+	a; \
+}\
+catch (Poco::Exception& e)\
+{\
+	logger->fatal(Poco::format("Uncaught Exception: %s", e.displayText()));\
+	a; \
+}
+
+
