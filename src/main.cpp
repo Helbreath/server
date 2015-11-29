@@ -57,7 +57,7 @@ int main(int argc, char * argv[])
 	XLogger::CreateInstance();
 	Gate::CreateInstance();
 
-	Gate::GetSingleton()->logger = XLogger::GetSingleton();
+	Gate::GetSingleton().logger = XLogger::GetSingleton();
 	
 
 	//Initialize server and load config files

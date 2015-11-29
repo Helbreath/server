@@ -10,8 +10,9 @@
 #include "Poco/Message.h"
 #include <thread>
 #include <queue>
-#include <mutex>
+#include <boost/thread/mutex.hpp>
 
+using boost::mutex;
 using std::string;
 
 enum XLogging {
@@ -53,7 +54,7 @@ public:
 
 	void run();
 
-	std::mutex mtx;
+	mutex mtx;
 
 	struct stLogEntry {
 		XLogging out;

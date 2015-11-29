@@ -42,7 +42,7 @@ void XLogger::information(string str, XLogging out)
 	entry->out = out;
 	entry->severity = Poco::Message::Priority::PRIO_INFORMATION;
 	{
-		lock_guard<std::mutex> lock(mtx);
+		lock_guard<mutex> lock(mtx);
 		entryQueue.push(entry);
 	}
 }
@@ -54,7 +54,7 @@ void XLogger::debug(string str, XLogging out)
 	entry->out = out;
 	entry->severity = Poco::Message::Priority::PRIO_DEBUG;
 	{
-		lock_guard<std::mutex> lock(mtx);
+		lock_guard<mutex> lock(mtx);
 		entryQueue.push(entry);
 	}
 }
@@ -66,7 +66,7 @@ void XLogger::error(string str, XLogging out)
 	entry->out = out;
 	entry->severity = Poco::Message::Priority::PRIO_ERROR;
 	{
-		lock_guard<std::mutex> lock(mtx);
+		lock_guard<mutex> lock(mtx);
 		entryQueue.push(entry);
 	}
 }
@@ -78,7 +78,7 @@ void XLogger::critical(string str, XLogging out)
 	entry->out = out;
 	entry->severity = Poco::Message::Priority::PRIO_CRITICAL;
 	{
-		lock_guard<std::mutex> lock(mtx);
+		lock_guard<mutex> lock(mtx);
 		entryQueue.push(entry);
 	}
 }
@@ -90,7 +90,7 @@ void XLogger::fatal(string str, XLogging out)
 	entry->out = out;
 	entry->severity = Poco::Message::Priority::PRIO_FATAL;
 	{
-		lock_guard<std::mutex> lock(mtx);
+		lock_guard<mutex> lock(mtx);
 		entryQueue.push(entry);
 	}
 }
@@ -105,7 +105,7 @@ void XLogger::run()
 		{
 			stLogEntry * entry;
 			{
-				lock_guard<std::mutex> lock(mtx);
+				lock_guard<mutex> lock(mtx);
 				entry = entryQueue.front();
 				entryQueue.pop();
 			}
