@@ -11,7 +11,9 @@
 #include <iostream>
 #include <fstream>
 
-using namespace std;
+using std::ofstream;
+using std::fstream;
+using std::string;
 
 /**
  ** Exceptions:
