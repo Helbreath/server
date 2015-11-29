@@ -4,6 +4,9 @@
 
 #include "Magic.h"
 #include "common.h"
+#include <boost/noncopyable.hpp>
+#include <boost/thread/shared_mutex.hpp>
+#include <boost/thread/mutex.hpp>
 
 class Client;
 class Npc;

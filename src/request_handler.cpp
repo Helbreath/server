@@ -29,6 +29,11 @@ void request_handler::handle_request(const request& req)
 
 	connection & c = *req.connection;
 	shared_ptr<Client> client = c.client_.lock();
+	if (client == nullptr)
+	{
+		//client has been deleted since, ignore message
+		return;
+	}
 	//gateserver->logger->information("data received");
 	client->lastpackettime = timestamp;
 	//req.data
@@ -42,5 +47,5 @@ void request_handler::handle_request(const request& req)
 	{
 		//client already disconnected - old message
 	}
-	Gate::GetSingleton()->PutMsgQueue(client, Gate::GetSingleton()->socketpipe, req.data, req.size);
+	Gate::GetSingleton().PutMsgQueue(client, Gate::GetSingleton().socketpipe, req.data, req.size);
 }

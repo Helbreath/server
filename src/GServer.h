@@ -296,6 +296,7 @@ public:
 	int32_t CalculateUseSkillItemEffect(Client * player, int16_t skillvalue, int skillnum, Map * map, int32_t x, int32_t y);
 	void EnduStrippingDamage(Unit * target, Unit * attacker, int item, int higherStripEndu, bool shield = false);
 	void Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, int32_t attr);
+	void PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t dY, int16_t sType, bool bItemEffect = false, int32_t iV1 = 0);
 
 	int _iCalcSkillSSNpoint(int iLevel);
 
@@ -318,11 +319,11 @@ public:
 #pragma endregion
 
 	std::list<shared_ptr<DelayEvent>> DelayEventList;
-	std::mutex delayMutex;
+	mutex delayMutex;
 
 
 	MsgQueue chatpipe;
-	std::mutex mutchat;
+	mutex mutchat;
 	shared_mutex mutobjectlist;
 
 	//TODO: guilds - load all the guilds from the db and keep them in memory
@@ -338,7 +339,7 @@ public:
 	string servername;
 	uint64_t  m_iLimitedUserExp, m_iLevelExp51;
 
-	std::unordered_map<string, uint8_t> m_mapNameList;
+	unordered_map<string, uint8_t> m_mapNameList;
 
 	int             m_iTotalMaps;
 	bool			m_dropsInitiated;

@@ -2,6 +2,7 @@
 #include "Client.h"
 #include "streams.h"
 #include "netmessages.h"
+#include "Gate.h"
 
 Server::Server()
 {
@@ -39,8 +40,6 @@ void Server::run()
 #else
 			nanosleep(&req,0);
 #endif
-
-		delete timerthread;
 
 		lua_close(L);
 
@@ -177,6 +176,7 @@ void Server::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 void Server::PutMsgQueue(shared_ptr<Client> client, MsgQueue & q, char * data, uint32_t size)
 {
+	lock_guard<mutex> lock(Gate::GetSingleton().mutpacketlist);
 	//poco_information(*logger, "PutMsgQueue()");
 	shared_ptr<MsgQueueEntry> msg(new MsgQueueEntry);
 

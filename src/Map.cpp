@@ -6,7 +6,6 @@
 #include "Tile.h"
 #include "GServer.h"
 #include "Misc.h"
-#include <fstream>
 #include "streams.h"
 //#include "OccupyFlag.h"
 //#include "StrategicPoint.h"
@@ -218,7 +217,7 @@ char _tmp_cEmptyPosY[] = { 0, 0, 1, 1, 1, 0, -1, -1, -1, -1, 0, 1, 2, 2, 2, 2, 2
 
 Map::Map(GServer * pGame)
 {
-	npchandle = 0;
+	npchandle = 0x100000000;//base handle value of 4,294,967,296 to 'guarantee' uniqueness between clients and npcs
 
 	TimerThreadRunning = false;
 	sizeX = sizeY = 0;
@@ -316,8 +315,8 @@ Map::~Map()
 void Map::run()
 {
 	TimerThreadRunning = true;
-	actionthread = new std::thread(std::bind(std::mem_fun(&Map::SocketThread), this));
-	timerthread = new std::thread(std::bind(std::mem_fun(&Map::TimerThread), this));
+	actionthread = new thread(std::bind(std::mem_fun(&Map::SocketThread), this));
+	timerthread = new thread(std::bind(std::mem_fun(&Map::TimerThread), this));
 }
 
 void Map::SocketThread()
@@ -330,13 +329,18 @@ void Map::SocketThread()
 	_tzset();
 #endif
 
+	shared_ptr<Server::MsgQueueEntry> msg;
+
 	while (gserver->serverstatus == SERVERSTATUS_ONLINE)
 	{
 		if (actionpipe.size() > 0)
 		{
-			mutaction.lock();
-			shared_ptr<Server::MsgQueueEntry> msg = gserver->GetMsgQueue(actionpipe);
-			mutaction.unlock();
+			{
+				lock_guard<mutex> lock(mutaction);
+				msg = gserver->GetMsgQueue(actionpipe);
+			}
+			if (!msg)
+				continue;
 
 			StreamRead sr = StreamRead(msg->data, msg->size);
 			StreamWrite sw = StreamWrite();
@@ -348,7 +352,7 @@ void Map::SocketThread()
 
 			//logger->error(Poco::format("Packet received from client - 0x%.4X - 0x%.2X", msgid, cmd));
 
-			if (msgid & MSGIDTYPE_MOTION)
+			if (msgid == MSGIDTYPE_MOTION)
 			{
 				gserver->ClientMotionHandler(msg->client, msg);
 			}
@@ -456,10 +460,10 @@ void Map::TimerThread()
 
 				//regenerates stamina at a drastically increased rate
 				{
-					boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+					shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 					for (shared_ptr<Client> client : gserver->clientlist)
 					{
-						client->m_iSP = client->GetStr() + 17;
+						client->stamina = client->GetStr() + 17;
 						gserver->SendNotifyMsg(0, client.get(), NOTIFY_SP);
 					}
 				}
@@ -530,7 +534,7 @@ void Map::TimerThread()
 #endif
 }
 
-void Map::SetOwner(shared_ptr<Unit> sOwner, short sX, short sY)
+void Map::SetOwner(boost::shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
@@ -542,7 +546,7 @@ void Map::SetOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 }
 
 
-void Map::SetDeadOwner(shared_ptr<Unit> sOwner, short sX, short sY)
+void Map::SetDeadOwner(boost::shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
@@ -553,7 +557,7 @@ void Map::SetDeadOwner(shared_ptr<Unit> sOwner, short sX, short sY)
 	pTile->m_cDeadOwnerType = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
 }
 
-shared_ptr<Unit> Map::GetOwner(short sX, short sY)
+boost::shared_ptr<Unit> Map::GetOwner(short sX, short sY)
 {
 	Tile * pTile;
 
@@ -566,7 +570,7 @@ shared_ptr<Unit> Map::GetOwner(short sX, short sY)
 
 }
 
-shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
+boost::shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
 {
 	Tile * pTile;
 
@@ -579,12 +583,12 @@ shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
 
 }
 
-std::list<shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2)
+std::list<boost::shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2)
 {
 	class Tile * pTile;
 	//TODO: this. shoot whoever wrote it and rewrite it before an alpha test
 	//return 0;
-	std::list<shared_ptr<Unit>> owners;
+	std::list<boost::shared_ptr<Unit>> owners;
  
  	if(x1 < 0)
  		x1 = 0;
@@ -618,14 +622,12 @@ std::list<shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2
  				n++;
  				break;
 			case 0:
-				owners.push_back(nullptr);
-				n++;
+				//owners.push_back(nullptr);
+				//n++;
 				break;
 			}
  		}
  	}
- 
-	owners.push_back(nullptr);
  
  	return owners;
 }
@@ -1603,9 +1605,9 @@ void Map::NpcProcess()
 	dwTime = unixtime();
 
 	//TODO: either acquire a lock on every npc in list or --> add a mutex for npc deletion
-	std::list<shared_ptr<Npc>> tempnpclist = npclist;
+	std::list<boost::shared_ptr<Npc>> tempnpclist = npclist;
 
-	for (shared_ptr<Npc> npc : tempnpclist)
+	for (boost::shared_ptr<Npc> npc : tempnpclist)
 	{
 		if (npc == nullptr)
 			continue;
@@ -1653,7 +1655,7 @@ void Map::NpcProcess()
 	}
 }
 
-void Map::DeleteNpc(shared_ptr<Npc> npc)
+void Map::DeleteNpc(boost::shared_ptr<Npc> npc)
 {
 	int  i, iNumItem, iItemID, iItemIDs[MAX_NPCITEMDROP], iSlateID;
 	char cItemName[21];
@@ -1941,7 +1943,6 @@ shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint
 	if (pNpcName.length() == 0) return 0;
 
 	shared_ptr<Npc> newnpc(new Npc(++npchandle, this));
-	newnpc->self = newnpc;
 
 	switch (cSA)
 	{
@@ -2284,7 +2285,7 @@ void Map::RemoveFromDelayEventList(Unit * unit, int32_t iEffectType)
 
 bool Map::RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3)
 {
-	shared_ptr<DelayEvent> delayevent(new DelayEvent);
+	boost::shared_ptr<DelayEvent> delayevent(new DelayEvent);
 
 
 	delayevent->m_iDelayType = iDelayType;
@@ -2307,11 +2308,11 @@ bool Map::RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTim
 	return true;
 }
 
-void Map::RemoveFromTarget(shared_ptr<Unit> target, int iCode)
+void Map::RemoveFromTarget(boost::shared_ptr<Unit> target, int iCode)
 {
 	uint64_t dwTime = unixtime();
 
-	for (shared_ptr<Npc> npc : npclist)
+	for (boost::shared_ptr<Npc> npc : npclist)
 	{
 		if ((npc->guildGUID != 0) && (target->IsPlayer()) && (target->guildGUID == npc->guildGUID))
 		{

@@ -2,10 +2,8 @@
 #pragma once
 
 #include "common.h"
-#include "funcs.h"
 #include "Server.h"
 #include "netmessages.h"
-#include <list>
 
 // for Client Data
 #define MAXTELEPORTLOC		200
@@ -52,10 +50,10 @@ public:
 
 	void run();
 
-	std::thread * actionthread;
-	std::thread * timerthread;
+	thread * actionthread;
+	thread * timerthread;
 	Server::MsgQueue actionpipe;
-	std::mutex mutaction;
+	mutex mutaction;
 	bool TimerThreadRunning;
 
 	void TimerThread();
@@ -69,7 +67,7 @@ public:
 	void NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16_t damage);
 	void NpcBehavior_Flee(shared_ptr<Npc> npc);
 	void NpcBehavior_Dead(shared_ptr<Npc> npc);
-	void NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc);
+	void NpcDeadItemGenerator(shared_ptr<Unit> attacker, boost::shared_ptr<Npc> npc);
 
 	shared_ptr<Npc> CreateNpc(string & pNpcName, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
 	void DeleteNpc(shared_ptr<Npc> npc);
@@ -80,7 +78,7 @@ public:
 	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
 	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3);
 	void DelayEventProcessor();
-	bool bGetEmptyPosition(short & pX, short & pY, shared_ptr<Unit> client);
+	bool bGetEmptyPosition(short & pX, short & pY, boost::shared_ptr<Unit> client);
 
 	shared_ptr<Npc> GetNpc(uint64_t ObjectID);
 
@@ -97,7 +95,7 @@ public:
 	} m_stGroundNpcItem[MAXGROUNDITEMS];
 
 	std::list<shared_ptr<DelayEvent>> DelayEventList;
-	std::mutex delayMutex;
+	mutex delayMutex;
 
 
 

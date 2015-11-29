@@ -19,7 +19,7 @@ ChatHandler::~ChatHandler()
 
 }
 
-void ChatHandler::ParseChat(Client * client, string message)
+void ChatHandler::ParseChat(const shared_ptr<Client> & client, string message)
 {
 	if (client->m_iAdminUserLevel > 0)
 	{
@@ -73,7 +73,7 @@ void ChatHandler::ParseChat(Client * client, string message)
 			{
 				if (tokens.size() < 2)
 				{
-					server->SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid command parameters");
+					server->SendNotifyMsg(0, client.get(), NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid command parameters");
 					return;
 				}
 				string mapname = tokens[1];
@@ -88,42 +88,48 @@ void ChatHandler::ParseChat(Client * client, string message)
 				Map * pmap = server->GetMap(mapname);
 				if (!pmap)
 				{
-					server->SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Map does not exist");
+					server->SendNotifyMsg(0, client.get(), NOTIFY_NOTICEMSG, 0, 0, 0, "Map does not exist");
 					return;
 				}
-				server->RequestTeleportHandler(client, 2, mapname, x, y);
+				server->RequestTeleportHandler(client.get(), 2, mapname, x, y);
 				return;
 			}
 			else if (tokens[0] == "/createguild")
 			{
 				//debug function
 				Guild * temp = new Guild();
+				temp->AddUser(client);
+				//temp->
 				server->guildlist.push_back(temp);
+			}
+			else if (tokens[0] == "/ginvite")
+			{
+				//if (client->guild != nullptr) && (client->guild->)
 			}
 			else if (tokens[0] == "/createitem")
 			{
 				if (tokens.size() < 2)
 				{
-					server->SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid syntax");
+					server->SendNotifyMsg(0, client.get(), NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid syntax");
 					return;
 				}
 				Item * pItem = new Item;
 				if (pItem->InitItemAttr(tokens[1], server->m_pItemConfigList) == false)
 				{
 					delete pItem;
-					server->SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid item name");
+					server->SendNotifyMsg(0, client.get(), NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid item name");
 					return;
 				}
 				if (tokens.size() > 2)
 				{
-					pItem->color = _atoi64(tokens[2].c_str());
+					pItem->color = (uint32_t)_atoi64(tokens[2].c_str());
 				}
 
 				int iEraseReq;
-				if (server->_bAddClientItemList(client->self.lock(), pItem, &iEraseReq) == true)
+				if (server->_bAddClientItemList(client, pItem, &iEraseReq) == true)
 				{
 
-					server->SendItemNotifyMsg(client->self.lock(), NOTIFY_ITEMOBTAINED, pItem, 0);
+					server->SendItemNotifyMsg(client, NOTIFY_ITEMOBTAINED, pItem, 0);
 
 					if (iEraseReq == 1)
 					{
@@ -148,7 +154,7 @@ void ChatHandler::ParseChat(Client * client, string message)
 				char cWaypoint;
 				if (tokens.size() < 2)
 				{
-					server->SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid summon");
+					server->SendNotifyMsg(0, client.get(), NOTIFY_NOTICEMSG, 0, 0, 0, "Invalid summon");
 					return;
 				}
 				int16_t mobnum = 1;
@@ -182,7 +188,7 @@ void ChatHandler::ParseChat(Client * client, string message)
 			{
 				//TODO: tokenize to get client name and such
 				client->whisperTarget = server->clientlist.back();
-				server->SendNotifyMsg(0, client, NOTIFY_WHISPERMODEON, 0, 0, 0, client->whisperTarget.lock()->name);
+				server->SendNotifyMsg(0, client.get(), NOTIFY_WHISPERMODEON, 0, 0, 0, client->whisperTarget.lock()->name);
 				return;
 			}
 			break;
@@ -190,7 +196,7 @@ void ChatHandler::ParseChat(Client * client, string message)
 
 		if (sendmode == CHAT_PARTY && !client->GetParty())
 		{
-			server->SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "You are not in a party");
+			server->SendNotifyMsg(0, client.get(), NOTIFY_NOTICEMSG, 0, 0, 0, "You are not in a party");
 			return;
 		}
 
@@ -234,7 +240,7 @@ void ChatHandler::ParseChat(Client * client, string message)
 		}
 		else if (sendmode != CHAT_WHISPER)
 		{
-			Gate::GetSingleton()->mutclientlist.lock_shared();
+			shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 			for (shared_ptr<Client> target : client->gserver->clientlist)
 			{
 				if (target->socket && (target->disconnecttime == 0))
@@ -289,22 +295,20 @@ void ChatHandler::ParseChat(Client * client, string message)
 					}
 				}
 			}
-			Gate::GetSingleton()->mutclientlist.unlock_shared();
 		}
 		else//CHAT_WHISPER
 		{
-			Gate::GetSingleton()->mutclientlist.lock_shared();//have to make sure a client isn't deleted when dereferencing
+			//have to make sure a client isn't deleted when dereferencing
+			shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 			if (client->whisperTarget.expired())
 			{
-				server->SendNotifyMsg(0, client, NOTIFY_NOTICEMSG, 0, 0, 0, "Player is not online");
+				server->SendNotifyMsg(0, client.get(), NOTIFY_NOTICEMSG, 0, 0, 0, "Player is not online");
 				return;
 			}
 			shared_ptr<Client> whisperTarget = client->whisperTarget.lock();
 			whisperTarget->SWrite(sw);
 
 			client->SWrite(sw);
-
-			Gate::GetSingleton()->mutclientlist.unlock_shared();
 		}
 	}
 }

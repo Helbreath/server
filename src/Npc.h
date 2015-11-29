@@ -168,23 +168,21 @@ enum NPCType{
 
 
 
-class Npc : public Unit
+class Npc : public Unit, public boost::enable_shared_from_this<Npc>, public boost::noncopyable
 {
 public:
 
 	Npc(uint64_t NpcH, Map * map);
 	~Npc();
-
-	weak_ptr<Npc> self;
-
+	
 	bool initNpcAttr(Npc * npcTemplate, char cSA);
 	void Behave();
 	bool behavior_searchMaster();
 
-	virtual void behavior_move();
+	void behavior_death(shared_ptr<Unit> attacker, int16_t dmg);
+	void behavior_move();
+	void behavior_attack();
 	void behavior_stop();
-	virtual void behavior_attack();
-	virtual void behavior_death(shared_ptr<Unit> attacker, int16_t dmg);
 	void behavior_dead();
 	bool behavior_manaCollector();
 	void behavior_grandMagicGenerator();

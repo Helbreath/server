@@ -117,7 +117,6 @@ void Gate::handle_accept(const boost::system::error_code& e)
 
 
 		shared_ptr<Client> client(new Client());
-		client->self = client;
 		client->socket = (clientsocket);
 		client->address = clientsocket->address;
 		clientsocket->client_ = client;

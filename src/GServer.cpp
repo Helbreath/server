@@ -190,7 +190,7 @@ GServer::GServer(string servername)
 
 	this->servername = servername;
 
-	chathandler = new ChatHandler();
+	chathandler = new ChatHandler(this);
 
 	sqlpool = 0;
 
@@ -275,7 +275,7 @@ bool GServer::Init(string config)
 		Parser parser;
 
 		{
-			ifstream config(configfile.c_str());
+			std::ifstream config(configfile.c_str());
 			Var parsed = parser.parse(config);
 			Var parsedResult = parser.result();
 
@@ -323,7 +323,7 @@ bool GServer::Init(string config)
 		}
 
 		{
-			ifstream config("npc.json");
+			std::ifstream config("npc.json");
 			parser.reset();
 			Var parsed = parser.parse(config);
 			Var parsedResult = parser.result();
@@ -380,7 +380,7 @@ bool GServer::Init(string config)
 		}
 
 		{
-			ifstream config("item.json");
+			std::ifstream config("item.json");
 			parser.reset();
 			Var parsed = parser.parse(config);
 			Var parsedResult = parser.result();
@@ -442,7 +442,7 @@ bool GServer::Init(string config)
 		}
 
 		{
-			ifstream config("magic.json");
+			std::ifstream config("magic.json");
 			parser.reset();
 			Var parsed = parser.parse(config);
 			Var parsedResult = parser.result();
@@ -741,9 +741,7 @@ void GServer::ChatThread()
 					string message = sr.ReadString(msg->size-21);
 					int8_t msgtype = 0;
 
-					Client * client = msg->client.get();
-
-					ParseChat(client, message);
+					chathandler->ParseChat(msg->client, message);
 				}
 				catch (int test)
 				{
@@ -801,10 +799,9 @@ void GServer::TimerThread()
 
 				//send queued packets to players
 				{
-					boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
-					for (auto client : Gate::GetSingleton()->clientlist)
+					shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
+					for (auto client : Gate::GetSingleton().clientlist)
 					{
-						std::lock_guard<std::mutex> lock(client->mutsocket);
 						std::list<StreamWrite> outgoingqueue = client->outgoingqueue;
 						client->outgoingqueue.clear();
 						if (client->socket == nullptr)
@@ -896,7 +893,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 	sX = client->x;
 	sY = client->y;
 
-	bRet = client->map->bSearchTeleportDest(sX, sY, DestMapName, &destx, &desty, &direction);
+	bRet = client->map->bSearchTeleportDest(sX, sY, cMapName, &destx, &desty, &direction);
 
 	if (!bRet && teleportType == 4)
 	{
@@ -920,7 +917,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 
 	SendEventToNearClient_TypeA(client, MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
 
-	iMapSide = iGetMapLocationSide(DestMapName);
+	iMapSide = iGetMapLocationSide(cMapName);
 	if ((client->lockedMapName == "NONE") && (client->lockedMapTime > 0))
 	{
 		uint32_t tmp_mapSide = iMapSide;
@@ -931,7 +928,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 			destx = -1;
 			desty = -1;
 			bIsLockedMapNotify = true;
-			DestMapName = client->lockedMapName;
+			cMapName = client->lockedMapName;
 		}
 	}
 
@@ -941,13 +938,13 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 		client->RemoveMagicEffect(MAGICTYPE_CONFUSE);
 	}
 
-	pmap = GetMap(DestMapName);
+	pmap = GetMap(cMapName);
 	
 	if(bRet)
 	{
 		if(pmap == 0 || (bRet && iMapSide && iMapSide <= 10 && (client->map->factionName == client->faction) != 0 && !client->IsGM() && !client->IsNeutral() ))
 		{
-			DestMapName = client->mapName;
+			cMapName = client->mapName;
 			destx = client->x;
 			desty = client->y;
 			setRecallTime = false;
@@ -958,14 +955,14 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 	{
 		for (auto map : maplist)
 		{
-			if (map->name == DestMapName, 10)
+			if (map->name == cMapName)
 			{
 				client->x   = destx;
 				client->y   = desty;
 				client->direction = direction;
 				client->map = map;
 				client->mapName = map->name;
-				PlayerMapEntry(client->self.lock(), setRecallTime);
+				PlayerMapEntry(client->shared_from_this(), setRecallTime);
 				if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
 				return;
 			}
@@ -997,7 +994,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 					map->GetInitialPoint(&client->x, &client->y, client->faction);
 					client->map = map;
 					client->mapName = map->name;
-					PlayerMapEntry(client->self.lock(), setRecallTime);
+					PlayerMapEntry(client->shared_from_this(), setRecallTime);
 					if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
 					return;
 				}
@@ -1040,7 +1037,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 					client->map->GetInitialPoint(&client->x, &client->y, client->faction);
 					client->x = 50;// dX; //-1;	  			
 					client->y = 50;// dY; //-1;	 
-					PlayerMapEntry(client->self.lock(), setRecallTime);
+					PlayerMapEntry(client->shared_from_this(), setRecallTime);
 					if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
 					return;
 				}
@@ -1051,7 +1048,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 				client->x   = dX; //-1;	  			
 				client->y   = dY; //-1;	  
 
-				PlayerMapEntry(client->self.lock(), setRecallTime);
+				PlayerMapEntry(client->shared_from_this(), setRecallTime);
 				if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
 				return;
 			}
@@ -1070,7 +1067,7 @@ void GServer::RequestTeleportHandler(Client * client, char teleportType, string 
 			break;
 		}
 	}
-	PlayerMapEntry(client->self.lock(), setRecallTime);
+	PlayerMapEntry(client->shared_from_this(), setRecallTime);
 	if (bIsLockedMapNotify == true) SendNotifyMsg(0, client, NOTIFY_LOCKEDMAP, client->lockedMapTime, 0, 0, client->lockedMapName);
 }
 
@@ -1089,7 +1086,7 @@ void GServer::PlayerMapEntry(shared_ptr<Client> client, bool setRecallTime)
 		client->map->bGetEmptyPosition(client->x, client->y, client);
 	else client->map->GetInitialPoint(&client->x, &client->y, client->faction);
 
-	sw.WriteShort(uint16_t(client->handle));
+	sw.WriteInt(uint32_t(client->handle));
 	sw.WriteShort(client->x - 14 - 5);
 	sw.WriteShort(client->y - 12 - 5);
 
@@ -1424,28 +1421,28 @@ void GServer::RequestHuntmode(Client * client)
 	if (client->m_bIsInitComplete == false) return;
 	if (client->mapName.substr(0, 8) == "cityhall") return;
 	
-	if ((client->level > DEF_LIMITHUNTERLEVEL) && (client->m_bIsHunter == false) ) return;
+	if ((client->level > DEF_LIMITHUNTERLEVEL) && (client->civilian == false) ) return;
 
 
 	if (client->faction == "aresden")
 	{
 		client->faction = "arehunter";
-		client->m_bIsHunter = true;
+		client->civilian = true;
 	}
 	else if (client->faction == "elvine") 
 	{
 		client->faction = "elvhunter";
-		client->m_bIsHunter = true;
+		client->civilian = true;
 	}
 	else if (client->faction == "arehunter")
 	{
 		client->faction = "aresden";
-		client->m_bIsHunter = false;
+		client->civilian = false;
 	}	
 	else if (client->faction == "elvhunter")
 	{
 		client->faction = "elvine";
-		client->m_bIsHunter = false;
+		client->civilian = false;
 	}
 
 //	SendNotifyMsg(0, 0, NOTIFY_RESPONSE_HUNTMODE, 0, 0, 0, client->m_cLocation);
@@ -1460,6 +1457,22 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 	StreamWrite sw;
 
 	if (!to) return; // from may not be set.. only like 2 packets in the ENTIRE GAME use it. mostly trade requests. to HAS to be set
+	boost::shared_ptr<Client> lock;
+
+	try
+	{
+		lock = to->shared_from_this();
+	}
+	catch (boost::exception& e)
+	{
+		logger->error("SendNotifyMsg() - to->shared_from_this()");
+		return;
+	}
+	catch (...)
+	{
+		logger->error("SendNotifyMsg() - to->shared_from_this() generic");
+		return;
+	}
 
 	sw.WriteInt(MSGID_NOTIFY);
 	sw.WriteShort(wMsgType);
@@ -1610,7 +1623,7 @@ void GServer::SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint6
 		break;
 
 	case NOTIFY_SP:
-		sw.WriteInt(to->m_iSP);
+		sw.WriteInt(to->stamina);
 		to->SWrite(sw);
 		break;
 
@@ -2991,7 +3004,7 @@ uint8_t GServer::iSetSide(Client * client)
 	
 	client->side = NEUTRAL; 
 	client->m_bIsOnTown = false;
-	client->m_bIsHunter = false;
+	client->civilian = false;
 	client->neutral = false;
 
 	if (client->faction.length() == 0 || client->faction[0] == '\0')
@@ -3017,12 +3030,12 @@ uint8_t GServer::iSetSide(Client * client)
 
 	if (client->faction.substr(3, 6) == "hunter")
 	{
-		client->m_bIsHunter = true;
+		client->civilian = true;
 	}
 
 	if (client->mapName == "bisle")
 	{
-		client->m_bIsHunter = false;
+		client->civilian = false;
 	}
 
 	if (client->faction.substr(0, 3) == "are")
@@ -3157,9 +3170,9 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 			sw.WriteInt(MSGID_PLAYERCHARACTERCONTENTS);
 			sw.WriteShort(MSGTYPE_CONFIRM);
 
-			sw.WriteInt(uint32_t(client->health));//TODO: figure out. use 64 or 32 bit for values client side?
+			sw.WriteInt(uint32_t(client->health));
 			sw.WriteInt(uint32_t(client->mana));
-			sw.WriteInt(uint32_t(client->m_iSP));
+			sw.WriteInt(uint32_t(client->stamina));
 
 			sw.WriteInt(client->m_iDefenseRatio);
 			sw.WriteInt(client->m_iHitRatio);
@@ -3172,14 +3185,17 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 			sw.WriteInt(client->GetMag());
 			sw.WriteInt(client->GetAgi());
 
-			sw.WriteShort(0);//LU_Pool
-			sw.WriteInt(uint32_t(client->experience));//TODO: make 64bit in client? shouldn't matter for a 150 server though
+			sw.WriteShort(client->levelUpPool);
+			sw.WriteInt64(client->experience);
 			sw.WriteInt(client->enemyKillCount);
 			sw.WriteInt(client->playerKillCount);
 			sw.WriteInt(client->m_iRewardGold);
 
-			sw.WriteString(client->faction, 10);//town
-			sw.WriteString(string(""), 20);//guild name
+			sw.WriteString(client->faction, 10);
+			if (client->guild)
+				sw.WriteString(client->guild->name, 20);
+			else
+				sw.WriteString("NONE", 20);
 			sw.WriteInt(client->guildRank);
 			sw.WriteByte(client->superAttack);
 			sw.WriteInt(client->arenaNumber);
@@ -3216,7 +3232,9 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 
 			sw.WriteInt(MSGID_RESPONSE_INITDATA);
 			sw.WriteShort(MSGTYPE_CONFIRM);
-			sw.WriteShort(uint16_t(client->charid));//TODO: needs to be at least 32bit in client based on how we're making use of IDs
+
+			//TODO: will this need to be 64bit? do some mass spawn testing to see if numbers even break 32bit boundaries
+			sw.WriteInt(uint32_t(client->charid));
 
 			//quick explanation. maybe fix to not be so retarded?
 			// X - 19 = "base" coord - client takes this and does + 7 to get far left of screen
@@ -3244,7 +3262,7 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 			sw.WriteString(client->map->factionName, 10);//map location side name
 
 
-			if (client->map->fixedDay == true) //day(1) or night(0)?
+			if (client->map->fixedDay) //day(1) or night(0)?
 				sw.WriteByte(1);
 			else
 				sw.WriteByte(m_cDayOrNight);
@@ -3305,12 +3323,12 @@ void GServer::InitPlayerData(shared_ptr<Client> client)
 		}
 		else if (reason == -193)
 		{
-			logger->error("(position+a > size)");
+			logger->error("GServer: (position+a > size)");
 		}
 	}
 	catch (std::exception& e)
 	{
-		logger->fatal(Poco::format("InitPlayerData() Exception: %s", (string)e.what()));
+		logger->error(Poco::format("InitPlayerData() Exception: %s", (string)e.what()));
 	}
 }
 
@@ -3613,7 +3631,7 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 			return;
 		}
 		{
-			boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+			shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 			for (shared_ptr<Client> client : clientlist)
 			{
 				if ((client->handle != player->handle) && (client->m_bIsInitComplete) && (player->map == client->map)
@@ -3679,7 +3697,7 @@ void GServer::SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t
 
 
 		{
-			boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+			shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 			for (shared_ptr<Client> client : clientlist)
 			{
 				if (/*(client->m_handle != npc->m_handle) && */(client->m_bIsInitComplete) && (npc->map == client->map)
@@ -3728,7 +3746,7 @@ void GServer::SendEventToNearClient_TypeB(uint32_t msgid, uint16_t msgtype, Map 
 
 
 
-	boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
+	shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 	for (shared_ptr<Client> client : clientlist)
 	{
 		if ((client->m_bIsInitComplete) && (client->map == mapIndex)
@@ -3835,7 +3853,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 		sw.WriteInt(MSGID_RESPONSE_MOTION);
 		sw.WriteShort(OBJECTMOTION_REJECT);
 		client->socket->write(sw);
-		return 0;//the 0 return is filler to get this to compile
+		return 0;
 	}
 
 #ifndef NO_MSGSPEEDCHECK
@@ -3846,7 +3864,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 		{			//68059813-68020153=39660
 			if ((dwTime - client->m_dwAttackLAT) < 12) {
 				logger->information(Poco::format("(!) Speed hack suspect(%s) - attack-lat(%?d)", client->name, dwTime - client->m_dwAttackLAT));
-				DeleteClient(client->self.lock(), true, true);
+				DeleteClient(client->shared_from_this(), true, true);
 				return 0;
 			}
 		}
@@ -4014,7 +4032,7 @@ int GServer::iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX
 	}
 
 	maptarget = client->map->GetOwner(dX, dY);
-	if (maptarget == nullptr){ return 0;  std::cout << "Error Client Motion Handler Error code 1" << endl; }
+	if (maptarget == nullptr){ return 0;  std::cout << "Error Client Motion Handler Error code 1" << std::endl; }
 	switch (maptarget->OwnerType())
 	{
 		case OWNERTYPE_PLAYER:
@@ -4233,10 +4251,10 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 		sw.WriteByte(cDir);
 
 		if (bIsRun == true) {
-			if (client->m_iSP > 0) {
+			if (client->stamina > 0) {
 				if (client->m_iTimeLeft_FirmStamina == 0)
 				{
-					client->m_iSP--;
+					client->stamina--;
 					sw.WriteByte(1);
 				}
 				else
@@ -4244,14 +4262,14 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 			}
 			else {
 				if (client->m_iTimeLeft_FirmStamina == 0) {
-					client->m_iSP--;
+					client->stamina--;
 					sw.WriteByte(1);
 				}
 				else
 					sw.WriteByte(0);
 
-				if (client->m_iSP < -10) {
-					client->m_iSP = 0;
+				if (client->stamina < -10) {
+					client->stamina = 0;
 					DeleteClient(client);
 					return 0;
 				}
@@ -4336,7 +4354,33 @@ int GServer::iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, 
 
 int GServer::iClientMotion_Magic_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir)
 {
-	//TODO: like today pls.
+	if ((!client) || (client->IsDead()) || (!client->m_bIsInitComplete)) return 0;
+
+	if ((sX != client->x) || (sY != client->y)) return 2;
+
+	if (!client->map) return 0;
+
+	client->map->IncPlayerActivity(client.get());
+
+	if (client->skillInUse[19])//TODO: which skill was this again?
+	{
+		client->map->ClearOwner(sX, sY);
+		client->map->SetOwner(client, sX, sY);
+	}
+
+	ClearSkillUsingStatus(client.get());
+
+	client->RemoveMagicEffect(MAGICTYPE_INVISIBILITY);
+
+	client->direction = cDir;
+
+	StreamWrite sw;
+
+	sw.WriteInt(MSGID_RESPONSE_MOTION);
+	sw.WriteShort(OBJECTMOTION_CONFIRM);
+
+	client->SWrite(sw);
+
 	return 1;
 }
 
@@ -4549,11 +4593,25 @@ void GServer::ClientCommonHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 	case COMMONTYPE_TOGGLECOMBATMODE:
 		ToggleCombatModeHandler(client);
 		break;
-// 
-// 	case COMMONTYPE_MAGIC:
-// 		if(m_pClientList[iClientH]->m_hasPrecasted || m_pClientList[iClientH]->IsGM())
-// 		PlayerMagicHandler(iClientH, iV1, iV2, (iV3 - 100));
-// 		break;
+
+	case COMMONTYPE_MAGIC:
+	{
+		uint16_t sX = sr.ReadShort();
+		uint16_t sY = sr.ReadShort();
+
+		uint8_t direction = sr.ReadByte();
+
+		int32_t iV1 = sr.ReadInt();
+		int32_t iV2 = sr.ReadInt();
+		int32_t iV3 = sr.ReadInt();
+
+		//string stringmsg = sr.ReadString(30);
+
+		//int32_t iV4 = sr.ReadInt();
+		//if (client->m_hasPrecasted || client->IsGM())
+			PlayerMagicHandler(client, iV1, iV2, (iV3 - 100));
+	}
+		break;
 // 
 // 	case COMMONTYPE_TOGGLESAFEATTACKMODE:
 // 		ToggleSafeAttackModeHandler(iClientH);
@@ -4582,6 +4640,338 @@ void GServer::ClientCommonHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 		logger->error(Poco::format("Unknown common packet received from client - 0x%.2X", (uint32_t)command));
 		break;
 	}
+}
+
+//TODO: fix all those nasty goto's
+int  _tmp_iMCProb[] = { 0, 300, 250, 200, 150, 100, 80, 70, 60, 50, 40 };
+int  _tmp_iMLevelPenalty[] = { 0, 5, 5, 8, 8, 10, 14, 28, 32, 36, 40 };
+void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t dY, int16_t sType, bool bItemEffect, int32_t iV1)
+{
+	short  * sp, sX, sY, sMagicCircle, rx, ry, sRemainItemSprite, sRemainItemSpriteFrame, sLevelMagic;
+	char   * cp, cData[120], cDir, cName[11], cNpcWaypoint[11], cName_Master[11], cNpcName[21], cRemainItemColor;
+	double dV1, dV2, dV3, dV4;
+	int    i, iErr, iRet, ix, iy, iResult, iDiceRes, iNamingValue, iFollowersNum, iEraseReq, weatherBonus;
+	int    tX, tY, iManaCost, iMagicAttr, iItemID;
+	shared_ptr<Unit> owner;
+	Item * pItem;
+	DWORD * dwp;
+	uint64_t dwTime = unixtime();
+	WORD  * wp, wWeaponType;
+
+	weatherBonus = 0;
+
+#ifdef DEF_GUILDWARMODE
+	switch (sType) {
+	case 31:
+	case 40:
+	case 41:
+	case 46:
+	case 54:
+	case 55:
+	case 73:
+		return;
+	}
+#endif
+
+	if (client == nullptr) return;
+	if (!client->m_bIsInitComplete) return;
+
+	if (client->map == nullptr) return;
+
+	if ((dX < 0) || (dX >= client->map->sizeX) ||
+		(dY < 0) || (dY >= client->map->sizeY)) return;
+
+	if ((sType < 0) || (sType >= 100))     return;
+	if (m_pMagicConfigList[sType] == 0) return;
+	if ((bItemEffect == false) && (client->magicMastery[sType] != 1)) return;
+
+	if (client->map->flags.attackEnabled == false) return;
+
+	if (client->itemEquipStatus[EQUIPPOS_RHAND] != -1) {
+		wWeaponType = ((client->m_sAppr2 & 0x0FF0) >> 4);
+		if ((wWeaponType >= 35) && (wWeaponType < 39)) {
+		}
+		else return;
+	}
+
+	if ((client->itemEquipStatus[EQUIPPOS_LHAND] != -1) ||
+		(client->itemEquipStatus[EQUIPPOS_TWOHAND] != -1)) return;
+
+	//if ((dwTime - m_pClientList[iClientH]->m_dwRecentAttackTime) < 100) return; 
+	client->m_dwRecentAttackTime = dwTime;
+	client->m_dwLastActionTime = dwTime;
+
+	sX = client->x;
+	sY = client->y;
+
+	//         1      2     3     4     5	 6     7	 8	  9    10
+	//        300%	250%  200%  150%  100%  80%   70%   60%  50%   40%
+	sMagicCircle = (sType / 10) + 1;
+	if (client->m_cSkillMastery[4] == 0)
+		dV1 = 1.0f;
+	else dV1 = (double)client->m_cSkillMastery[4];
+
+	if (bItemEffect == TRUE) dV1 = (double)100.0f;
+
+	dV2 = (double)(dV1 / 100.0f);
+	dV3 = (double)_tmp_iMCProb[sMagicCircle];
+
+	dV1 = dV2 * dV3;
+	iResult = (int)dV1;
+
+	if (client->GetInt() > 50)
+		iResult += (client->GetInt() - 50) / 2;
+
+	sLevelMagic = (client->level / 10);
+	if (sMagicCircle != sLevelMagic) {
+		if (sMagicCircle > sLevelMagic) {
+			dV1 = (double)(client->level - sLevelMagic * 10);
+			dV2 = (double)abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle];
+			dV3 = (double)abs(sMagicCircle - sLevelMagic) * 10;
+			dV4 = (dV1 / dV3)*dV2;
+
+			iResult -= abs(abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle] - (int)dV4);
+		}
+		else {
+			iResult += 5 * abs(sMagicCircle - sLevelMagic);
+		}
+	}
+
+	switch (client->map->weather) {
+	case 0: break;
+	case 1: iResult = iResult - (iResult / 24); break;
+	case 2:	iResult = iResult - (iResult / 12); break;
+	case 3: iResult = iResult - (iResult / 5);  break;
+	}
+
+	if (client->m_iSpecialWeaponEffectType == 10) {
+		dV1 = (double)iResult;
+		dV2 = (double)(client->m_iSpecialWeaponEffectValue * 3);
+		dV3 = dV1 + dV2;
+		iResult = (int)dV3;
+	}
+
+	if (iResult <= 0) iResult = 1;
+
+	iResult = 100;
+
+	//iWhetherBonus = iGetWhetherMagicBonusEffect(sType, m_pMapList[m_pClientList[iClientH]->m_cMapIndex]->m_cWhetherStatus);
+
+	iManaCost = m_pMagicConfigList[sType]->m_sValue[0];//Value1 ??
+	if ((client->safeAttackMode == true) &&
+		(client->map->flags.fightZone == false)) {
+		iManaCost += (iManaCost / 2) - (iManaCost / 10);
+	}
+
+// 	if (client->m_iManaSaveRatio > 0) {
+// 		dV1 = (double)client->m_iManaSaveRatio;
+// 		dV2 = (double)(dV1 / 100.0f);
+// 		dV3 = (double)iManaCost;
+// 		dV1 = dV2 * dV3;
+// 		dV2 = dV3 - dV1;
+// 		iManaCost = (int)dV2;
+// 		if (iManaCost <= 0) iManaCost = 1;
+// 	}
+
+	if (iResult < 100) {
+		iDiceRes = dice(1, 100);
+		if (iResult < iDiceRes) {
+			SendEventToNearClient_TypeA(client.get(), MSGID_MOTION_DAMAGE, 0, -1, 0);
+			return;
+		}
+	}
+	if (((client->m_iHungerStatus <= 10) || (client->stamina <= 0)) && (dice(1, 1000) <= 100)) {
+		SendEventToNearClient_TypeA(client.get(), MSGID_MOTION_DAMAGE, 0, -1, 0);
+		return;
+	}
+
+	if (client->mana < iManaCost) {
+		return;
+	}
+
+	iResult = client->m_cSkillMastery[4];
+	if (client->GetMag() > 50) iResult += (client->GetMag() - 50);
+
+	sLevelMagic = (client->level / 10);
+	if (sMagicCircle != sLevelMagic) {
+		if (sMagicCircle > sLevelMagic) {
+			dV1 = (double)(client->level - sLevelMagic * 10);
+			dV2 = (double)abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle];
+			dV3 = (double)abs(sMagicCircle - sLevelMagic) * 10;
+			dV4 = (dV1 / dV3)*dV2;
+
+			iResult -= abs(abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle] - (int)dV4);
+		}
+		else {
+			iResult += 5 * abs(sMagicCircle - sLevelMagic);
+		}
+	}
+
+	iResult += client->m_iAddAR;
+
+	if (iResult <= 0) iResult = 1;
+	if (sType >= 80) iResult += 10000;
+
+	if (m_pMagicConfigList[sType]->category == 1) {
+		if (client->map->iGetAttribute(sX, sY, 0x00000005) != 0) return;
+	}
+
+	iMagicAttr = 0;
+	//iMagicAttr = m_pMagicConfigList[sType]->m_iAttribute;
+
+	if ((client->status & 0x10) != 0)	{
+		//SetInvisibilityFlag(iClientH, OWNERTYPE_PLAYER, FALSE);
+
+		//bRemoveFromDelayEventList(iClientH, DEF_OWNERTYPE_PLAYER, DEF_MAGICTYPE_INVISIBILITY);
+		//m_pClientList[iClientH]->m_cMagicEffectStatus[DEF_MAGICTYPE_INVISIBILITY] = NULL;
+	}
+
+	owner = client->map->GetOwner(dX, dY);
+
+	if ((owner != nullptr) && (m_bIsCrusadeMode == FALSE) && (owner->IsPlayer()))
+	{
+		if (((client->civilian == true) ||
+			(((Client*)owner.get())->civilian == true)) && (client->side != owner->side))
+			goto MAGIC_NOEFFECT;
+
+		if ((client->civilian == true) && (((Client*)owner.get())->civilian == false))
+		{
+			switch (m_pMagicConfigList[sType]->magicType) {
+			case MAGICTYPE_SPDOWN_AREA:
+			case MAGICTYPE_SUMMON:
+			case MAGICTYPE_PROTECT:
+			case MAGICTYPE_HOLDOBJECT:
+			case MAGICTYPE_INVISIBILITY:
+			case MAGICTYPE_BERSERK:
+			case MAGICTYPE_POISON:
+			case MAGICTYPE_HPUP_SPOT:
+				goto MAGIC_NOEFFECT;
+			}
+		}
+	}
+
+
+
+	if (m_pMagicConfigList[sType]->delayTime == 0) {
+		switch (m_pMagicConfigList[sType]->magicType) {
+		case MAGICTYPE_POLYMORPH:
+			owner = client->map->GetOwner(dX, dY);
+			if (owner == nullptr) goto MAGIC_NOEFFECT;
+			if (1) { // bCheckResistingMagicSuccess(m_pClientList[iClientH]->m_cDir, sOwnerH, cOwnerType, iResult) == FALSE) {
+				switch (owner->OwnerType()) {
+				case OWNERTYPE_PLAYER:
+				{
+					Client * temp = (Client*)owner.get();
+					if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) goto MAGIC_NOEFFECT;
+					temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = (char)m_pMagicConfigList[sType]->m_sValue[3];//4
+					temp->SetTypeOriginal(temp->Type());
+					temp->SetType(18);
+					SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
+					break;
+				}
+
+				case OWNERTYPE_NPC:
+				{
+					Npc * temp = (Npc*)owner.get();
+					if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) goto MAGIC_NOEFFECT;
+					temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = (char)m_pMagicConfigList[sType]->m_sValue[3];//4
+					temp->SetTypeOriginal(temp->Type());
+					temp->SetType(18);
+					SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
+					break;
+				}
+				}
+
+				RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_POLYMORPH, dwTime + (m_pMagicConfigList[sType]->lastTime * 1000),
+					owner.get(), owner->map, 0, 0, 0, m_pMagicConfigList[sType]->m_sValue[3], 0);//4
+
+				if (owner->IsPlayer())
+					SendNotifyMsg(nullptr, (Client*)owner.get(), NOTIFY_MAGICEFFECTON, MAGICTYPE_POLYMORPH, m_pMagicConfigList[sType]->m_sValue[3], 0, 0);//4
+			}
+			break;
+
+		case MAGICTYPE_DAMAGE_SPOT:
+			owner = client->map->GetOwner(dX, dY);
+			if (owner == nullptr) goto MAGIC_NOEFFECT;
+			if (CheckResistingMagicSuccess(client->direction, owner.get(), iResult) == false)
+				Effect_Damage_Spot(client.get(), owner.get(), m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);//4,5,6
+
+			owner = client->map->GetDeadOwner(dX, dY);//pretend corpse skill check
+			if (owner == nullptr) goto MAGIC_NOEFFECT;
+			if ((owner->IsPlayer()) && (owner->health > 0)) {
+				if (CheckResistingMagicSuccess(client->direction, owner.get(), iResult) == false)
+					Effect_Damage_Spot(client.get(), owner.get(), m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);
+			}
+			break;
+
+		case MAGICTYPE_HPUP_SPOT:
+			owner = client->map->GetOwner(dX, dY);
+			//Effect_HpUp_Spot(client, owner, m_pMagicConfigList[sType]->m_sValue[3], m_pMagicConfigList[sType]->m_sValue[4], m_pMagicConfigList[sType]->m_sValue[5]);
+			break;
+
+		case MAGICTYPE_TELEPORT:
+			owner = client->map->GetOwner(dX, dY);
+
+			switch (m_pMagicConfigList[sType]->m_sValue[3]) {
+			case 1:
+				if ((owner->IsPlayer()) && (client.get() == owner.get())) {
+					//RequestTeleportHandler(client.get(), "1   ");
+					RequestTeleportHandler(client.get(), 1);
+				}
+				break;
+			}
+			break;
+
+		case MAGICTYPE_CREATE:
+			if (client->map->bGetIsMoveAllowedTile(dX, dY) == false)
+				goto MAGIC_NOEFFECT;
+
+			pItem = new Item;
+
+			switch (m_pMagicConfigList[sType]->m_sValue[0]) {//4?
+			case 1:
+				if (dice(1, 2) == 1)
+					iItemID = 99;
+				else iItemID = 98;
+				break;
+			}
+
+			pItem->InitItemAttr(iItemID, m_pItemConfigList);
+
+			pItem->effectType = ITET_ID;
+			pItem->effectV1 = dice(1, 100000);
+			pItem->effectV2 = dice(1, 100000);
+			pItem->effectV3 = unixtime();
+
+			client->map->bSetItem(dX, dY, pItem);
+
+			//_bItemLog(DEF_ITEMLOG_DROP, iClientH, (int)-1, pItem);
+
+			SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, client->map,
+				dX, dY, pItem->spriteID, pItem->spriteFrame, pItem->color); // v1.4 color
+			break;
+
+
+		default:
+			break;
+		}
+	}
+	else {
+
+	}
+
+MAGIC_NOEFFECT:;
+
+	client->mana -= iManaCost;
+	if (client->mana < 0)
+		client->mana = 0;
+
+	CalculateSSN_SkillIndex(client.get(), 4, 1);
+
+	SendNotifyMsg(nullptr, client.get(), NOTIFY_MP, 0, 0, 0);
+
+	SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, client->map,
+		client->x, client->x, dX, dY, (sType + 100), client->Type());
 }
 
 shared_ptr<Client> GServer::GetClient(uint64_t ObjectID)
@@ -5258,7 +5648,6 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 			client->m_cHairStyle = rs.value("hairstyle").convert<uint8_t>();
 			client->colorHair = rs.value("haircolor").convert<uint32_t>();
 			client->colorUnderwear = rs.value("underwear").convert<uint32_t>();
-			client->guildName = rs.value("guildname").convert<string>();
 			string temp = rs.value("magicmastery").convert<string>();
 			for (int i = 0; i < temp.length(); ++i)
 			{
@@ -5280,7 +5669,7 @@ bool GServer::LoadCharacterData(shared_ptr<Client> client)
 			client->guildRank = rs.value("guildrank").convert<int8_t>();
 			client->health = rs.value("hp").convert<uint64_t>();
 			client->mana = rs.value("mp").convert<uint64_t>();
-			client->m_iSP = rs.value("sp").convert<uint64_t>();
+			client->stamina = rs.value("sp").convert<uint64_t>();
 			client->enemyKillCount = rs.value("ek").convert<int32_t>();
 			client->playerKillCount = rs.value("pk").convert<int32_t>();
 			client->level = rs.value("level").convert<uint32_t>();
@@ -5390,7 +5779,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 	if (!client) return;
 
-	Gate::GetSingleton()->mutclientlist.lock();
+	lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 
 	client->socket->stop();
 
@@ -5589,7 +5978,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 			//remove all outstanding messages coming in. client is being removed from server
 			//regardless of what they are trying to do - socket has been closed so no more coming in
 			//TODO: this needs testing. i know you can erase iters mid for loop, but i know there's a trick to it
-			mutchat.lock();
+			lock_guard<mutex> lock(mutchat);
 			for (std::list<shared_ptr<MsgQueueEntry>>::iterator iter = chatpipe.begin(); iter != chatpipe.end();)
 			{
 				if (iter->get()->client == client)
@@ -5598,7 +5987,6 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 				}
 				++iter;
 			}
-			mutchat.unlock();
 
 // 			//savedata
 // 			if(!bSendMsgToLS(MSGID_REQUEST_SAVEPLAYERDATALOGOUT, iClientH, bCountLogout) )
@@ -5613,7 +6001,7 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 		//data not being saved
 		//if anything was performed by the client in game, it should be saved unless
 		//it was something that does not affect theirs or anyone else's data
-		Gate::GetSingleton()->clientlist.remove(client);
+		Gate::GetSingleton().clientlist.remove(client);
 		clientlist.remove(client);
 		// 		if (!client->m_bIsOnServerChange)
 // 		{
@@ -5633,7 +6021,6 @@ void GServer::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 // 	m_pClientList[iClientH] = NULL;
 //
 // 	RemoveClientShortCut(iClientH);
-	Gate::GetSingleton()->mutclientlist.unlock();
 }
 
 bool GServer::bCheckClientAttackFrequency(Client * client)
@@ -5659,7 +6046,7 @@ bool GServer::bCheckClientAttackFrequency(Client * client)
 // 		}
 // 		else if (dwTimeGap < 240) {
 // 			logger->information(Poco::format("(!) Speed hack suspect(%s) - attack(%?d). Disconnected", client->name, dwTimeGap));
-// 			DeleteClient(client->self.lock(), true, true);
+// 			DeleteClient(client->shared_from_this(), true, true);
 // 			return false;
 // 		}
 // #endif
@@ -5688,7 +6075,7 @@ bool GServer::bCheckClientMagicFrequency(Client * client)
 #ifndef NO_MSGSPEEDCHECK_MAGIC
 		if (dwTimeGap < 1200) {
 			logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - magic(%?d). Disconnected", client->name, dwTimeGap));
-			DeleteClient(client->self.lock(), true, true);
+			DeleteClient(client->shared_from_this(), true, true);
 			return false;
 		}
 		else if (dwTimeGap < 1600) {
@@ -5744,7 +6131,7 @@ bool GServer::bCheckClientMoveFrequency(Client * client, bool running)
 				{
 					logger->information(Poco::format("(-~-HACKING-~-) Speed hacker detected(%s) - run-avg(%?d). BI banned", client->name, sum / SPEEDCHECKTURNS));
 
-					DeleteClient(client->self.lock(), true, true);
+					DeleteClient(client->shared_from_this(), true, true);
 					return false;
 				}
 				else if (sum < 230 * SPEEDCHECKTURNS)
@@ -5881,11 +6268,12 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 	if (attacker->IsPlayer())
 	{
 		Client * player = (Client*)attacker;
-		if (!m_bIsCrusadeMode && player->m_bIsHunter && target->IsPlayer()) return;//no damage to civilians outside of crusade (default)
+		if (!m_bIsCrusadeMode && player->civilian && target->IsPlayer()) return;//no damage to civilians outside of crusade (default)
 		//TODO: player damage calculations here
 	}
 	else
 	{
+		//npc
 		//TODO: for sake of testing
 
 	}
@@ -5896,7 +6284,30 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 		if (!player->m_bIsInitComplete) return; //cannot attack players not fully loaded in
 		if (player->_dead) return;
 
-		if (!m_bIsCrusadeMode && player->playerKillCount == 0 && player->m_bIsHunter && attacker->IsPlayer()) return;
+		if (player->status & STATUS_REDSLATE) return;//invincibility
+	
+		//players can only kill a non-hostile during crusade or if they are a criminal
+		if (attacker->IsPlayer())
+		{
+			if (player->playerKillCount == 0)//target is not a criminal
+			{
+				if (!m_bIsCrusadeMode && player->civilian) return;//crusade mode is off and you are a civilian aka protected from PK
+				if (attacker->IsNeutral()) return;//attacker has no town affiliation
+			}
+			if (((Client*)attacker)->safeAttackMode)
+			{
+				int iSideCondition = ((Client*)attacker)->GetPlayerRelationship(player);
+				if (iSideCondition != 7 && iSideCondition != 2 && iSideCondition != 6)
+				{
+					if (attacker->map->flags.fightZone)
+					{
+						if (((Client*)attacker)->guildGUID == player->guildGUID)
+							return;
+					}
+				}
+			}
+			if (player->map->iGetAttribute(target->x, target->y, 0x00000005) != 0) return;
+		}
 
 		ClearSkillUsingStatus(player);
 
@@ -5944,10 +6355,31 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 			break;
 		}*/
 
-		damage -= dice(1, player->m_iVit / 10) - 1;
+		damage -= dice(1, player->GetVit() / 10) - 1;
 		if (damage < 0) damage = 0;
 
 		player->health -= damage;
+
+		if (attacker)
+		{
+			stringstream damagedealt;
+			damagedealt << "You did (" << damage << ") to character (" << player->name << ")";
+			SendNotifyMsg(nullptr, (Client*)attacker, NOTIFY_NOTICEMSG, 0, 0, 0, damagedealt.str());
+		}
+
+		player->m_lastDamageTime = dwtime;
+		if (player->health <= 0)
+		{
+			player->KilledHandler(attacker, damage);
+		}
+		else
+		{
+			if (damage > 0)
+			{
+				SendNotifyMsg(nullptr, player, NOTIFY_HP, 0, 0, 0);
+				SendEventToNearClient_TypeA(player, MSGID_MOTION_DAMAGE, damage, 0, 0);
+			}
+		}
 	}
 	else
 	{
@@ -7083,13 +7515,13 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 					cattacker->Equipped.Arrow->count--;
 					if (cattacker->Equipped.Arrow->count <= 0) {
 
-						ItemDepleteHandler(cattacker->self.lock(), cattacker->Equipped.Arrow, false);
+						ItemDepleteHandler(cattacker->shared_from_this(), cattacker->Equipped.Arrow, false);
 
 						cattacker->Equipped.Arrow = _iGetArrowItemIndex(cattacker);
 					}
 					else {
 						SendNotifyMsg(nullptr, cattacker, NOTIFY_SETITEMCOUNT, cattacker->Equipped.Arrow->m_slot, cattacker->Equipped.Arrow->count, (char)false);
-						iCalcTotalWeight(cattacker->self.lock());
+						iCalcTotalWeight(cattacker->shared_from_this());
 					}
 				}
 				if (cProtect == MAGICPROTECT_PFA) return 0;
@@ -7232,7 +7664,7 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 	if (iResult <= iDestHitRatio) {
 		if (attacker->IsPlayer())
 		{
-			if (((cattacker->m_iHungerStatus <= 10) || (cattacker->m_iSP <= 0)) &&
+			if (((cattacker->m_iHungerStatus <= 10) || (cattacker->stamina <= 0)) &&
 				(dice(1, 10) == 5)) return false;
 
 			cattacker->m_iComboAttackCount++;
@@ -7912,9 +8344,9 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 			if (ntarget->health == 0) {
 				ntarget->health = 0;
 				if (attacker->IsPlayer())
-					target->map->NpcKilledHandler(static_cast<Client*>(attacker)->self.lock(), static_cast<Npc*>(target)->self.lock(), iDamage);
+					target->map->NpcKilledHandler(static_cast<Client*>(attacker)->shared_from_this(), static_cast<Npc*>(target)->shared_from_this(), iDamage);
 				else
-					target->map->NpcKilledHandler(static_cast<Npc*>(attacker)->self.lock(), static_cast<Npc*>(target)->self.lock(), iDamage);
+					target->map->NpcKilledHandler(static_cast<Npc*>(attacker)->shared_from_this(), static_cast<Npc*>(target)->shared_from_this(), iDamage);
 
 				bKilled = true;
 				iKilledDice = static_cast<Npc*>(target)->m_iHitDice;
@@ -8983,7 +9415,7 @@ bool GServer::bAnalyzeCriminalAction(Client * client, short dX, short dY, bool b
 
 			if (guard)
 			{
-				guard->SetTarget(client->self.lock());
+				guard->SetTarget(client->shared_from_this());
 			}
 		}
 	}

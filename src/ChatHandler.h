@@ -18,7 +18,7 @@ public:
 	ChatHandler(GServer * server);
 	~ChatHandler();
 
-	void ChatHandler::ParseChat(Client * client, string message);
+	void ChatHandler::ParseChat(const shared_ptr<Client> & client, string message);
 
 	GServer * server;
 };

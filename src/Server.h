@@ -5,9 +5,6 @@
 #include "connection.h"
 #include "common.h"
 #include "XLogger.h"
-#include <set>
-#include <unordered_map>
-#include <mutex>
 
 #include <lua5.2/lua.hpp>
 #include <lua5.2/lauxlib.h>
@@ -16,14 +13,7 @@
 #include <mysql/mysql.h>
 #endif
 
-#include <boost/thread.hpp>
 #include <boost/asio.hpp>
-#include <boost/noncopyable.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/shared_mutex.hpp>
-#include <boost/thread/shared_lock_guard.hpp>
-#include <boost/algorithm/string.hpp>
-
 
 #include "TeleportLoc.h"
 
@@ -49,14 +39,6 @@ using Poco::Message;
 using Poco::Data::RecordSet;
 using namespace Poco::Data::Keywords;
 
-using boost::unique_lock;
-using boost::shared_lock;
-using boost::shared_mutex;
-using boost::lock;
-using boost::defer_lock;
-using boost::mutex;
-using boost::upgrade_to_unique_lock;
-using boost::upgrade_lock;
 
 class Map;
 class BuildItem;
@@ -79,7 +61,6 @@ class Potion;
 class Mineral;
 class Ini;
 
-using namespace std;
 using namespace Poco::Data;
 
 class Server
@@ -122,11 +103,11 @@ public:
 	// Whether the timer thread is running or not
 	bool TimerThreadRunning;
 
-	std::thread *timerthread;
+	thread timerthread;
 
 	bool ConnectSQL();
 
-	virtual void DeleteClient(std::shared_ptr<Client> client, bool save = true, bool deleteobj = false);
+	virtual void DeleteClient(shared_ptr<Client> client, bool save = true, bool deleteobj = false);
 
 
 	//TODO: dynamic List or static array?
@@ -140,20 +121,20 @@ public:
 	// 
 	// or. use map<>
 	// another way to further decrease access time would be to keep a clientlist in the map class for actions that affect only clients local to the same map
-	std::list<std::shared_ptr<Client>> clientlist;
+	std::list<shared_ptr<Client>> clientlist;
 
 	struct MsgQueueEntry
 	{
-		std::shared_ptr<Client> client;
+		shared_ptr<Client> client;
 		char * data;
 		uint32_t size;
 	};
-	typedef std::list<std::shared_ptr<MsgQueueEntry>> MsgQueue;
+	typedef std::list<shared_ptr<MsgQueueEntry>> MsgQueue;
 	MsgQueue socketpipe;
-	std::mutex mutsocket;
-	void PutMsgQueue(std::shared_ptr<Client> client, MsgQueue & q, char * data, uint32_t size);
-	void PutMsgQueue(std::shared_ptr<MsgQueueEntry>, MsgQueue & q);
-	std::shared_ptr<MsgQueueEntry> GetMsgQueue(MsgQueue & q);
+	mutex mutsocket;
+	void PutMsgQueue(shared_ptr<Client> client, MsgQueue & q, char * data, uint32_t size);
+	void PutMsgQueue(shared_ptr<MsgQueueEntry>, MsgQueue & q);
+	shared_ptr<MsgQueueEntry> GetMsgQueue(MsgQueue & q);
 
 	XLogger * logger;
 };

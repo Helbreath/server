@@ -16,6 +16,8 @@
 #include "Tile.h"
 #include "Misc.h"
 
+using std::endl;
+
 extern char _tmp_cTmpDirX[9];
 extern char _tmp_cTmpDirY[9];
 
@@ -395,7 +397,7 @@ void Npc::behavior_move()
  	if (magicEffectStatus[ MAGICTYPE_HOLDOBJECT ] != 0) return;
 	if ((target != nullptr) && (target->map->name != map->name))
 	{
-		map->RemoveFromTarget(this->self.lock());
+		map->RemoveFromTarget(this->shared_from_this());
 		return;
 	}
  	switch (m_cActionLimit) {
@@ -511,24 +513,24 @@ void Npc::behavior_move()
 
  					if(IsDead())
  					{
-						map->NpcKilledHandler(nullptr, self.lock(), 0);
+						map->NpcKilledHandler(nullptr, shared_from_this(), 0);
  						return;
  					}
 					else
 					{
- 						map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
+ 						map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DAMAGE, dmg, 1, 0);
  					}
  				}
 				//Clear tile and set next tile owner
  				dX = x + _tmp_cTmpDirX[cDir];
  				dY = y + _tmp_cTmpDirY[cDir];
 				map->ClearOwner(x, y);
-				map->SetOwner(this->self.lock(), dX,dY);
+				map->SetOwner(shared_from_this(), dX,dY);
 	
  				x   = dX;
  				y   = dY;
  				direction = cDir;
- 				map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
+ 				map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
  			}
  		}
  	}
@@ -553,18 +555,18 @@ void Npc::behavior_move()
  					//gserver->NpcKilledHandler(NULL, NULL, m_handle, 0);
  					return;
  				} else {
- 					map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_DAMAGE, dmg, 1, 0);
+ 					map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DAMAGE, dmg, 1, 0);
  				}
  			}
  			dX = x + _tmp_cTmpDirX[cDir];
  			dY = y + _tmp_cTmpDirY[cDir];
 			//Clear tile and set next tile owner
 			map->ClearOwner(x, y);
-			map->SetOwner(this->self.lock(), dX, dY);
+			map->SetOwner(shared_from_this(), dX, dY);
  			x   = dX;
  			y   = dY;
  			direction = cDir;
- 			map->gserver->SendEventToNearClient_TypeA(this/*, OWNERTYPE_NPC*/, MSGID_MOTION_MOVE, 0, 0, 0);
+ 			map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_MOVE, 0, 0, 0);
 			
  		}
 	
@@ -648,7 +650,7 @@ void Npc::behavior_flee()
 		dY = this->y + _tmp_cTmpDirY[cDir];
 		this->map->ClearOwner(this->x, this->y);
 
-		this->map->SetOwner(this->self.lock(), dX, dY);
+		this->map->SetOwner(shared_from_this(), dX, dY);
 		this->x = dX;
 		this->y = dY;
 		this->direction = cDir;
@@ -1201,7 +1203,7 @@ void Npc::behavior_attack()
  			dX = x + _tmp_cTmpDirX[cDir];
  			dY = y + _tmp_cTmpDirY[cDir];
  			map->ClearOwner( x, y);
- 			map->SetOwner(this->self.lock(), dX, dY);
+			map->SetOwner(shared_from_this(), dX, dY);
  			x   = dX;
  			y   = dY;
  			direction = cDir;
@@ -1443,7 +1445,7 @@ shared_ptr<Unit> Npc::TargetSearch()
 	{
 	
 		if (owner == nullptr) continue;
- 		if (owner == this->self.lock())
+ 		if (owner == shared_from_this())
  			continue;
 
  		iPKCount = 0;
@@ -2740,7 +2742,7 @@ void Npc::behavior_death(shared_ptr<Unit> attacker, int16_t dmg)
  	{
 		killer = attacker;
 		sAttackerWeapon = ((static_cast<Client*>(attacker.get()))->m_sAppr2 & 0x0FF0) >> 4;
-		map->NpcDeadItemGenerator(attacker, this->self.lock());
+		map->NpcDeadItemGenerator(attacker, shared_from_this());
  	}
 
  	_dead = true;
@@ -2749,9 +2751,9 @@ void Npc::behavior_death(shared_ptr<Unit> attacker, int16_t dmg)
 
  	map->totalAliveObject--;
 
-	map->RemoveFromTarget(this->self.lock(), OWNERTYPE_NPC);
+	map->RemoveFromTarget(shared_from_this(), OWNERTYPE_NPC);
 
-	ReleaseFollowMode(this->self.lock());
+	ReleaseFollowMode(shared_from_this());
 
  	target = 0;
  	targetType  = 0;
@@ -2760,7 +2762,7 @@ void Npc::behavior_death(shared_ptr<Unit> attacker, int16_t dmg)
 
  	map->ClearOwner(x, y);
 
-	map->SetDeadOwner(this->self.lock(), x, y);
+	map->SetDeadOwner(shared_from_this(), x, y);
 
  	m_cBehavior = BEHAVIOR_DEAD;
 
@@ -3043,7 +3045,7 @@ void Npc::behavior_dead()
 	}
 
 	if ((dwTime - timeDead) > timeRegen)
-		map->DeleteNpc(this->self.lock());
+		map->DeleteNpc(shared_from_this());
 }
 uint8_t Npc::GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError)
 {
