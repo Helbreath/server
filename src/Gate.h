@@ -30,7 +30,7 @@ class Gate : public Server
 {
 public:
 	static void CreateInstance() { _instance = new Gate(); }
-	static Gate * GetSingleton() { return _instance; }
+	static Gate & GetSingleton() { return *_instance; }
 	static void DestroyInstance() { delete _instance; }
 
 private:
@@ -101,10 +101,11 @@ public:
 	request_handler request_handler_;
 
 
-	std::thread *socketthread;
+	thread socketthread;
+	mutex mutpacketlist;
 
 	bool InitSockets();
 
-	bool AccountInUse(std::shared_ptr<Client> client);
+	bool AccountInUse(shared_ptr<Client> client);
 };
 
