@@ -8,7 +8,7 @@ class LServer : public Server
 {
 public:
 	static void CreateInstance() { _instance = new LServer(); }
-	static LServer * GetSingleton() { return _instance; }
+	static LServer & GetSingleton() { return *_instance; }
 	static void DestroyInstance() { delete _instance; }
 private:
 	LServer();
@@ -25,8 +25,8 @@ public:
 	// Whether the timer thread is running or not
 	bool TimerThreadRunning;
 
-	std::thread * socketthread;
-	std::thread * runthread;
+	thread socketthread;
+	thread runthread;
 
 	void TimerThread();
 	void SocketThread();
@@ -38,5 +38,10 @@ public:
 
 	typedef Poco::Tuple<string, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint16_t, uint32_t, uint32_t, string> loginsqlcharacter;
 	typedef std::vector<loginsqlcharacter> logincharacterlist;
+
+	void RequestLogin(const shared_ptr<Client> & client, StreamRead & sr);
+	void CreateCharacter(const shared_ptr<Client> & client, StreamRead & sr);
+	void DeleteCharacter(const shared_ptr<Client> & client, StreamRead & sr);
+	void EnterGame(const shared_ptr<Client> & client, StreamRead & sr);
 };
 

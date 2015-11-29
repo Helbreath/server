@@ -100,14 +100,11 @@ void LServer::run()
 		serverstatus = SERVERSTATUS_ONLINE;
 		logger->information("Creating LServer threads.");
 
-		timerthread = new std::thread(std::bind(std::mem_fun(&LServer::TimerThread), this));
-		socketthread = new std::thread(std::bind(std::mem_fun(&LServer::SocketThread), this));
+		timerthread = thread(std::bind(std::mem_fun(&LServer::TimerThread), this));
+		socketthread = thread(std::bind(std::mem_fun(&LServer::SocketThread), this));
 
-		timerthread->join();
-		socketthread->join();
-
-		delete timerthread;
-		delete socketthread;
+		timerthread.join();
+		socketthread.join();
 
 		lua_close(L);
 
@@ -174,7 +171,7 @@ void LServer::TimerThread()
 					{
 						//socket idle for 30 seconds (should never happen unless disconnected)
 						logger->information(Poco::format("Client Timeout! <%s>", client->socket->address));
-						Gate::GetSingleton()->stop(client->socket);
+						Gate::GetSingleton().stop(client->socket);
 						//when to delete client object...... ?
 						//force a ~10 second delay on object deletion to prevent logout hacking/plug pulling/etc? or destroy instantly?
 					}
@@ -242,8 +239,6 @@ void LServer::SocketThread()
 		if (socketpipe.size() > 0)
 		try
 		{
-			Session ses(sqlpool->get());
-
 			shared_ptr<MsgQueueEntry> msg = GetMsgQueue(socketpipe);
 
 			StreamRead sr = StreamRead(msg->data, msg->size);
@@ -252,6 +247,11 @@ void LServer::SocketThread()
 			shared_ptr<Client> client = msg->client;
 
 			uint32_t msgid = sr.ReadInt();
+
+			if (msgid == MSGID_COMMAND_CHECKCONNECTION)
+			{
+				continue;
+			}
 
 			string macaddress = sr.ReadString(12);
 			client->account = sr.ReadString(10);
@@ -264,161 +264,12 @@ void LServer::SocketThread()
 				client->SWrite(sw);
 			}
 			else switch (msgid)
-			{//do everything inline because fuck it
+			{
 			case MSGID_REQUEST_LOGIN:
-				{
-					string worldname = sr.ReadString(30);
-
-					sw.WriteInt(MSGID_RESPONSE_LOG);
-					sw.WriteShort(MSGTYPE_CONFIRM);
-					sw.WriteShort(UPPER_VERSION);
-					sw.WriteShort(LOWER_VERSION);
-					sw.WriteByte(0x01);
-					sw.WriteShort(0);//dates \/
-					sw.WriteShort(0);
-					sw.WriteShort(0);
-					sw.WriteShort(0);
-					sw.WriteShort(0);
-					sw.WriteShort(0);//dates /\
-
-					SendCharList(client, sw);
-					sw.WriteInt(500);
-					sw.WriteInt(500);
-					client->SWrite(sw);
-			}
+				RequestLogin(client, sr);
 				break;
 			case MSGID_REQUEST_CREATENEWCHARACTER:
-				{
-					try
-					{
-						uint16_t strength, vitality, dexterity, intelligence, magic, agility;
-						uint8_t gender, skin, hairstyle, haircolor, underwear;
-
-						string playername, worldname;
-
-						playername = sr.ReadString(10);
-						worldname = sr.ReadString(30);
-
-						worldname = "Xtreme";
-
-						bool test = false;
-						for (const GServer * gs : Gate::GetSingleton()->gameserver)
-						{
-							if (gs->servername == worldname)
-							{
-								test = true;
-								break;
-							}
-						}
-
-						if (!test)
-						{
-							//server doesn't exist
-							sw.WriteInt(MSGID_RESPONSE_LOG);
-							sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
-							client->SWrite(sw);
-							break;
-						}
-
-						uint8_t charcount = 0;
-
-						{
-							Statement select(ses);
-							select << "SELECT COUNT(*) FROM char_database WHERE account_name=? AND servername=?", use(client->account), use(worldname), into(charcount), now;
-
-							if (charcount > 3)
-							{
-								sw.WriteInt(MSGID_RESPONSE_LOG);
-								sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
-								client->SWrite(sw);
-								break;
-							}
-						}
-
-						{
-							Statement select(ses);
-							select << "SELECT COUNT(*) FROM char_database WHERE char_name=? AND servername=?", use(playername), use(worldname), into(charcount), now;
-
-							if (charcount > 0)
-							{
-								sw.WriteInt(MSGID_RESPONSE_LOG);
-								sw.WriteShort(LOGRESMSGTYPE_ALREADYEXISTINGCHARACTER);
-								client->SWrite(sw);
-								break;
-							}
-						}
-
-						gender = sr.ReadByte();
-						skin = sr.ReadByte();
-						hairstyle = sr.ReadByte();
-						haircolor = sr.ReadByte();
-						underwear = sr.ReadByte();
-
-						strength = sr.ReadByte();
-						vitality = sr.ReadByte();
-						dexterity = sr.ReadByte();
-						intelligence = sr.ReadByte();
-						magic = sr.ReadByte();
-						agility = sr.ReadByte();
-
-						if (((strength + vitality + dexterity + intelligence + magic + agility) != 70)
-							|| strength<10 || strength>14 || vitality<10 || vitality>14 || dexterity<10 || dexterity>14
-							|| intelligence<10 || intelligence>14 || magic<10 || magic>14 || agility<10 || agility>14)
-						{
-							sw.WriteInt(MSGID_RESPONSE_LOG);
-							sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
-							client->SWrite(sw);
-							break;
-						}
-						uint32_t appr1;
-						appr1 = (hairstyle << 8) | (haircolor << 4) | underwear;
-						uint16_t HP, MP, SP;
-						HP = (vitality*8)+(strength*2)+(intelligence*2)+8;
-						MP = (magic*3)+(intelligence*2)+2;
-						SP = strength+17;
-
-						{
-							Statement select(ses);
-							select << "INSERT INTO char_database (account_name, servername, char_name, strength, vitality, dexterity, intelligence, magic, agility, appr1, gender, skin, hairstyle, haircolor, underwear, hp, mp, sp) "
-								"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-								use(client->account), use(worldname), use(playername), use(strength), use(vitality), use(dexterity), use(intelligence), use(magic), use(agility), use(appr1), use(gender), use(skin), use(hairstyle), use(haircolor), use(underwear), use(HP), use(MP), use(SP), now;
-						}
-
-						uint64_t insertid = 0;
-						{
-							Statement select(ses);
-							select << "SELECT LAST_INSERT_ID();", into(insertid), now;
-						}
-
-						for(uint8_t s = 0; s < 24; ++s)//24 skills total
-						{
-							if(/*s == 4 ||*/ s == 5 || s == 6 || s == 7 || s == 8 || s == 9 || s == 10 || s == 11 || s == 14 || s == 19 || s == 21)// All attack skills starts at 20%
-							{
-								Statement select(ses);
-								select << "INSERT INTO skill (charid, skillid, skillmastery, skillssn) VALUES (?,?,20,0);", use(insertid), use(s), now;
-							}
-							else if(s == 3 || s == 23) // Magic Res / Poison Res starts at 2%
-							{
-								Statement select(ses);
-								select << "INSERT INTO skill (charid, skillid, skillmastery, skillssn) VALUES (?,?,2,0);", use(insertid), use(s), now;
-							}
-							else// All crafting skills starts at 0% Magic skills starts at 0%
-							{
-								Statement select(ses);
-								select << "INSERT INTO skill (charid, skillid, skillmastery, skillssn) VALUES (?,?,0,0);", use(insertid), use(s), now;
-							}
-						}
-
-						sw.WriteInt(MSGID_RESPONSE_LOG);
-						sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERCREATED);
-						sw.WriteString(playername.c_str(), 10);
-						SendCharList(client, sw);
-						client->SWrite(sw);
-					}
-					SQLCATCH(DeleteClient(client, true));
-
-
-				}
+				CreateCharacter(client, sr);
 				break;
 			case MSGID_REQUEST_CREATENEWACCOUNT:
 			{
@@ -426,60 +277,10 @@ void LServer::SocketThread()
 				sw.WriteInt(MSGID_RESPONSE_LOG);
 				sw.WriteShort(LOGRESMSGTYPE_ALREADYEXISTINGACCOUNT);
 				client->SWrite(sw);
-				client->mutsocket.unlock();
 			}
 				break;
 			case MSGID_REQUEST_DELETECHARACTER:
-			{
-				try
-				{
-					string playername = sr.ReadString(10);
-					string worldname = sr.ReadString(30);
-
-					worldname = "Xtreme";
-
-					uint32_t charid = 0;
-					{
-						Statement select(ses);
-						select << "SELECT charid FROM char_database WHERE account_name=? AND char_name=?", use(client->account), use(playername), into(charid), now;
-					}
-					if (charid == 0)
-					{
-						sw.WriteInt(MSGID_RESPONSE_LOG);
-						sw.WriteShort(LOGRESMSGTYPE_NOTEXISTINGCHARACTER);
-						client->SWrite(sw);
-						break;
-					}
-
-					if (Gate::GetSingleton()->AccountInUse(client))
-					{
-						sw.WriteInt(MSGID_RESPONSE_LOG);
-						sw.WriteShort(ENTERGAMERESTYPE_PLAYING);
-						client->SWrite(sw);
-					}
-					else
-					{
-						{
-							Statement select(ses);
-							select << "DELETE FROM char_database WHERE char_name=? LIMIT 1;", use(playername), now;
-						}
-						{
-							Statement select(ses);
-							select << "DELETE FROM skill WHERE CharID=?;", use(charid), now;
-						}
-						{
-							Statement select(ses);
-							select << "DELETE FROM item WHERE CharID=?;", use(charid), now;
-						}
-						sw.WriteInt(MSGID_RESPONSE_LOG);
-						sw.WriteShort(LOGRESMSGTYPE_CHARACTERDELETED);
-						sw.WriteByte(0x01);
-						SendCharList(client, sw);
-						client->SWrite(sw);
-					}
-				}
-				SQLCATCH(DeleteClient(client, true));
-			}
+				DeleteCharacter(client, sr);
 				break;
 			case MSGID_REQUEST_CHANGEPASSWORD:
 				// cannot be called
@@ -490,236 +291,11 @@ void LServer::SocketThread()
 			}
 				break;
 			case MSGID_REQUEST_ENTERGAME:
-				try
-				{
-					string playername = sr.ReadString(10);
-					uint16_t entertype = sr.ReadShort();
-					string worldname = sr.ReadString(30);
-					string commandline = sr.ReadString(120);
-
-					//client is requesting to disconnect currently connected player
-					if (entertype == ENTERGAMEMSGTYPE_NOENTER_FORCEDISCONN)
-					{
-						//send disconnect to all online servers
-						for (auto gs : Gate::GetSingleton()->gameserver)
-						{
-							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-							sw.WriteShort(ENTERGAMERESTYPE_FORCEDISCONN);
-							client->SWrite(sw);
-
-							//check if client is even in game
-							shared_ptr<Client> clientfound;
-
-							{
-								boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
-								bool accountfound = false;
-								for (shared_ptr<Client> & clnt : gs->clientlist)
-								{
-									if (clnt->account == client->account)
-									{
-										//account found
-										accountfound = true;
-										clientfound = clnt;
-										break;
-									}
-								}
-							}
-
-							//client found? send force disconnect if so
-
-							if (clientfound != nullptr)
-							{
-								clientfound->Notify(nullptr, NOTIFY_FORCEDISCONN);
-							}
-						}
-						break;
-					}
-
-					//worldname = "Xtreme";
-
-					uint8_t charcount = 0;
-
-					Statement select(ses);
-					uint32_t charid = 0;
-					string mapname;
-					select << "SELECT charid,maploc,COUNT(*) FROM char_database WHERE account_name=? AND char_name=? AND servername=?", use(client->account), use(playername), use(worldname), into(charid), into(mapname), into(charcount), now;
-
-					if (charcount == 0)
-					{
-						sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-						sw.WriteShort(ENTERGAMERESTYPE_REJECT);
-						sw.WriteByte(4);
-						client->SWrite(sw);
-					}
-					else
-					{
-						auto getGS = [&client,&worldname](string mapname){
-							//check if world server up
-							for (auto gs : Gate::GetSingleton()->gameserver)
-							{
-								if (gs->worldname == worldname)
-								{
-									for (auto map : gs->maplist)
-									{
-										if (map->name == mapname)
-										{
-											client->map = map;
-											return gs;
-										}
-									}
-								}
-							}
-							return (GServer*)0;
-						};
-						GServer * pgs = getGS(mapname);
-
-
-
-						if (pgs == nullptr)
-						{
-							//server not up?
-							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-							sw.WriteShort(ENTERGAMERESTYPE_REJECT);
-							sw.WriteByte(5);
-							client->SWrite(sw);
-						}
-						else
-						{
-							//server is up
-
-							//check if account or char already logged in
-						
-							//there is a far better way to accomplish this. use this for now, but make it better later? or keep?
-							//can keep track of logged in status via db, will add that eventually anyway
-							//login can keep its own list of matching data to not have to lock the gameserver list - better a slow login internal query than slow game thread
-
-
-							shared_ptr<Client> clientfound;
-
-							bool accountfound = false;
-							{
-								boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton()->mutclientlist);
-								for (shared_ptr<Client> & clnt : pgs->clientlist)
-								{
-									if (clnt->account == client->account)
-									{
-										//BUG: potential bug point if charID == 0 - only occurs on unsuccessful login
-										//account found
-										accountfound = true;
-										if (clnt->charid == charid)
-										{
-											//exact char found
-											clientfound = clnt;
-											break;
-										}
-									}
-								}
-							}
-
-							if (clientfound && clientfound->disconnecttime > 0)
-							{
-								//client has recently disconnected
-								//at this point, can do some fancy swapping of socket and place this current active socket
-								// into the old client object letting them retake control of the disconnected session
-								// - to do that though, it'd need to resend initial data - need a special case in GServer
-								// - to not do the usual map data stuff when init data is sent or risk duplicating client
-								// - objects in mapdata - also needs a case in GServer to not reject another initdata
-								// - from an already connected client (used to be the cause of item duping on Int'l)
-								// - and will need code in place to handle this specific case
-								if (clientfound->socket)
-								{
-									//false alarm of some sort (or other issue) should probably breakpoint this or have some sort
-									//of check if client even still exists. socket should never be set if disconnecttime was set
-									__debugbreak();
-								}
-								else
-								{
-									clientfound->disconnecttime = 0;
-									clientfound->socket = client->socket;
-									clientfound->socket->client_ = clientfound;
-									client->socket.reset();
-
-									//since nothing is technically associated with this client, just remove it from the list to force it to delete
-
-									pgs->clientlist.remove(client);
-
-									client = clientfound;
-
-									if (client->map != nullptr)
-									{
-										client->currentstatus = 2;
-										client->name = playername;
-										//pgs->clientlist.push_back(client);
-										//clientlist.remove(client);
-
-										sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-										sw.WriteShort(ENTERGAMERESTYPE_CONFIRM);
-										sw.WriteString(string("127.0.0.1"), 16);
-										sw.WriteShort(2848);
-										sw.WriteString(worldname, 20);
-										client->SWrite(sw);
-										client->gserver = pgs;
-									}
-									else
-									{
-										sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-										sw.WriteShort(ENTERGAMERESTYPE_REJECT);
-										sw.WriteByte(5);
-										client->SWrite(sw);
-									}
-								}
-							}
-							else if (accountfound)
-							{
-								//account already logged in and not resuming object
-								sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-								sw.WriteShort(ENTERGAMERESTYPE_PLAYING);
-								client->SWrite(sw);
-							}
-							else
-							{
-								if (client->map != nullptr)
-								{
-									client->currentstatus = 2;
-									client->name = playername;
-									pgs->clientlist.push_back(client);
-									clientlist.remove(client);
-									client->gserver = pgs;
-
-									sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-									sw.WriteShort(ENTERGAMERESTYPE_CONFIRM);
-									sw.WriteString(string("127.0.0.1"), 16);
-									sw.WriteShort(2848);
-									sw.WriteString(worldname, 20);
-									client->SWrite(sw);
-								}
-								else
-								{
-									sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-									sw.WriteShort(ENTERGAMERESTYPE_REJECT);
-									sw.WriteByte(3);
-									client->SWrite(sw);
-								}
-							}
-
-
-						}
-					}
-				}
-				SQLCATCH(DeleteClient(client, true))
-				catch(exception & e)
-				{
-					//this should never trigger - future info sake, this is thrown when a lock is attemtped to be obtained when already owning
-					logger->fatal(Poco::format("SocketThread() Exception: %s", string(e.what())));
-					sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
-					sw.WriteShort(ENTERGAMERESTYPE_REJECT);
-					sw.WriteByte(3);
-					client->SWrite(sw);
-				}
+				EnterGame(client, sr);
 				break;
 			default:
 				logger->error(Poco::format("Unknown packet received from client - %X", msgid));
-				DeleteClient(msg->client, true);
+				//DeleteClient(msg->client, true);
 				break;
 			}
 		}
@@ -731,7 +307,7 @@ void LServer::SocketThread()
 			}
 			else if (reason == -193)
 			{
-				logger->error("(position+a > size)");
+				logger->error("LServer: (position+a > size)");
 			}
 		}
 		SQLCATCH(0);
@@ -764,7 +340,7 @@ void LServer::DeleteClient(shared_ptr<Client> client, bool deleteobj)
 {
 	if (!client) return;
 
-	Gate::GetSingleton()->DeleteClient(client, false, deleteobj);
+	Gate::GetSingleton().DeleteClient(client, false, deleteobj);
 }
 
 bool LServer::CheckLogin(shared_ptr<Client> client, string & account, string & pass)
@@ -851,4 +427,447 @@ void LServer::SendCharList(shared_ptr<Client> client, StreamWrite & sw)
 		//need a way to "organize"? outgoing packets
 	}
 	SQLCATCH(DeleteClient(client, true))
+}
+
+void LServer::RequestLogin(const shared_ptr<Client> & client, StreamRead & sr)
+{
+	Session ses(sqlpool->get());
+	StreamWrite sw;
+
+	string worldname = sr.ReadString(30);
+
+	sw.WriteInt(MSGID_RESPONSE_LOG);
+	sw.WriteShort(MSGTYPE_CONFIRM);
+	sw.WriteShort(UPPER_VERSION);
+	sw.WriteShort(LOWER_VERSION);
+	sw.WriteByte(0x01);
+	sw.WriteShort(0);//dates \/
+	sw.WriteShort(0);
+	sw.WriteShort(0);
+	sw.WriteShort(0);
+	sw.WriteShort(0);
+	sw.WriteShort(0);//dates /\
+
+	SendCharList(client, sw);
+	sw.WriteInt(500);
+	sw.WriteInt(500);
+	client->SWrite(sw);
+}
+
+void LServer::CreateCharacter(const shared_ptr<Client> & client, StreamRead & sr)
+{
+	Session ses(sqlpool->get());
+	StreamWrite sw;
+
+	try
+	{
+		uint16_t strength, vitality, dexterity, intelligence, magic, agility;
+		uint8_t gender, skin, hairstyle, haircolor, underwear;
+
+		string playername, worldname;
+
+		playername = sr.ReadString(10);
+		worldname = sr.ReadString(30);
+
+		worldname = "Xtreme";
+
+		bool test = false;
+		for (const GServer * gs : Gate::GetSingleton().gameserver)
+		{
+			if (gs->servername == worldname)
+			{
+				test = true;
+				break;
+			}
+		}
+
+		if (!test)
+		{
+			//server doesn't exist
+			sw.WriteInt(MSGID_RESPONSE_LOG);
+			sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
+			client->SWrite(sw);
+			return;
+		}
+
+		uint8_t charcount = 0;
+
+		{
+			Statement select(ses);
+			select << "SELECT COUNT(*) FROM char_database WHERE account_name=? AND servername=?", use(client->account), use(worldname), into(charcount), now;
+
+			if (charcount > 3)
+			{
+				sw.WriteInt(MSGID_RESPONSE_LOG);
+				sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
+				client->SWrite(sw);
+				return;
+			}
+		}
+
+		{
+			Statement select(ses);
+			select << "SELECT COUNT(*) FROM char_database WHERE char_name=? AND servername=?", use(playername), use(worldname), into(charcount), now;
+
+			if (charcount > 0)
+			{
+				sw.WriteInt(MSGID_RESPONSE_LOG);
+				sw.WriteShort(LOGRESMSGTYPE_ALREADYEXISTINGCHARACTER);
+				client->SWrite(sw);
+				return;
+			}
+		}
+
+		gender = sr.ReadByte();
+		skin = sr.ReadByte();
+		hairstyle = sr.ReadByte();
+		haircolor = sr.ReadByte();
+		underwear = sr.ReadByte();
+
+		strength = sr.ReadByte();
+		vitality = sr.ReadByte();
+		dexterity = sr.ReadByte();
+		intelligence = sr.ReadByte();
+		magic = sr.ReadByte();
+		agility = sr.ReadByte();
+
+		if (((strength + vitality + dexterity + intelligence + magic + agility) != 70)
+			|| strength < 10 || strength>14 || vitality < 10 || vitality>14 || dexterity < 10 || dexterity>14
+			|| intelligence < 10 || intelligence>14 || magic < 10 || magic>14 || agility < 10 || agility>14)
+		{
+			sw.WriteInt(MSGID_RESPONSE_LOG);
+			sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERFAILED);
+			client->SWrite(sw);
+			return;
+		}
+		uint32_t appr1;
+		appr1 = (hairstyle << 8) | (haircolor << 4) | underwear;
+		uint16_t HP, MP, SP;
+		HP = (vitality * 8) + (strength * 2) + (intelligence * 2) + 8;
+		MP = (magic * 3) + (intelligence * 2) + 2;
+		SP = strength + 17;
+
+		{
+			Statement select(ses);
+			select << "INSERT INTO char_database (account_name, servername, char_name, strength, vitality, dexterity, intelligence, magic, agility, appr1, gender, skin, hairstyle, haircolor, underwear, hp, mp, sp) "
+				"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+				use(client->account), use(worldname), use(playername), use(strength), use(vitality), use(dexterity), use(intelligence), use(magic), use(agility), use(appr1), use(gender), use(skin), use(hairstyle), use(haircolor), use(underwear), use(HP), use(MP), use(SP), now;
+		}
+
+		uint64_t insertid = 0;
+		{
+			Statement select(ses);
+			select << "SELECT LAST_INSERT_ID();", into(insertid), now;
+		}
+
+		for (uint8_t s = 0; s < 24; ++s)//24 skills total
+		{
+			if (/*s == 4 ||*/ s == 5 || s == 6 || s == 7 || s == 8 || s == 9 || s == 10 || s == 11 || s == 14 || s == 19 || s == 21)// All attack skills starts at 20%
+			{
+				Statement select(ses);
+				select << "INSERT INTO skill (charid, skillid, skillmastery, skillssn) VALUES (?,?,20,0);", use(insertid), use(s), now;
+			}
+			else if (s == 3 || s == 23) // Magic Res / Poison Res starts at 2%
+			{
+				Statement select(ses);
+				select << "INSERT INTO skill (charid, skillid, skillmastery, skillssn) VALUES (?,?,2,0);", use(insertid), use(s), now;
+			}
+			else// All crafting skills starts at 0% Magic skills starts at 0%
+			{
+				Statement select(ses);
+				select << "INSERT INTO skill (charid, skillid, skillmastery, skillssn) VALUES (?,?,0,0);", use(insertid), use(s), now;
+			}
+		}
+
+		sw.WriteInt(MSGID_RESPONSE_LOG);
+		sw.WriteShort(LOGRESMSGTYPE_NEWCHARACTERCREATED);
+		sw.WriteString(playername.c_str(), 10);
+		SendCharList(client, sw);
+		client->SWrite(sw);
+	}
+	SQLCATCH(DeleteClient(client, true));
+}
+
+void LServer::DeleteCharacter(const shared_ptr<Client> & client, StreamRead & sr)
+{
+	Session ses(sqlpool->get());
+	StreamWrite sw;
+	try
+	{
+		string playername = sr.ReadString(10);
+		string worldname = sr.ReadString(30);
+
+		worldname = "Xtreme";
+
+		uint32_t charid = 0;
+		{
+			Statement select(ses);
+			select << "SELECT charid FROM char_database WHERE account_name=? AND char_name=?", use(client->account), use(playername), into(charid), now;
+		}
+		if (charid == 0)
+		{
+			sw.WriteInt(MSGID_RESPONSE_LOG);
+			sw.WriteShort(LOGRESMSGTYPE_NOTEXISTINGCHARACTER);
+			client->SWrite(sw);
+			return;
+		}
+
+		if (Gate::GetSingleton().AccountInUse(client))
+		{
+			sw.WriteInt(MSGID_RESPONSE_LOG);
+			sw.WriteShort(ENTERGAMERESTYPE_PLAYING);
+			client->SWrite(sw);
+		}
+		else
+		{
+			{
+				Statement select(ses);
+				select << "DELETE FROM char_database WHERE char_name=? LIMIT 1;", use(playername), now;
+			}
+					{
+						Statement select(ses);
+						select << "DELETE FROM skill WHERE CharID=?;", use(charid), now;
+					}
+					{
+						Statement select(ses);
+						select << "DELETE FROM item WHERE CharID=?;", use(charid), now;
+					}
+			sw.WriteInt(MSGID_RESPONSE_LOG);
+			sw.WriteShort(LOGRESMSGTYPE_CHARACTERDELETED);
+			sw.WriteByte(0x01);
+			SendCharList(client, sw);
+			client->SWrite(sw);
+		}
+	}
+	SQLCATCH(DeleteClient(client, true));
+}
+
+void LServer::EnterGame(const shared_ptr<Client> & client, StreamRead & sr)
+{
+	Session ses(sqlpool->get());
+	StreamWrite sw;
+	try
+	{
+		string playername = sr.ReadString(10);
+		uint16_t entertype = sr.ReadShort();
+		string worldname = sr.ReadString(30);
+		string commandline = sr.ReadString(120);
+
+		//client is requesting to disconnect currently connected player
+		if (entertype == ENTERGAMEMSGTYPE_NOENTER_FORCEDISCONN)
+		{
+			//send disconnect to all online servers
+			for (auto gs : Gate::GetSingleton().gameserver)
+			{
+				sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+				sw.WriteShort(ENTERGAMERESTYPE_FORCEDISCONN);
+				client->SWrite(sw);
+
+				//check if client is even in game
+				shared_ptr<Client> clientfound;
+
+				{
+					boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton().mutclientlist);
+					bool accountfound = false;
+					for (shared_ptr<Client> & clnt : gs->clientlist)
+					{
+						if (clnt->account == client->account)
+						{
+							//account found
+							accountfound = true;
+							clientfound = clnt;
+							break;
+						}
+					}
+				}
+
+				//client found? send force disconnect if so
+
+				if (clientfound != nullptr)
+				{
+					clientfound->Notify(nullptr, NOTIFY_FORCEDISCONN);
+				}
+			}
+			return;
+		}
+
+		worldname = "Xtreme";
+
+		uint8_t charcount = 0;
+
+		Statement select(ses);
+		uint32_t charid = 0;
+		string mapname;
+		select << "SELECT charid,maploc,COUNT(*) FROM char_database WHERE account_name=? AND char_name=? AND servername=?", use(client->account), use(playername), use(worldname), into(charid), into(mapname), into(charcount), now;
+
+		if (charcount == 0)
+		{
+			sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+			sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+			sw.WriteByte(4);
+			client->SWrite(sw);
+		}
+		else
+		{
+			auto getGS = [&client, &worldname](string mapname){
+				//check if world server up
+				for (auto gs : Gate::GetSingleton().gameserver)
+				{
+					if (gs->worldname == worldname)
+					{
+						for (auto map : gs->maplist)
+						{
+							if (map->name == mapname)
+							{
+								client->map = map;
+								return gs;
+							}
+						}
+					}
+				}
+				return (GServer*)0;
+			};
+			GServer * pgs = getGS(mapname);
+
+
+
+			if (pgs == nullptr)
+			{
+				//server not up?
+				sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+				sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+				sw.WriteByte(5);
+				client->SWrite(sw);
+			}
+			else
+			{
+				//server is up
+
+				//check if account or char already logged in
+
+				//there is a far better way to accomplish this. use this for now, but make it better later? or keep?
+				//can keep track of logged in status via db, will add that eventually anyway
+				//login can keep its own list of matching data to not have to lock the gameserver list - better a slow login internal query than slow game thread
+
+
+				shared_ptr<Client> clientfound;
+
+				bool accountfound = false;
+				{
+					boost::shared_lock_guard<boost::shared_mutex> lock(Gate::GetSingleton().mutclientlist);
+					for (shared_ptr<Client> & clnt : pgs->clientlist)
+					{
+						if (clnt->account == client->account)
+						{
+							//BUG: potential bug point if charID == 0 - only occurs on unsuccessful login
+							//account found
+							accountfound = true;
+							if (clnt->charid == charid)
+							{
+								//exact char found
+								clientfound = clnt;
+								break;
+							}
+						}
+					}
+				}
+
+				if (clientfound && clientfound->disconnecttime > 0)
+				{
+					//client has recently disconnected
+					//at this point, can do some fancy swapping of socket and place this current active socket
+					// into the old client object letting them retake control of the disconnected session
+					// - to do that though, it'd need to resend initial data - need a special case in GServer
+					// - to not do the usual map data stuff when init data is sent or risk duplicating client
+					// - objects in mapdata - also needs a case in GServer to not reject another initdata
+					// - from an already connected client (used to be the cause of item duping on Int'l)
+					// - and will need code in place to handle this specific case
+					if (clientfound->socket)
+					{
+						//false alarm of some sort (or other issue) should probably breakpoint this or have some sort
+						//of check if client even still exists. socket should never be set if disconnecttime was set
+						__debugbreak();
+					}
+					else
+					{
+						clientfound->disconnecttime = 0;
+						clientfound->socket = client->socket;
+						clientfound->socket->client_ = clientfound;
+						client->socket.reset();
+
+						//since nothing is technically associated with this client, just remove it from the list to force it to delete
+
+						pgs->clientlist.remove(client);
+
+						if (clientfound->map != nullptr)
+						{
+							clientfound->currentstatus = 2;
+							clientfound->name = playername;
+							//pgs->clientlist.push_back(client);
+							//clientlist.remove(client);
+
+							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+							sw.WriteShort(ENTERGAMERESTYPE_CONFIRM);
+							sw.WriteString(string("127.0.0.1"), 16);
+							sw.WriteShort(2848);
+							sw.WriteString(worldname, 20);
+							clientfound->SWrite(sw);
+							clientfound->gserver = pgs;
+						}
+						else
+						{
+							sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+							sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+							sw.WriteByte(5);
+							clientfound->SWrite(sw);
+						}
+					}
+				}
+				else if (accountfound)
+				{
+					//account already logged in and not resuming object
+					sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+					sw.WriteShort(ENTERGAMERESTYPE_PLAYING);
+					client->SWrite(sw);
+				}
+				else
+				{
+					if (client->map != nullptr)
+					{
+						client->currentstatus = 2;
+						client->name = playername;
+						pgs->clientlist.push_back(client);
+						clientlist.remove(client);
+						client->gserver = pgs;
+
+						sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+						sw.WriteShort(ENTERGAMERESTYPE_CONFIRM);
+						sw.WriteString(string("127.0.0.1"), 16);
+						sw.WriteShort(2848);
+						sw.WriteString(worldname, 20);
+						client->SWrite(sw);
+					}
+					else
+					{
+						sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+						sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+						sw.WriteByte(3);
+						client->SWrite(sw);
+					}
+				}
+
+
+			}
+		}
+	}
+	SQLCATCH(DeleteClient(client, true))
+		catch (exception & e)
+	{
+		//this should never trigger - future info sake, this is thrown when a lock is attempted to be obtained when already owning
+		logger->fatal(Poco::format("SocketThread() Exception: %s", string(e.what())));
+		sw.WriteInt(MSGID_RESPONSE_ENTERGAME);
+		sw.WriteShort(ENTERGAMERESTYPE_REJECT);
+		sw.WriteByte(3);
+		client->SWrite(sw);
+	}
 }

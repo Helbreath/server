@@ -152,7 +152,7 @@ void Gate::handle_stop()
 	// operations. Once all operations have finished the io_service::run() call
 	// will exit.
 	serverstatus = SERVERSTATUS_SHUTDOWN;
-	LServer::GetSingleton()->serverstatus = SERVERSTATUS_SHUTDOWN;
+	LServer::GetSingleton().serverstatus = SERVERSTATUS_SHUTDOWN;
 	for (GServer * server : gameserver)
 	{
 		server->serverstatus = SERVERSTATUS_SHUTDOWN;
