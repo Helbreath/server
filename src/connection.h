@@ -4,6 +4,7 @@
 #define MAXPACKETSIZE 2048
 
 #include <boost/asio.hpp>
+#include <boost/thread/mutex.hpp>
 #include <boost/array.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
@@ -13,6 +14,11 @@
 #include "request.h"
 #include "request_handler.h"
 
+using boost::mutex;
+using boost::shared_ptr;
+using boost::weak_ptr;
+using std::string;
+
 class Gate;
 class GServer;
 class LServer;
@@ -20,14 +26,11 @@ class Server;
 class Client;
 
 /// Represents a single connection from a client.
-class connection
-	: public boost::enable_shared_from_this<connection>,
-	private boost::noncopyable
+class connection : public boost::enable_shared_from_this<connection>, private boost::noncopyable
 {
 public:
 	/// Construct a connection with the given io_service.
-	explicit connection(boost::asio::io_service& io_service,
-		Gate & gserver, request_handler& handler);
+	explicit connection(boost::asio::io_service& io_service, Gate & gserver, request_handler& handler);
 
 	/// Get the socket associated with the connection.
 	boost::asio::ip::tcp::socket& socket();
@@ -38,7 +41,7 @@ public:
 	/// Stop all asynchronous operations associated with the connection.
 	void stop();
 
-	void write(const char * data, const uint64_t size);
+	//void write(const char * data, const uint64_t size);
 	void write(StreamWrite & sw);
 
 private:
@@ -70,9 +73,11 @@ private:
 public:
 	uint64_t uid;
 
-	std::weak_ptr<Client> client_;
+	weak_ptr<Client> client_;
 
-	std::string address;
+	string address;
+
+	mutex mtx;
 };
 
 typedef boost::shared_ptr<connection> connection_ptr;

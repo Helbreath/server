@@ -3,7 +3,6 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "Skill.h"
-#include "funcs.h"
 
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -11,7 +10,7 @@
 
 Skill::Skill()
 {
-	memset(m_cName, 0, sizeof(m_cName));
+	//memset(m_cName, 0, sizeof(m_cName));
 }
 
 Skill::~Skill()

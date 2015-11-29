@@ -1,6 +1,5 @@
 
-#include "funcs.h"
-#include <sys/timeb.h>
+#include "common.h"
 
 #ifndef WIN32
 

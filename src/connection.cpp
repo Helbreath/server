@@ -54,139 +54,165 @@ void connection::start()
 void connection::stop()
 {
 	shared_ptr<Client> client = client_.lock();
-	std::lock_guard<std::mutex> lock(client->mutsocket);
-	//TODO: find out where client is emptied improperly - temp "fix" (likely involving DeleteClient via invalid DB access)
-	if (client == nullptr)
-		return;
-	client->disconnecttime = unixtime();
-	socket_.close();
-	client->socket.reset();
-	if (client->handle > 0)
+	if (!client_.expired() && client)
 	{
-		server.currentplayersonline--;
-		server.logger->information(Poco::format("Client disconnected: %s", client->name));
+		lock_guard<mutex> lock(mtx);
+
+		client->disconnecttime = unixtime();
+		client->socket.reset();
+		if (client->handle > 0)
+		{
+			server.currentplayersonline--;
+			server.logger->information(Poco::format("Client disconnected: %s", client->name));
+		}
+		//TODO: record last online time
 	}
-	//TODO: record last online time
+	socket_.close();
 	server.currentconnections--;
 }
 
-void connection::write(const char * data, const uint64_t size)
-{
-    char ckey[1] = {0};
-	char csize[2];
-	try {
-	    uint16_t tsize = uint16_t(size) + 3;
-		*(int16_t*)csize = tsize;
-		boost::asio::write(socket_, boost::asio::buffer(ckey, 1));
-		boost::asio::write(socket_, boost::asio::buffer(csize, 2));
-		boost::asio::write(socket_, boost::asio::buffer(data, size));
-	}
-	catch (std::exception& e)
-	{
-		server.logger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
-	}
-}
+// void connection::write(const char * data, const uint64_t size)
+// {
+// 	shared_ptr<Client> client = client_.lock();
+// 	std::lock_guard<std::mutex> lock(client->mutsocket);
+// 	char ckey[1] = { 0 };
+// 	char csize[2];
+// 	try {
+// 	    uint16_t tsize = uint16_t(size) + 3;
+// 		*(int16_t*)csize = tsize;
+// 		boost::asio::write(socket_, boost::asio::buffer(ckey, 1));
+// 		boost::asio::write(socket_, boost::asio::buffer(csize, 2));
+// 		boost::asio::write(socket_, boost::asio::buffer(data, size));
+// 	}
+// 	catch (std::exception& e)
+// 	{
+// 		server.logger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
+// 	}
+// }
 
 void connection::write(StreamWrite & sw)
 {
-	char ckey[1] = {0};
-	char csize[2];
-	try {
-		uint16_t tsize = uint16_t(sw.size) + 3;
-		*(int16_t*)csize = tsize;
-		boost::asio::write(socket_, boost::asio::buffer(ckey, 1));
-		boost::asio::write(socket_, boost::asio::buffer(csize, 2));
-		boost::asio::write(socket_, boost::asio::buffer(sw.data, sw.size));
-	}
-	catch (std::exception& e)
+	shared_ptr<Client> client = client_.lock();
+	if (!client_.expired() && client)
 	{
-		server.logger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
+		char ckey[1] = { 0 };
+		char csize[2];
+		try {
+			lock_guard<mutex> lock(mtx);
+			uint16_t tsize = uint16_t(sw.size) + 3;
+			*(int16_t*)csize = tsize;
+			std::array<boost::asio::const_buffer, 3> buffers = {
+				boost::asio::buffer(ckey, 1),
+				boost::asio::buffer(csize, 2),
+				boost::asio::buffer(sw.data, sw.size)
+			};
+			boost::asio::write(socket_, buffers);
+		}
+		catch (std::exception& e)
+		{
+			server.logger->error(Poco::format("asio::write_some() exception: %s", (string)e.what()));
+		}
 	}
 }
 
-void connection::handle_read_header(const boost::system::error_code& e,
-									std::size_t bytes_transferred)
+void connection::handle_read_header(const boost::system::error_code& e, std::size_t bytes_transferred)
 {
-	if (!e)
+	shared_ptr<Client> client = client_.lock();
+	if (!client_.expired() && client)
 	{
-		if (bytes_transferred == 3)
+		//server.logger->debug(Poco::format("bytes_transferred head: %?d", bytes_transferred));
+		if (!e)
 		{
-			//TODO: helbreath's ghetto xor key needs to go. first bytes = size or gtfo
-			size = *(int16_t*)(((char*)buffer_.data())+1);
-			if (size > 2048)//temporary set size .. shouldn't really be more than this anyway
+			lock_guard<mutex> lock(mtx);
+			if (bytes_transferred == 3)
 			{
+				//TODO: helbreath's ghetto xor key needs to go. first bytes = size or gtfo
+				size = *(int16_t*)(((char*)buffer_.data()) + 1);
+				if (size > MAXPACKETSIZE)//temporary set size .. shouldn't really be more than this anyway
+				{
+					server.logger->error(Poco::format("Invalid packet size : %?d", size));
+					server.stop(shared_from_this());
+					return;
+				}
+				boost::asio::async_read(socket_, boost::asio::buffer(buffer_, size - 3), boost::bind(&connection::handle_read, shared_from_this(),
+					boost::asio::placeholders::error,
+					boost::asio::placeholders::bytes_transferred));
+			}
+		}
+		else if (e != boost::asio::error::operation_aborted)
+		{
+			server.stop(shared_from_this());
+			return;
+		}
+	}
+}
+
+void connection::handle_read(const boost::system::error_code& e, std::size_t bytes_transferred)
+{
+	shared_ptr<Client> client = client_.lock();
+	if (!client_.expired() && client)
+	{
+		//server.logger->debug(Poco::format("bytes_transferred body: %?d - expected: %?d", bytes_transferred, size));
+		if (!e)
+		{
+			lock_guard<mutex> lock(mtx);
+			if (bytes_transferred != size - 3)
+			{
+				server.logger->error(Poco::format("Did not receive proper amount of bytes : rcv: %?d needed: %?d", bytes_transferred, size));
+				server.stop(shared_from_this());
+				return;
+			}
+			//printf("uid("XI64")\n", uid);
+			// read object size
+			if ((size > MAXPACKETSIZE) || (size <= 0))
+			{
+				//ERROR - object too large - close connection
 				server.logger->error(Poco::format("Invalid packet size : %?d", size));
 				server.stop(shared_from_this());
 				return;
 			}
-			boost::asio::async_read(socket_, boost::asio::buffer(buffer_, size-3), boost::bind(&connection::handle_read, shared_from_this(),
+
+			// parse packet
+			request_.size = size;
+			request_.data = buffer_.data();
+			request_.connection = this;
+			try {
+				request_handler_.handle_request(request_);
+			}
+			catch (std::exception& e)
+			{
+				server.logger->error(Poco::format("handle_request() exception: ", e.what()));
+			}
+
+			boost::asio::async_read(socket_, boost::asio::buffer(buffer_, 3), boost::bind(&connection::handle_read_header, shared_from_this(),
 				boost::asio::placeholders::error,
 				boost::asio::placeholders::bytes_transferred));
 		}
-	}
-	else if (e != boost::asio::error::operation_aborted)
-	{
-		server.stop(shared_from_this());
-		return;
-	}
-
-}
-
-void connection::handle_read(const boost::system::error_code& e,
-							 std::size_t bytes_transferred)
-{
-	if (!e)
-	{
-		if (bytes_transferred != size-3)
+		else if (e != boost::asio::error::operation_aborted)
 		{
-			server.logger->error(Poco::format("Did not receive proper amount of bytes : rcv: %?d needed: %?d", bytes_transferred, size));
 			server.stop(shared_from_this());
 			return;
 		}
-		//printf("uid("XI64")\n", uid);
-		// read object size
-		if ((size > MAXPACKETSIZE) || (size <= 0))
-		{
-			//ERROR - object too large - close connection
-			server.logger->error(Poco::format("Invalid packet size : %?d", size));
-			server.stop(shared_from_this());
-			return;
-		}
-
-		// parse packet
-		request_.size = size;
-		request_.data = buffer_.data();
-		request_.connection = this;
-		try {
-			request_handler_.handle_request(request_);
-		}
-		catch (std::exception& e)
-		{
-			server.logger->error(Poco::format("handle_request() exception: ", e.what()));
-		}
-
-		boost::asio::async_read(socket_, boost::asio::buffer(buffer_, 3), boost::bind(&connection::handle_read_header, shared_from_this(),
-			boost::asio::placeholders::error,
-			boost::asio::placeholders::bytes_transferred));
-	}
-	else if (e != boost::asio::error::operation_aborted)
-	{
-		server.stop(shared_from_this());
-		return;
 	}
 }
 
+//unused for now
 void connection::handle_write(const boost::system::error_code& e)
 {
-	if (!e)
+	shared_ptr<Client> client = client_.lock();
+	if (!client_.expired() && client)
 	{
-		// 		// Initiate graceful connection closure.
-		// 		asio::error_code ignored_ec;
-		// 		socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored_ec);
-	}
+		if (!e)
+		{
+			lock_guard<mutex> lock(mtx);
+			// 		// Initiate graceful connection closure.
+			// 		asio::error_code ignored_ec;
+			// 		socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored_ec);
+		}
 
-	if (e != boost::asio::error::operation_aborted)
-	{
-		server.stop(shared_from_this());
+		if (e != boost::asio::error::operation_aborted)
+		{
+			server.stop(shared_from_this());
+		}
 	}
 }
