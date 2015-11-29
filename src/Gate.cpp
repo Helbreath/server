@@ -47,6 +47,8 @@ Gate::~Gate()
 {
 	for (GServer * server : gameserver)
 	{
+		if (!server)
+			continue;
 		server->runthread->join();
 		delete server;
 	}
@@ -65,26 +67,23 @@ void Gate::run()
 
 
 		// Create a pool of threads to run all of the io_services.
-		std::vector<boost::shared_ptr<boost::thread> > threads;
+		std::vector<shared_ptr<boost::thread> > threads;
 		for (std::size_t i = 0; i < thread_pool_size_; ++i)
 		{
 			boost::shared_ptr<boost::thread> thread(new boost::thread(boost::bind(&boost::asio::io_service::run, &io_service_)));
 			threads.push_back(thread);
 		}
 
-		socketthread = new std::thread(std::bind(std::mem_fun(&Gate::SocketThread), this));
-		timerthread = new std::thread(std::bind(std::mem_fun(&Gate::TimerThread), this));
+		socketthread = thread(std::bind(std::mem_fun(&Gate::SocketThread), this));
+		timerthread = thread(std::bind(std::mem_fun(&Gate::TimerThread), this));
 
 		// Wait for all threads in the pool to exit.
 		for (std::size_t i = 0; i < threads.size(); ++i)
 			threads[i]->join();
 		//io_service_.run();
 
-		socketthread->join();
-		timerthread->join();
-
-		delete socketthread;
-		delete timerthread;
+		socketthread.join();
+		timerthread.join();
 
 		lua_close(L);
 
@@ -216,7 +215,7 @@ void Gate::stop(connection_ptr c)
 
 void Gate::stop_all()
 {
-	for (boost::shared_ptr<connection> c : connections_)
+	for (shared_ptr<connection> c : connections_)
 	{
 		c->stop();
 	}
@@ -239,7 +238,7 @@ bool Gate::Init(string config)
 		using Poco::JSON::Array;
 
 		Parser * parser = new Parser();
-		ifstream config(configfile.c_str());
+		std::ifstream config(configfile.c_str());
 		Var parsed = parser->parse(config);
 		Var parsedResult = parser->result();
 
@@ -291,13 +290,13 @@ bool Gate::Init(string config)
 		}
 
 		LServer::CreateInstance();
-		LServer::GetSingleton()->logger = XLogger::GetSingleton();
-		LServer::GetSingleton()->Init("loginserver.lua");
-		LServer::GetSingleton()->runthread = new std::thread(std::bind(std::mem_fun(&LServer::run), LServer::GetSingleton()));
+		LServer::GetSingleton().logger = XLogger::GetSingleton();
+		LServer::GetSingleton().Init("loginserver.lua");
+		LServer::GetSingleton().runthread = thread(std::bind(std::mem_fun(&LServer::run), &LServer::GetSingleton()));
 
 		return true;
 	}
-	catch (std::exception& e)
+	catch (exception& e)
 	{
 		logger->fatal(Poco::format("Init() Exception: %s", (string)e.what()));
 		return false;
@@ -361,7 +360,7 @@ bool Gate::InitSockets()
 		try {
 			acceptor_.bind(endpoint);
 		}
-		catch (std::exception& e)
+		catch (std::exception&)
 		{
 			throw std::runtime_error("Invalid bind address or port already in use! Exiting.");
 		}
@@ -400,6 +399,7 @@ void Gate::SocketThread()
 	{
 	    if (socketpipe.size() > 0)
         {
+			lock_guard<mutex> lock(Gate::GetSingleton().mutpacketlist);
 			shared_ptr<MsgQueueEntry> msg = GetMsgQueue(socketpipe);
 
 			StreamRead sr = StreamRead(msg->data, msg->size);
@@ -412,7 +412,7 @@ void Gate::SocketThread()
 
 			if (client->currentstatus == 1)
 			{
-				LServer::GetSingleton()->PutMsgQueue(msg, LServer::GetSingleton()->socketpipe);
+				LServer::GetSingleton().PutMsgQueue(msg, LServer::GetSingleton().socketpipe);
 			}
 			else if (client->currentstatus == 2)
 			{
@@ -420,12 +420,12 @@ void Gate::SocketThread()
 				{
 					if (msgid == MSGID_COMMAND_CHATMSG || msgid == MSGID_COMMAND_CHECKCONNECTION)
 					{
-						lock_guard<std::mutex> lock(client->gserver->mutchat);
+						lock_guard<mutex> lock(client->gserver->mutchat);
 						client->gserver->PutMsgQueue(msg, client->gserver->chatpipe);
 					}
 					else
 					{
-						lock_guard<std::mutex> lock(client->map->mutaction);
+						lock_guard<mutex> lock(client->map->mutaction);
 						client->gserver->PutMsgQueue(msg, msg->client->map->actionpipe);
 					}
 				}
@@ -474,6 +474,8 @@ void Gate::TimerThread()
 		{
 			ltime = ltime = unixtime();
 
+			//for ()
+
 			if (t100msectimer < ltime)
 			{
 				t100msectimer += 100;
@@ -481,29 +483,33 @@ void Gate::TimerThread()
 			if (t1sectimer < ltime)
 			{
 				t1sectimer += 1000;
-				mutclientlist.lock_upgrade();
-				for (std::list<shared_ptr<Client>>::iterator iter = clientlist.begin(); iter != clientlist.end();)
+
+				std::list<shared_ptr<Client>> templist = clientlist;
+				for (shared_ptr<Client> clnt : templist)
 				{
-					shared_ptr<Client> clnt = (*iter);
-					Client * client = (*iter).get();
+					Client * client = clnt.get();
 					//check clients for disconnections that need deleting
 					if (client->disconnecttime != 0 && /*(*iter)->currentstatus == 2 &&*/ client->disconnecttime + 10000 < ltime)
 					{
 						//client persists for 10 seconds
 						logger->information(Poco::format("Client Object Deletion! <%s>", client->address));
-						if (client->currentstatus == 2)
 						{
-							DeleteClient(clnt, true, true);//in game
+							shared_lock_guard<shared_mutex> lock(mutclientlist);
+							if (client->currentstatus == 2)
+							{
+								DeleteClient(clnt, true, true);//in game
+							}
+							else
+							{
+								DeleteClient(clnt, false, true);
+							}
 						}
-						else
 						{
-							DeleteClient(clnt, false, true);
+							lock_guard<shared_mutex> lock(mutclientlist);
+							clientlist.remove(clnt);
+							if (client->gserver)
+								client->gserver->clientlist.remove(clnt);
 						}
-						mutclientlist.unlock_upgrade_and_lock();
-						iter = clientlist.erase(iter);
-						if (client->gserver)
-							client->gserver->clientlist.remove(clnt);
-						mutclientlist.unlock_and_lock_upgrade();
 						continue;
 					}
 
@@ -512,9 +518,7 @@ void Gate::TimerThread()
 					{
 						logger->information(Poco::format("Client Char Select Timeout! <%s>", client->address));
 						DeleteClient(clnt, false, true);
-						mutclientlist.unlock_upgrade_and_lock();
-						iter = clientlist.erase(iter);
-						mutclientlist.unlock_and_lock_upgrade();
+						clientlist.remove(clnt);
 						continue;
 					}
 
@@ -529,9 +533,7 @@ void Gate::TimerThread()
 // 						mutclientlist.unlock_and_lock_upgrade();
 // 						continue;
 // 					}
-					++iter;
 				}
-				mutclientlist.unlock_upgrade();
 			}
 			if (t5sectimer < ltime)
 			{
@@ -603,9 +605,8 @@ void Gate::DeleteClient(shared_ptr<Client> client, bool save, bool deleteobj)
 
 	if (client->socket)
 	{
-		client->mutsocket.lock();
+		//lock_guard<mutex> lock(client->socket->mtx);
 		stop(client->socket);
-		client->mutsocket.unlock();
 	}
 	client->currentstatus = 0;
 	client->disconnecttime = unixtime();

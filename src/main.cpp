@@ -61,20 +61,20 @@ int main(int argc, char * argv[])
 	
 
 	//Initialize server and load config files
-	if (!Gate::GetSingleton()->Init("config.json")) { Gate::DestroyInstance(); X_PAUSE; return 0; }
+	if (!Gate::GetSingleton().Init("config.json")) { Gate::DestroyInstance(); X_PAUSE; return 0; }
 
 	//Connect to SQL server
-	if (!Gate::GetSingleton()->ConnectSQL()) { Gate::DestroyInstance(); X_PAUSE; return 0; }
+	if (!Gate::GetSingleton().ConnectSQL()) { Gate::DestroyInstance(); X_PAUSE; return 0; }
 
 	//Open sockets
-	if (!Gate::GetSingleton()->InitSockets()) { Gate::DestroyInstance(); X_PAUSE; return 0; }
+	if (!Gate::GetSingleton().InitSockets()) { Gate::DestroyInstance(); X_PAUSE; return 0; }
 
 
 	// Run the server until stopped.
-	Gate::GetSingleton()->run();
+	Gate::GetSingleton().run();
 
 	//shouldn't really be here - should be where the server is stopped via remote call or console or something (likely remote call)
-	Gate::GetSingleton()->handle_stop();
+	Gate::GetSingleton().handle_stop();
 
 	Gate::DestroyInstance();
 	LServer::DestroyInstance();
