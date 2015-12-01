@@ -180,7 +180,8 @@ void Server::PutMsgQueue(shared_ptr<Client> client, MsgQueue & q, char * data, u
 	//poco_information(*logger, "PutMsgQueue()");
 	shared_ptr<MsgQueueEntry> msg(new MsgQueueEntry);
 
-	msg->data = data;
+	msg->data = new char[size + 1];
+	memcpy(msg->data, data, size);
 	msg->size = size;
 	msg->client = client;
 

@@ -802,14 +802,15 @@ void GServer::TimerThread()
 					shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
 					for (auto client : Gate::GetSingleton().clientlist)
 					{
-						std::list<StreamWrite> outgoingqueue = client->outgoingqueue;
+						std::list<StreamWrite*> outgoingqueue = client->outgoingqueue;
 						client->outgoingqueue.clear();
 						if (client->socket == nullptr)
 							continue;
 						while (outgoingqueue.size() > 0)
 						{
-							StreamWrite packet = outgoingqueue.front();
-							client->socket->write(packet);
+							StreamWrite * packet = outgoingqueue.front();
+							client->socket->write(*packet);
+							delete packet;
 							outgoingqueue.pop_front();
 						}
 					}
@@ -3340,14 +3341,16 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 
 	StreamRead sr = StreamRead(msg->data, msg->size);
 
-	uint32_t command = sr.ReadInt();
+	uint32_t msgid = sr.ReadInt();
+
+	uint16_t command = sr.ReadShort();
 
 	uint16_t dX, sX = sr.ReadShort();
 	uint16_t dY, sY = sr.ReadShort();
 
 	uint8_t direction = sr.ReadByte();
 
-	int32_t clienttime = sr.ReadInt();//TODO: make 64bit client side
+	int64_t clienttime = sr.ReadInt64();
 
 	int16_t magictype;
 	int16_t attacktype;
@@ -3368,20 +3371,20 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 	case MSGID_MOTION_STOP:
 		iRet = iClientMotion_Stop_Handler(msg->client, sX, sY, direction);
 		if (iRet == 1) {
-			SendEventToNearClient_TypeA(msg->client.get(), command, 0, 0, 0);
+			SendEventToNearClient_TypeA(msg->client.get(), msgid, 0, 0, 0);
 		}
 		else if (iRet == 2) SendObjectMotionRejectMsg(msg->client.get());
 		break;
 
 	case MSGID_MOTION_RUN:
 	case MSGID_MOTION_MOVE:
-		if (!bCheckClientMoveFrequency(client.get(), (command == MSGID_MOTION_RUN)))
+		if (!bCheckClientMoveFrequency(client.get(), (msgid == MSGID_MOTION_RUN)))
 			iRet = 3;
 		else
-			iRet = iClientMotion_Move_Handler(client, sX, sY, direction, (command == MSGID_MOTION_RUN));
+			iRet = iClientMotion_Move_Handler(client, sX, sY, direction, (msgid == MSGID_MOTION_RUN));
 
 		if (iRet == 1) {
-			SendEventToNearClient_TypeA(client.get(), command, 0, 0, 0);
+			SendEventToNearClient_TypeA(client.get(), msgid, 0, 0, 0);
 		}		
 		else if (iRet == 2 || iRet == 3) {
 			SendObjectMotionRejectMsg(client.get());
@@ -3393,7 +3396,7 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 	case MSGID_MOTION_DAMAGEMOVE:
 		iRet = iClientMotion_Move_Handler(client, sX, sY, direction, false);
 		if (iRet == 1) {
-			SendEventToNearClient_TypeA(client.get(), command, client->m_iLastDamage, 0, 0);
+			SendEventToNearClient_TypeA(client.get(), msgid, client->m_iLastDamage, 0, 0);
 		} 
 		if ((client != nullptr) && (client->health <= 0)) client->KilledHandler(nullptr, 1);
 		break;
@@ -3401,7 +3404,7 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 	case MSGID_MOTION_ATTACKMOVE:
 		iRet = iClientMotion_Move_Handler(client, sX, sY, direction, false);
 		if ((iRet == 1) && (client != nullptr)) {
-			SendEventToNearClient_TypeA(client.get(), command, 0, 0, 0);
+			SendEventToNearClient_TypeA(client.get(), msgid, 0, 0, 0);
 
 			attacktype = 1;
 			iClientMotion_Attack_Handler(client, client->x, client->y, dX, dY, attacktype, direction, targetid, false, true);
@@ -3425,7 +3428,7 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 				if (client->superAttack < 0) client->superAttack = 0;
 			}
 
-			SendEventToNearClient_TypeA(client.get(), command, dX, dY, attacktype);
+			SendEventToNearClient_TypeA(client.get(), msgid, dX, dY, attacktype);
 		}
 		else if (iRet == 2) SendObjectMotionRejectMsg(client.get());
 
@@ -3434,7 +3437,7 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 	case MSGID_MOTION_GETITEM:
 		iRet = iClientMotion_GetItem_Handler(client, sX, sY, direction);
 		if (iRet == 1) {
-			SendEventToNearClient_TypeA(client.get(), command, 0, 0, 0);
+			SendEventToNearClient_TypeA(client.get(), msgid, 0, 0, 0);
 		}
 		else if (iRet == 2) SendObjectMotionRejectMsg(client.get());
 		break;
@@ -3443,7 +3446,7 @@ void GServer::ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 		iRet = iClientMotion_Magic_Handler(client, sX, sY, direction);
 
 		if (iRet == 1) {
-			SendEventToNearClient_TypeA(client.get(), command, magictype,(short) 10, 0);
+			SendEventToNearClient_TypeA(client.get(), msgid, magictype,(short) 10, 0);
 			client->m_hasPrecasted = true;
 		}
 		else if (iRet == 2) SendObjectMotionRejectMsg(client.get());
@@ -3734,10 +3737,10 @@ void GServer::SendEventToNearClient_TypeB(uint32_t msgid, uint16_t msgtype, Map 
 	sw.WriteShort(sX);
 	sw.WriteShort(sY);
 
-	sw.WriteInt(sV1);
-	sw.WriteInt(sV2);
-	sw.WriteInt(sV3);
-	sw.WriteInt(sV4);
+	sw.WriteShort(sV1);
+	sw.WriteShort(sV2);
+	sw.WriteShort(sV3);
+	sw.WriteShort(sV4);
 
 	dwTime = unixtime();
 
@@ -4971,7 +4974,7 @@ MAGIC_NOEFFECT:;
 	SendNotifyMsg(nullptr, client.get(), NOTIFY_MP, 0, 0, 0);
 
 	SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, client->map,
-		client->x, client->x, dX, dY, (sType + 100), client->Type());
+		client->x, client->y, dX, dY, (sType + 100), client->Type());
 }
 
 shared_ptr<Client> GServer::GetClient(uint64_t ObjectID)

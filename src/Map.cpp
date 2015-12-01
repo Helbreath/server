@@ -397,6 +397,8 @@ void Map::SocketThread()
 				//DeleteClient(msg->client, false, true);
 				break;
 			}
+
+			delete[] msg->data;
 		}
 
 #ifdef WIN32

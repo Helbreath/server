@@ -74,7 +74,7 @@ public:
 	// can switch between 1 and 2 but can only be 0 when connection closing
 	uint8_t currentstatus;
 
-	std::list<StreamWrite> outgoingqueue;
+	std::list<StreamWrite*> outgoingqueue;
 
 	string address;
 

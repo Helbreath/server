@@ -373,12 +373,12 @@ void Client::SetStr(int str, bool check)
 		if(health > GetMaxHP())
 		{
 			health = GetMaxHP();
-			Notify(0, NOTIFY_HP, 0, 0, 0, 0);
+			Notify(0, NOTIFY_HP);
 		}
 		if(stamina > GetMaxSP())
 		{
 			stamina = GetMaxSP();
-			Notify(0, NOTIFY_SP, 0, 0, 0, 0);
+			Notify(0, NOTIFY_SP);
 		}
 	}
 }
@@ -389,7 +389,7 @@ void Client::SetMag(int mag)
 	if(mana > GetMaxMP())
 	{
 		mana = GetMaxMP();
-		Notify(0, NOTIFY_MP, 0, 0, 0, 0);
+		Notify(0, NOTIFY_MP);
 	}
 }
 
@@ -401,7 +401,7 @@ void Client::SetInt(int __int, bool check)
 		if(mana > GetMaxMP())
 		{
 			mana = GetMaxMP();
-			Notify(0, NOTIFY_MP, 0, 0, 0, 0);
+			Notify(0, NOTIFY_MP);
 		}
 	}
 }
@@ -1287,7 +1287,7 @@ void Client::SWrite(StreamWrite & sw)
 {
 	if (socket == nullptr)
 		return;
-	outgoingqueue.push_back(sw);
+	outgoingqueue.push_back(new StreamWrite(sw));
 	//socket->write(sw);
 
 }
