@@ -804,12 +804,13 @@ void GServer::TimerThread()
 					{
 						std::list<StreamWrite*> outgoingqueue = client->outgoingqueue;
 						client->outgoingqueue.clear();
-						if (client->socket == nullptr)
+						connection_ptr tsocket = client->socket;
+						if (tsocket == nullptr)
 							continue;
 						while (outgoingqueue.size() > 0)
 						{
 							StreamWrite * packet = outgoingqueue.front();
-							client->socket->write(*packet);
+							tsocket->write(*packet);
 							delete packet;
 							outgoingqueue.pop_front();
 						}
