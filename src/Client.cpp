@@ -14,6 +14,8 @@ Client::Client()
 	gserver = nullptr;
 	guildRank = 0;
 
+	manaSave = 0;
+
 	m_iAddChargeCritical = 0;
 
 	m_iAddTransMana = 0;

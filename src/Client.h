@@ -353,6 +353,7 @@ public:
 
 
 	char magicMastery[MAXMAGICTYPE];
+	uint16_t manaSave;
 	
 	
 	

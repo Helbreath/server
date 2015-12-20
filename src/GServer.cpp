@@ -4767,15 +4767,15 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 		iManaCost += (iManaCost / 2) - (iManaCost / 10);
 	}
 
-// 	if (client->m_iManaSaveRatio > 0) {
-// 		dV1 = (double)client->m_iManaSaveRatio;
-// 		dV2 = (double)(dV1 / 100.0f);
-// 		dV3 = (double)iManaCost;
-// 		dV1 = dV2 * dV3;
-// 		dV2 = dV3 - dV1;
-// 		iManaCost = (int)dV2;
-// 		if (iManaCost <= 0) iManaCost = 1;
-// 	}
+	if (player->manaSave > 0)
+	{
+		dV2 = double(player->manaSave) / 100.0f;
+		dV3 = iManaCost;
+		dV1 = dV2 * dV3;
+		dV2 = dV3 - dV1;
+		iManaCost = dV2;
+		if (iManaCost <= 0) iManaCost = 1;
+	}
 
 	if (iResult < 100) {
 		iDiceRes = dice(1, 100);
