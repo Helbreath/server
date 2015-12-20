@@ -291,9 +291,12 @@ public:
 	int32_t CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack = false, bool bIsDash = false);
 	int32_t CalculateUseSkillItemEffect(Client * player, int16_t skillvalue, int skillnum, Map * map, int32_t x, int32_t y);
 	void EnduStrippingDamage(Unit * target, Unit * attacker, int item, int higherStripEndu, bool shield = false);
-	void Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, int32_t attr);
-	void Effect_HpUp_Spot(Unit* caster, Unit* target, uint16_t sV1, uint16_t sV2, uint16_t sV3);
-	void PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t dY, int16_t sType, bool bItemEffect = false, int32_t iV1 = 0);
+	void Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, Element element = ELEMENT_NONE, Magic * spell = nullptr);
+	void Effect_HpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
+	void Effect_SpDown_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
+	void Effect_SpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
+	void Effect_Damage_Spot_DamageMove(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, Element element = ELEMENT_NONE, Magic * spell = nullptr);
+	void PlayerMagicHandler(shared_ptr<Client> client, uint16_t dX, uint16_t dY, int16_t sType, bool bItemEffect = false, int32_t iV1 = 0);
 
 	int _iCalcSkillSSNpoint(int iLevel);
 

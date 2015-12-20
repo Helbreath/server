@@ -4648,19 +4648,25 @@ void GServer::ClientCommonHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 
 int  _tmp_iMCProb[] = { 0, 300, 250, 200, 150, 100, 80, 70, 60, 50, 40 };
 int  _tmp_iMLevelPenalty[] = { 0, 5, 5, 8, 8, 10, 14, 28, 32, 36, 40 };
-void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t dY, int16_t sType, bool bItemEffect, int32_t iV1)
+void GServer::PlayerMagicHandler(shared_ptr<Client> client, uint16_t dX, uint16_t dY, int16_t sType, bool bItemEffect /*= false*/, int32_t iV1 /*= 0*/)
 {
 	short  sX, sY, sMagicCircle, rx, ry, sRemainItemSprite, sRemainItemSpriteFrame, sLevelMagic;
-	char   cData[120], cDir, cName[11], cNpcWaypoint[11], cName_Master[11], cNpcName[21], cRemainItemColor;
+	char   cData[120], cDir, cName[11], cNpcWaypoint[11], cName_Master[11], cRemainItemColor;
+	string cNpcName;
 	double dV1, dV2, dV3, dV4;
 	int    i, iErr, iRet, ix, iy, iResult, iDiceRes, iNamingValue, iFollowersNum, iEraseReq, weatherBonus;
 	int    tX, tY, iManaCost, iMagicAttr, iItemID;
+	const int crossPnts[5][2] = { { 0, 0 }, { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } };
 	Unit * owner;
 	Client * player;
 	Item * pItem;
-	DWORD * dwp;
+	uint32_t * dwp;
 	uint64_t dwTime = unixtime();
-	WORD  * wp, wWeaponType;
+	uint16_t  * wp, wWeaponType;
+	Magic * spell = m_pMagicConfigList[sType];
+
+	if (spell == nullptr)
+		return;
 
 	weatherBonus = 0;
 
@@ -4695,7 +4701,6 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 	}
 
 	if ((sType < 0) || (sType >= 100))     return;
-	if (m_pMagicConfigList[sType] == nullptr) return;
 	if ((bItemEffect == false) && (player->magicMastery[sType] != 1)) return;
 
 	if (player->map->flags.attackEnabled == false) return;
@@ -4774,7 +4779,7 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 
 	//iWhetherBonus = iGetWhetherMagicBonusEffect(sType, m_pMapList[m_pClientList[iClientH]->m_cMapIndex]->m_cWhetherStatus);
 
-	iManaCost = m_pMagicConfigList[sType]->m_sValue[0];//Value1 ??
+	iManaCost = spell->manaCost;//Value1 ??
 	if ((player->safeAttackMode == true) &&
 		(player->map->flags.fightZone == false))
 	{
@@ -4836,7 +4841,7 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 	if (iResult <= 0) iResult = 1;
 	if (sType >= 80) iResult += 10000;
 
-	if (m_pMagicConfigList[sType]->category == 1)
+	if (spell->category == 1)
 		if (player->map->iGetAttribute(sX, sY, 0x00000005) != 0) return;
 
 	iMagicAttr = 0;
@@ -4857,9 +4862,9 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 	if (player->mana < 0)
 		player->mana = 0;
 
-	owner->GetPlayer()->CalculateSSN_SkillIndex(SKILL_MAGIC, 1);
+	player->GetPlayer()->CalculateSSN_SkillIndex(SKILL_MAGIC, 1);
 
-	SendNotifyMsg(nullptr, owner->GetPlayer(), NOTIFY_MP, 0, 0, 0);
+	SendNotifyMsg(nullptr, player->GetPlayer(), NOTIFY_MP, 0, 0, 0);
 
 	SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, player->map,
 		player->x, player->y, dX, dY, (sType + 100), player->Type());
@@ -4873,7 +4878,7 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 
 		if ((player->civilian == true) && (owner->GetPlayer()->civilian == false))
 		{
-			switch (m_pMagicConfigList[sType]->magicType)
+			switch (spell->magicType)
 			{
 			case MAGICTYPE_SPDOWN_AREA:
 			case MAGICTYPE_SUMMON:
@@ -4890,68 +4895,187 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 
 
 
-	if (m_pMagicConfigList[sType]->delayTime == 0)
+	if (spell->delayTime == 0)
 	{
-		switch (m_pMagicConfigList[sType]->magicType)
+		switch (spell->magicType)
 		{
 		case MAGICTYPE_POLYMORPH:
+		{
 			owner = player->map->GetOwner(dX, dY).get();
 			if (owner == nullptr) return;
 			if (owner->CheckResistMagic(player->direction, iResult) == false)
 			{
-				switch (owner->OwnerType())
+				if (owner->IsPlayer())
 				{
-					case OWNERTYPE_PLAYER:
-					{
-						Client * temp = owner->GetPlayer();
-						if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) return;
-						temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = m_pMagicConfigList[sType]->m_sValue[3];//4
-						temp->SetTypeOriginal(temp->Type());
-						temp->SetType(18);
-						SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
-						break;
-					}
-
-					case OWNERTYPE_NPC:
-					{
-						Npc * temp = owner->GetNpc();
-						if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) return;
-						temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = m_pMagicConfigList[sType]->m_sValue[3];//4
-						temp->SetTypeOriginal(temp->Type());
-						temp->SetType(18);
-						SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
-						break;
-					}
+					Client * temp = owner->GetPlayer();
+					if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) return;
+					temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = spell->m_sValue[MAGICV_TYPE];
+					temp->SetTypeOriginal(temp->Type());
+					temp->SetType(18);
+					SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
+				}
+				else if (owner->IsNPC())
+				{
+					Npc * temp = owner->GetNpc();
+					if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) return;
+					temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = spell->m_sValue[MAGICV_TYPE];
+					temp->SetTypeOriginal(temp->Type());
+					temp->SetType(18);
+					SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
 				}
 
-				RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_POLYMORPH, dwTime + (m_pMagicConfigList[sType]->lastTime * 1000),
-					owner, owner->map, 0, 0, 0, m_pMagicConfigList[sType]->m_sValue[3], 0);//4
+				RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_POLYMORPH, dwTime + (spell->lastTime * 1000),
+					owner, owner->map, 0, 0, 0, spell->m_sValue[MAGICV_TYPE], 0);
 
 				if (owner->IsPlayer())
-					SendNotifyMsg(nullptr, owner->GetPlayer(), NOTIFY_MAGICEFFECTON, MAGICTYPE_POLYMORPH, m_pMagicConfigList[sType]->m_sValue[3], 0, 0);//4
+					SendNotifyMsg(nullptr, owner->GetPlayer(), NOTIFY_MAGICEFFECTON, MAGICTYPE_POLYMORPH, spell->m_sValue[MAGICV_TYPE], 0);
 			}
 			break;
+		}
 
 		case MAGICTYPE_DAMAGE_SPOT:
+		{
 			owner = player->map->GetOwner(dX, dY).get();
 			if (owner == nullptr) return;
 			if (owner->CheckResistMagic(player->direction, iResult) == false)
-				Effect_Damage_Spot(player, owner, m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);//4,5,6
+				Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
 
 			owner = player->map->GetDeadOwner(dX, dY).get();//pretend corpse skill check
 			if (owner == nullptr) return;
-			if ((owner->IsPlayer()) && (owner->health > 0)) {
+			if ((owner->IsPlayer()) && (owner->health > 0))
+			{
 				if (owner->CheckResistMagic(player->direction, iResult) == false)
-					Effect_Damage_Spot(player, owner, m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);
+					Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
 			}
 			break;
+		}
+
+		case MAGICTYPE_DAMAGE_SPOT_SPDOWN:
+		{
+			owner = player->map->GetOwner(dX, dY).get();
+			if (owner == nullptr) return;
+			if (owner->CheckResistMagic(client->direction, iResult) == false)
+			{
+				Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+				Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+			}
+
+			owner = player->map->GetDeadOwner(dX, dY).get();
+			if (owner == nullptr) return;
+			if ((owner->IsPlayer()) && (owner->health > 0))
+			{
+				if (owner->CheckResistMagic(player->direction, iResult) == false)
+				{
+					Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+					Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+				}
+			}
+		}
+
+		case MAGICTYPE_DAMAGE_LINEAR_SPDOWN:
+		{
+			sX = player->x;
+			sY = player->y;
+
+			for (i = 2; i < 13; i++)
+			{
+				iErr = 0;
+				CMisc::GetPoint2(sX, sY, dX, dY, &tX, &tY, &iErr, i);
+				for (int pNo = 0; pNo < 5; pNo++)
+				{
+					owner = player->map->GetOwner(tX + crossPnts[pNo][0], tY + crossPnts[pNo][1]).get();
+					if (owner == nullptr) return;
+					if (owner->CheckResistMagic(player->direction, iResult) == false)
+					{
+						Effect_Damage_Spot_DamageMove(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS] + weatherBonus, true, spell->element, spell);
+						if (!owner->IsDead() && owner->CheckResistMagic(player->direction, iResult) == false)
+						{
+							Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+							Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+						}
+					}
+
+					owner = player->map->GetDeadOwner(tX + crossPnts[pNo][0], tY + crossPnts[pNo][1]).get();
+					if (owner == nullptr) return;
+					if (owner->CheckResistMagic(player->direction, iResult) == false)
+					{
+						Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS] + weatherBonus, true, spell->element, spell);
+						if (!owner->IsDead() && owner->CheckResistMagic(player->direction, iResult) == false)
+						{
+							Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+							Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+						}
+					}
+				}
+				if ((abs(tX - dX) <= 1) && (abs(tY - dY) <= 1)) break;
+			}
+
+
+			for (iy = dY - spell->m_vRange; iy <= dY + spell->m_vRange; iy++)
+			{
+				for (ix = dX - spell->m_hRange; ix <= dX + spell->m_hRange; ix++)
+				{
+					owner = player->map->GetOwner(ix, iy).get();
+					if (owner == nullptr) return;
+					if (owner->CheckResistMagic(player->direction, iResult) == false)
+					{
+						Effect_Damage_Spot_DamageMove(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS] + weatherBonus, true, spell->element, spell);
+						if (!owner->IsDead() && owner->CheckResistMagic(player->direction, iResult) == false)
+						{
+							Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+							Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+						}
+					}
+
+					owner = player->map->GetDeadOwner(ix, iy).get();
+					if (owner == nullptr) return;
+					if (owner->CheckResistMagic(player->direction, iResult) == false)
+					{
+						Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS] + weatherBonus, true, spell->element, spell);
+						if (!owner->IsDead() && owner->CheckResistMagic(player->direction, iResult) == false)
+						{
+							Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+							Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+						}
+					}
+				}
+			}
+
+			owner = player->map->GetOwner(dX, dY).get();
+			if (owner == nullptr) return;
+			if (owner->CheckResistMagic(player->direction, iResult) == false)
+			{
+				Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+				if (!owner->IsDead() && owner->CheckResistMagic(player->direction, iResult) == false)
+				{
+					Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+					Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+				}
+			}
+
+			owner = player->map->GetDeadOwner(dX, dY).get();
+			if (owner == nullptr) return;
+			if (owner->CheckResistMagic(player->direction, iResult) == false)
+			{
+				Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS] + weatherBonus, true, spell->element, spell);
+				if (!owner->IsDead() && owner->CheckResistMagic(player->direction, iResult) == false)
+				{
+					Effect_Damage_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS] + weatherBonus, true, spell->element, spell);
+					Effect_SpDown_Spot(owner->GetPlayer(), owner, spell->m_sValue[MAGICV_LINEARTHROW], spell->m_sValue[MAGICV_LINEARRANGE], spell->m_sValue[MAGICV_LINEARBONUS]);
+				}
+			}
+			break;
+		}
 
 		case MAGICTYPE_HPUP_SPOT:
+		{
 			owner = player->map->GetOwner(dX, dY).get();
 			Effect_HpUp_Spot(player, owner, m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2]);
 			break;
+		}
 
 		case MAGICTYPE_TELEPORT:
+		{
 			owner = player->map->GetOwner(dX, dY).get();
 
 			switch (m_pMagicConfigList[sType]->m_sValue[3]) {
@@ -4963,8 +5087,10 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 				break;
 			}
 			break;
+		}
 
 		case MAGICTYPE_CREATE:
+		{
 			if (player->map->bGetIsMoveAllowedTile(dX, dY) == false)
 				return;
 
@@ -4992,7 +5118,315 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 			SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, player->map,
 				dX, dY, pItem->spriteID, pItem->spriteFrame, pItem->color); // v1.4 color
 			break;
+		}
 
+		case MAGICTYPE_CANCELLATION:
+		{
+			break;
+		}
+
+		case MAGICTYPE_INHIBITION:
+		{
+			break;
+		}
+
+		case MAGICTYPE_DAMAGE_LINEAR:
+		{
+			break;
+		}
+
+		case MAGICTYPE_FSW_LINEAR:
+		{
+			break;
+		}
+
+		case MAGICTYPE_ICE_LINEAR:
+		{
+			break;
+		}
+
+		case MAGICTYPE_MB_LINEAR:
+		{
+			break;
+		}
+
+		case MAGICTYPE_TREMOR:
+		{
+			break;
+		}
+
+		case MAGICTYPE_DAMAGE_AREA:
+		{
+			break;
+		}
+
+		case MAGICTYPE_DAMAGE_AREA_NOSPOT:
+		{
+			break;
+		}
+
+		case MAGICTYPE_DAMAGE_AREA_MOVE:
+		{
+			break;
+		}
+
+		case MAGICTYPE_DAMAGE_AREA_NOSPOT_SPDOWN:
+		{
+			break;
+		}
+
+		case MAGICTYPE_SPDOWN_AREA:
+		{
+			break;
+		}
+
+		case MAGICTYPE_SPUP_AREA:
+		{
+			break;
+		}
+
+		case MAGICTYPE_SUMMON:
+		{
+			if (client->map->flags.fightZone) return;
+			if ((m_bHeldenianMode) && (client->map->flags.heldenianMap)) return;
+
+			owner = player->map->GetOwner(dX, dY).get();
+			if (owner == nullptr) return;
+			if (owner->IsPlayer() && client->side == owner->side)
+			{
+				iFollowersNum = 0;//iGetFollowerNumber(sOwnerH, cOwnerType);
+
+				if (iFollowersNum >= (player->m_cSkillMastery[SKILL_MAGIC] / 20) && !player->IsGM()) break;
+
+				switch (iV1) {
+				case 0:
+					iResult = dice(1, player->m_cSkillMastery[SKILL_MAGIC] / 10);
+
+					if (iResult < player->m_cSkillMastery[SKILL_MAGIC] / 20)
+						iResult = player->m_cSkillMastery[SKILL_MAGIC] / 20;
+
+					switch (iResult) {
+					case 1: cNpcName = "Slime"; break;
+					case 2: cNpcName = "Giant-Ant"; break;
+					case 3: cNpcName = "Amphis"; break;
+					case 4: cNpcName = "Orc"; break;
+						//case 5: strcpy(cNpcName, "Skeleton"); break;
+					case 5: cNpcName = "Clay-Golem"; break;
+					case 6: cNpcName = "Stone-Golem"; break;
+					case 7: cNpcName = "Orc-Mage"; break;
+					case 8: cNpcName = "Hellbound"; break;
+					case 9: cNpcName = "Cyclops"; break;
+					}
+					break;
+
+				case 1: cNpcName = "Orc"; break;
+					//case 2: strcpy(cNpcName, "Skeleton"); break;
+				case 2: cNpcName = "Clay-Golem"; break;
+				case 3: cNpcName = "Stone-Golem"; break;
+				case 4: cNpcName = "Hellbound"; break;
+				case 5: cNpcName = "Cyclops"; break;
+				case 6: cNpcName = "Troll"; break;
+				case 7: cNpcName = "Orge"; break;
+				}
+
+				if (shared_ptr<Npc> npc = owner->map->CreateNpc(cNpcName, 0,
+					MOVETYPE_RANDOM, &dX, &dY, player->side, cNpcWaypoint, 0, 0, false, true))
+				{
+					npc->Follow(owner->GetPlayer()->shared_from_this());
+				}
+			}
+			break;
+		}
+
+// 		case MAGICTYPE_PROTECT:
+// 			target = m_pMapList[caster->m_cMapIndex]->GetOwner(dX, dY);
+// 
+// 			if (!target) goto MAGIC_NOEFFECT;
+// 			if (target->IsNPC())
+// 			{
+// 				targetNpc = (CNpc*)target;
+// 				if (targetNpc->m_cActionLimit != 0) goto MAGIC_NOEFFECT;
+// 			}
+// 
+// 			switch (target->m_cMagicEffectStatus[MAGICTYPE_PROTECT])
+// 			{
+// 			case MAGICPROTECT_PFM:
+// 				if (spell->m_sValue[MAGICV_TYPE] == MAGICPROTECT_AMP/* || MAGICPROTECT_GPFM*/)
+// 				{
+// 					RemoveFromDelayEventList(target, MAGICTYPE_PROTECT);
+// 					break;
+// 				}
+// 				else
+// 					goto MAGIC_NOEFFECT;
+// 
+// 			case MAGICPROTECT_DS:
+// 				if (spell->m_sValue[MAGICV_TYPE] == MAGICPROTECT_GDS)
+// 				{
+// 					RemoveFromDelayEventList(target, MAGICTYPE_PROTECT);
+// 					break;
+// 				}
+// 				else
+// 					goto MAGIC_NOEFFECT;
+// 
+// 			case NULL:
+// 				break;
+// 
+// 			default:
+// 				goto MAGIC_NOEFFECT;
+// 			}
+// 
+// 			target->m_cMagicEffectStatus[MAGICTYPE_PROTECT] = (char)spell->m_sValue[MAGICV_TYPE];
+// 			switch (spell->m_sValue[MAGICV_TYPE]){
+// 			case MAGICPROTECT_PFA:
+// 				target->SetStatusFlag(STATUS_PFA, true);
+// 				break;
+// 			case MAGICPROTECT_PFM:
+// 				//case MAGICPROTECT_GPFM:
+// 			case MAGICPROTECT_AMP:
+// 				target->SetStatusFlag(STATUS_PFM, true);
+// 				break;
+// 			case MAGICPROTECT_DS:
+// 			case MAGICPROTECT_GDS:
+// 				target->SetStatusFlag(STATUS_DEFENSESHIELD, true);
+// 				break;
+// 			}
+// 
+// 
+// 			RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_PROTECT, dwTime + (spell->m_dwLastTime * 1000),
+// 				target->m_handle, target->m_ownerType, NULL, NULL, NULL, spell->m_sValue[MAGICV_TYPE], NULL, NULL);
+// 
+// 			if (target->IsPlayer())
+// 			{
+// 				targetPlr = (CClient*)target;
+// 				targetPlr->Notify(NULL, NOTIFY_MAGICEFFECTON, MAGICTYPE_PROTECT, spell->m_sValue[MAGICV_TYPE], NULL, NULL);
+// 			}
+// 			break;
+// 
+// 		case MAGICTYPE_HOLDOBJECT:
+// 			m_pMapList[caster->m_cMapIndex]->GetOwner(&sOwnerH, &cOwnerType, dX, dY);
+// 			if (CheckResistingMagicSuccess(caster->m_cDir, sOwnerH, cOwnerType, iResult) == false) {
+// 
+// 				switch (cOwnerType)
+// 				{
+// 				case OWNERTYPE_PLAYER:
+// 					if (m_pClientList[sOwnerH] == NULL) goto MAGIC_NOEFFECT;
+// 
+// 					if (m_pClientList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_HOLDOBJECT] != 0) goto MAGIC_NOEFFECT;
+// 
+// 					if (m_pMapList[m_pClientList[sOwnerH]->m_cMapIndex]->iGetAttribute(sX, sY, 0x00000006) != 0) goto MAGIC_NOEFFECT;
+// 					if (m_pMapList[m_pClientList[sOwnerH]->m_cMapIndex]->iGetAttribute(dX, dY, 0x00000006) != 0) goto MAGIC_NOEFFECT;
+// 
+// 					if (caster->GetParty() && caster->GetParty() == m_pClientList[sOwnerH]->GetParty()) goto MAGIC_NOEFFECT;
+// 
+// 					if (m_pClientList[sOwnerH]->m_iAddPR >= 500) goto MAGIC_NOEFFECT;
+// 
+// 					if (caster->m_side == m_pClientList[sOwnerH]->m_side &&
+// 						m_bIsCrusadeMode == false && caster->m_iAdminUserLevel == 0 &&
+// 						(
+// 						strcmp(m_pMapList[caster->m_cMapIndex]->m_cName, sideMap[ARESDEN]) == 0 ||
+// 						strcmp(m_pMapList[caster->m_cMapIndex]->m_cName, sideMap[ELVINE]) == 0 ||
+// 						//strcmp(m_pMapList[caster->m_cMapIndex]->m_cName, sideMap[ISTRIA]) == 0 || // Commented out 3rd faction xRisenx
+// 						strcmp(m_pMapList[caster->m_cMapIndex]->m_cName, sideMap[NEUTRAL]) == 0 ||
+// 						strcmp(m_pMapList[caster->m_cMapIndex]->m_cName, sideMapFarm[ARESDEN]) == 0 ||
+// 						strcmp(m_pMapList[caster->m_cMapIndex]->m_cName, sideMapFarm[ELVINE]) == 0 //||
+// 						//strcmp(m_pMapList[caster->m_cMapIndex]->m_cName, sideMapFarm[ISTRIA]) == 0 // Commented out 3rd faction xRisenx
+// 						))
+// 					{
+// 						goto MAGIC_NOEFFECT;
+// 					}
+// 
+// 					m_pClientList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_HOLDOBJECT] = (char)spell->m_sValue[MAGICV_TYPE];
+// 					break;
+// 
+// 				case OWNERTYPE_NPC:
+// 					if (m_pNpcList[sOwnerH] == NULL) goto MAGIC_NOEFFECT;
+// 					if (m_pNpcList[sOwnerH]->m_cMagicLevel >= 6) goto MAGIC_NOEFFECT;
+// 					if (m_pNpcList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_HOLDOBJECT] != 0) goto MAGIC_NOEFFECT;
+// 					m_pNpcList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_HOLDOBJECT] = (char)spell->m_sValue[MAGICV_TYPE];
+// 					break;
+// 				}
+// 
+// 				RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_HOLDOBJECT, dwTime + (spell->m_dwLastTime * 1000),
+// 					sOwnerH, cOwnerType, NULL, NULL, NULL, spell->m_sValue[MAGICV_TYPE], NULL, NULL);
+// 
+// 				if (cOwnerType == OWNERTYPE_PLAYER)
+// 					SendNotifyMsg(NULL, sOwnerH, NOTIFY_MAGICEFFECTON, MAGICTYPE_HOLDOBJECT, spell->m_sValue[MAGICV_TYPE], NULL, NULL);
+// 			}
+// 			break;
+// 
+// 		case MAGICTYPE_INVISIBILITY:
+// 			switch (spell->m_sValue[MAGICV_TYPE])
+// 			{
+// 			case 1:
+// 
+// 				m_pMapList[caster->m_cMapIndex]->GetOwner(&sOwnerH, &cOwnerType, dX, dY);
+// 
+// 				switch (cOwnerType) {
+// 				case OWNERTYPE_PLAYER:
+// 					if (m_pClientList[sOwnerH] == NULL) goto MAGIC_NOEFFECT;
+// 					if (m_pClientList[sOwnerH]->IsInvisible()) goto MAGIC_NOEFFECT;
+// 					if (m_astoria.get() && m_astoria->GetRelicHolder() == m_pClientList[sOwnerH]) goto MAGIC_NOEFFECT;
+// 
+// 					//	if (caster->IsNeutral()) goto MAGIC_NOEFFECT;
+// 
+// 					m_pClientList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] = (char)spell->m_sValue[MAGICV_TYPE];
+// 					m_pClientList[sOwnerH]->SetStatusFlag(STATUS_INVISIBILITY, true);
+// 					RemoveFromTarget(sOwnerH, OWNERTYPE_PLAYER, MAGICTYPE_INVISIBILITY);
+// 					break;
+// 
+// 				case OWNERTYPE_NPC:
+// 					if (m_pNpcList[sOwnerH] == NULL) goto MAGIC_NOEFFECT;
+// 					if (m_pNpcList[sOwnerH]->IsInvisible()) goto MAGIC_NOEFFECT;
+// 
+// 					if (m_pNpcList[sOwnerH]->m_cActionLimit == 0) {
+// 						m_pNpcList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] = (char)spell->m_sValue[MAGICV_TYPE];
+// 						m_pNpcList[sOwnerH]->SetStatusFlag(STATUS_INVISIBILITY, true);
+// 						RemoveFromTarget(sOwnerH, OWNERTYPE_NPC, MAGICTYPE_INVISIBILITY);
+// 					}
+// 					break;
+// 				}
+// 
+// 				RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_INVISIBILITY, dwTime + (spell->m_dwLastTime * 1000),
+// 					sOwnerH, cOwnerType, NULL, NULL, NULL, spell->m_sValue[MAGICV_TYPE], NULL, NULL);
+// 
+// 				if (cOwnerType == OWNERTYPE_PLAYER)
+// 					SendNotifyMsg(NULL, sOwnerH, NOTIFY_MAGICEFFECTON, MAGICTYPE_INVISIBILITY, spell->m_sValue[MAGICV_TYPE], NULL, NULL);
+// 				break;
+// 
+// 			case 2:
+// 
+// 				//	if (caster->IsNeutral()) goto MAGIC_NOEFFECT;
+// 
+// 				for (ix = dX - 8; ix <= dX + 8; ix++)//xRisenx TODO: resolution?
+// 					for (iy = dY - 8; iy <= dY + 8; iy++) {
+// 					m_pMapList[caster->m_cMapIndex]->GetOwner(&sOwnerH, &cOwnerType, ix, iy);
+// 					if (sOwnerH != NULL) {
+// 						switch (cOwnerType)
+// 						{
+// 						case OWNERTYPE_PLAYER:
+// 							if (m_pClientList[sOwnerH] == NULL) goto MAGIC_NOEFFECT;
+// 
+// 							if (m_pClientList[sOwnerH]->IsInvisible()) {
+// 								m_pClientList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] = NULL;
+// 								m_pClientList[sOwnerH]->SetStatusFlag(STATUS_INVISIBILITY, false);
+// 								RemoveFromDelayEventList(sOwnerH, cOwnerType, MAGICTYPE_INVISIBILITY);
+// 							}
+// 							break;
+// 
+// 						case OWNERTYPE_NPC:
+// 							if (m_pNpcList[sOwnerH] == NULL) goto MAGIC_NOEFFECT;
+// 							if (m_pNpcList[sOwnerH]->IsInvisible()) {
+// 								m_pNpcList[sOwnerH]->m_cMagicEffectStatus[MAGICTYPE_INVISIBILITY] = NULL;
+// 								m_pNpcList[sOwnerH]->SetStatusFlag(STATUS_INVISIBILITY, false);
+// 								RemoveFromDelayEventList(sOwnerH, cOwnerType, MAGICTYPE_INVISIBILITY);
+// 							}
+// 							break;
+// 						}
+// 					}
+// 					}
+// 				break;
+// 			}
+// 			break;
 
 		default:
 			break;
@@ -6288,15 +6722,17 @@ void GServer::ClearSkillUsingStatus(Client * client)
 // 	}
 }
 
-void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, int32_t attr)
+void GServer::Effect_Damage_Spot(Unit * caster, Unit * target, short sV1, short sV2, short sV3, bool exp, Element element, Magic * spell)
 {
 	int32_t damage = dice(sV1, sV2) + sV3;
 	int64_t dwtime = unixtime();
 	if (damage < 0) damage = 0;
 
-	if (attacker->IsPlayer())
+	if (caster->IsDead() || target->IsDead()) return;
+
+	if (caster->IsPlayer())
 	{
-		Client * player = (Client*)attacker;
+		Client * player = caster->GetPlayer();
 		if (!m_bIsCrusadeMode && player->civilian && target->IsPlayer()) return;//no damage to civilians outside of crusade (default)
 		//TODO: player damage calculations here
 	}
@@ -6309,28 +6745,28 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 
 	if (target->IsPlayer())
 	{
-		Client * player = (Client*)target;
+		Client * player = target->GetPlayer();
 		if (!player->m_bIsInitComplete) return; //cannot attack players not fully loaded in
 		if (player->_dead) return;
 
 		if (player->status & STATUS_REDSLATE) return;//invincibility
 	
 		//players can only kill a non-hostile during crusade or if they are a criminal
-		if (attacker->IsPlayer())
+		if (caster->IsPlayer())
 		{
 			if (player->playerKillCount == 0)//target is not a criminal
 			{
 				if (!m_bIsCrusadeMode && player->civilian) return;//crusade mode is off and you are a civilian aka protected from PK
-				if (attacker->IsNeutral()) return;//attacker has no town affiliation
+				if (caster->IsNeutral()) return;//attacker has no town affiliation
 			}
-			if (((Client*)attacker)->safeAttackMode)
+			if ((caster->GetPlayer())->safeAttackMode)
 			{
-				int iSideCondition = ((Client*)attacker)->GetPlayerRelationship(player);
+				int iSideCondition = (caster->GetPlayer())->GetPlayerRelationship(player);
 				if (iSideCondition != 7 && iSideCondition != 2 && iSideCondition != 6)
 				{
-					if (attacker->map->flags.fightZone)
+					if (caster->map->flags.fightZone)
 					{
-						if (((Client*)attacker)->guildGUID == player->guildGUID)
+						if ((caster->GetPlayer())->guildGUID == player->guildGUID)
 							return;
 					}
 				}
@@ -6389,17 +6825,17 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 
 		player->health -= damage;
 
-		if (attacker)
+		if (caster && caster->IsPlayer())
 		{
 			stringstream damagedealt;
 			damagedealt << "You did (" << damage << ") to character (" << player->name << ")";
-			SendNotifyMsg(nullptr, (Client*)attacker, NOTIFY_NOTICEMSG, 0, 0, 0, damagedealt.str());
+			SendNotifyMsg(nullptr, caster->GetPlayer(), NOTIFY_NOTICEMSG, 0, 0, 0, damagedealt.str());
 		}
 
 		player->m_lastDamageTime = dwtime;
 		if (player->health <= 0)
 		{
-			player->KilledHandler(attacker, damage);
+			player->KilledHandler(caster, damage);
 		}
 		else
 		{
@@ -6415,6 +6851,138 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 	}
 }
 
+void GServer::Effect_HpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3)
+{
+	uint64_t time = unixtime();
+
+	if (caster == nullptr || target == nullptr)
+		return;
+
+	uint32_t hp = dice(sV1, sV2) + sV3;
+
+	if (caster->IsDead() || target->IsDead()) return;
+
+	if (target->IsPlayer())
+	{
+
+		Client * player = target->GetPlayer();
+		//int maxhp = (3 * player->GetVit()) + (2 * player->level) + (player->GetStr() / 2);//official
+		int maxhp = 8 * (player->GetVit() + player->level) + 2 * (player->GetInt() + player->GetStr());//"new"
+
+		if (player->m_iSideEffect_MaxHPdown != 0)
+			maxhp = maxhp - (maxhp / player->m_iSideEffect_MaxHPdown);
+
+		if (player->health < maxhp)
+			player->health += hp;
+
+		if (player->health > maxhp) player->health = maxhp;
+		if (player->health <= 0) player->health = 1;
+
+		SendNotifyMsg(nullptr, player, NOTIFY_HP, 0, 0, 0);
+	}
+	else if (target->IsNPC())
+	{
+		Npc * npc = target->GetNpc();
+
+		if (npc->health <= 0) return;
+
+		int maxhp = (npc->m_iHitDice * 4);
+
+		if (npc->health < maxhp)
+			npc->health += hp;
+
+		if (npc->health > maxhp) npc->health = maxhp;
+		if (npc->health <= 0) npc->health = 1;
+	}
+}
+
+void GServer::Effect_SpDown_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3)
+{
+	int iSP, iMaxSP, iSideCondition;
+
+	if (caster == nullptr || target == nullptr)
+		return;
+
+	if (caster->IsDead() || target->IsDead()) return;
+
+	iSP = dice(sV1, sV2) + sV3;
+
+	if (target->IsPlayer())
+	{
+
+		Client * player = target->GetPlayer();
+
+		if (player->IsInvincible()) return;
+		if (player->GetStatusFlag(STATUS_REDSLATE) != 0) return;
+
+		if (caster->IsPlayer())
+		{
+			if (caster->GetPlayer()->GetParty() == target->GetPlayer()->GetParty())
+				return;
+
+			if (caster->GetPlayer()->safeAttackMode)
+			{
+				iSideCondition = caster->GetPlayer()->GetPlayerRelationship(player);
+				if (iSideCondition != 7 && iSideCondition != 2 && iSideCondition != 6)
+				{
+					if (caster->map->flags.fightZone)
+					{
+						if (caster->GetPlayer()->guildGUID == player->guildGUID)
+							return;
+					}
+					else
+						return;
+				}
+			}
+		}
+
+		iMaxSP = player->GetMaxSP();
+		if (player->stamina > 0)
+		{
+			if (player->m_iTimeLeft_FirmStamina == 0)
+			{
+				player->stamina -= iSP;
+				if (player->stamina < 0) player->stamina = 0;
+				SendNotifyMsg(nullptr, player, NOTIFY_SP, 0, 0, 0);
+			}
+		}
+	}
+}
+
+void GServer::Effect_SpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3)
+{
+	int iSP, iMaxSP;
+	uint64_t time = unixtime();
+	if (caster == nullptr || target == nullptr)
+		return;
+
+	if (caster->IsDead() || target->IsDead()) return;
+
+	iSP = dice(sV1, sV2) + sV3;
+
+	if (target->IsPlayer())
+	{
+
+		Client * player = target->GetPlayer();
+		
+		if (player->IsDead()) return;
+
+		iMaxSP = player->GetMaxSP();
+		if (player->stamina < iMaxSP) {
+			player->stamina += iSP;
+
+			if (player->stamina > iMaxSP)
+				player->stamina = iMaxSP;
+
+			SendNotifyMsg(nullptr, player, NOTIFY_SP, 0, 0, 0);
+		}
+	}
+}
+
+void GServer::Effect_Damage_Spot_DamageMove(Unit* attacker, Unit* target, short sV1, short sV2, short sV3, bool exp, Element element, Magic* spell)
+{
+
+}
 
 void GServer::CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue)
 {
