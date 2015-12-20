@@ -1147,7 +1147,7 @@ void Npc::behavior_attack()
  					case 79:
  						if (target)
  						{
-							if (!target->IsDead() && map->gserver->CheckResistingIceSuccess(direction, target.get(), m_iMagicHitRatio) == false)
+							if (!target->IsDead() && target->CheckResistIce(direction, m_iMagicHitRatio) == false)
  							{
  								if (target->magicEffectStatus[ MAGICTYPE_ICE ] == 0)
  								{
@@ -1568,7 +1568,7 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 		(dY < 0) || (dY >= map->sizeY)) return;
 
  	const int crossPnts[5][2] = {{0,0},{-1,0},{1,0},{0,-1},{0,1}};
- 	uint32_t  dwTime = unixtime();
+ 	uint64_t  dwTime = unixtime();
 	int32_t damage = 0, magicResist = 0;
 // 	int i, iErr, ix, iy, sX, sY, tX, tY, iResult, iWeatherBonus;
 
@@ -1634,7 +1634,7 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 			break;
 
 		case MAGICTYPE_HOLDOBJECT:
-			if (target && map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false) {
+			if (target && target->CheckResistMagic(direction, magicResist) == false) {
 				if (target->IsNPC() && ((Npc*)target)->m_cMagicLevel >= 6)
 					break;
 				if (!target->AddMagicEffect(spell->magicType, spell->lastTime))
@@ -1790,12 +1790,12 @@ void Npc::magicHandler(Unit * unit, short dX, short dY, short magicType)
 			//test
 			target = map->GetOwner(dX, dY).get();
 			if (target && target->IsPlayer()) map->gserver->SendNotifyMsg(0, (Client*)target, NOTIFY_NOTICEMSG, 0, 0, 0, "Magic cast");
-			if (target && map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
+			if (target && target->CheckResistMagic(direction, magicResist) == false)
 				map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->element);
 
 			target = map->GetDeadOwner(dX, dY).get();
 			if (target && target->IsPlayer() && target->health > 0 ) {
-				if (map->gserver->CheckResistingMagicSuccess(direction, target, magicResist) == false)
+				if (target->CheckResistMagic(direction, magicResist) == false)
 					map->gserver->Effect_Damage_Spot(unit, target, spell->m_sValue[MAGICV_THROW], spell->m_sValue[MAGICV_RANGE], spell->m_sValue[MAGICV_BONUS]/* + iWeatherBonus*/, true, spell->element);
 			}
 			break;

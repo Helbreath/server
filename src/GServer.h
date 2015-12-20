@@ -287,9 +287,6 @@ public:
 	void ClearSkillUsingStatus(Client * client);
 
 	int getPlayerNum(Map * pMap, short dX, short dY, char cRadius);
-	bool CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int iHitRatio);
-	bool CheckResistingPoisonSuccess(Unit * owner);
-	bool CheckResistingIceSuccess(char cAttackerDir, Unit * target, int iHitRatio);
 	void CalculateSSN_SkillIndex(Client * client, short sSkillIndex, int iValue);
 	void CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue);
 	int32_t CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack = false, bool bIsDash = false);

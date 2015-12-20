@@ -6390,128 +6390,6 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 	}
 }
 
-bool GServer::CheckResistingMagicSuccess(char cAttackerDir, Unit * target, int iHitRatio)
-{
-	double dTmp1, dTmp2, dTmp3;
-	int    iTarGetMagicResistRatio, iDestHitRatio, iResult;
-	char   cTargetDir, cProtect;
-
-	if (target == nullptr)
-		return false;
-	if (target->IsPlayer())
-	{
-		Client * client = static_cast<Client *>(target);
-		if (client->IsInvincible()) return true;
-
-		cTargetDir = client->direction;
-		iTarGetMagicResistRatio = client->m_cSkillMastery[SKILL_MAGICRES] + client->m_iAddMR;
-
-		if (client->GetMag() > 50)
-			iTarGetMagicResistRatio += (client->GetMag() - 50);
-
-		iTarGetMagicResistRatio += client->m_iAddResistMagic;
-		cProtect = client->magicEffectStatus[MAGICTYPE_PROTECT];
-		if ((client->status & STATUS_REDSLATE) != 0) return true;
-	}
-	else
-	{
-		Npc * npc = static_cast<Npc *>(target);
-		cTargetDir = npc->direction;
-		iTarGetMagicResistRatio = npc->m_cResistMagic;
-		cProtect = npc->magicEffectStatus[MAGICTYPE_PROTECT];
-	}
-
-	if (cProtect == MAGICPROTECT_AMP) return true;
-	// Changed iHitRatio 1000 -> 10000 to fix the hit through pfm xRisenx / Vamp
-	if (iHitRatio < 10000 && cProtect == MAGICPROTECT_PFM) return true;
-	//if (iHitRatio < 1000 && cProtect == MAGICPROTECT_PFM) return true;
-	//if (iHitRatio < 1000 && cProtect == MAGICPROTECT_GPFM) return true;
-	if (iHitRatio >= 10000) iHitRatio -= 10000;
-
-	if (iTarGetMagicResistRatio < 1) iTarGetMagicResistRatio = 1;
-
-	dTmp1 = (double)(iHitRatio);
-	dTmp2 = (double)(iTarGetMagicResistRatio);
-
-	dTmp3 = (dTmp1 / dTmp2) * MAGICHITRATIO; // Magic Hit Ratio
-	iDestHitRatio = (int)(dTmp3);
-
-	if (iDestHitRatio < MINIMUMHITRATIO) iDestHitRatio = MINIMUMHITRATIO;
-	if (iDestHitRatio > MAXIMUMHITRATIO) iDestHitRatio = MAXIMUMHITRATIO;
-
-	if (iDestHitRatio >= 100) return false;
-
-	iResult = dice(1, 100);
-	if (iResult <= iDestHitRatio) return false;
-
-	// Resisting Magic
-	if (target->IsPlayer())
-		CalculateSSN_SkillIndex(static_cast<Client *>(target), SKILL_MAGICRES, 1);
-
-	return true;
-}
-
-bool GServer::CheckResistingPoisonSuccess(Unit * owner)
-{
-	int iResist, iResult;
-
-	if (owner == nullptr)
-		return false;
-
-	if (owner->IsPlayer())
-	{
-		Client * client = static_cast<Client *>(owner);
-		iResist = client->m_cSkillMastery[SKILL_POISONRES] + client->m_iAddPR;
-	}
-	else if (owner->IsNPC())
-	{
-		iResist = 0;
-	}
-
-	iResult = dice(1, 100);
-	if (iResult >= iResist)
-		return false;
-
-	if (owner->IsPlayer())
-		CalculateSSN_SkillIndex(static_cast<Client *>(owner), SKILL_POISONRES, 1);
-
-	return true;
-}
-
-bool GServer::CheckResistingIceSuccess(char cAttackerDir, Unit * target, int iHitRatio)
-{
-
-	int    iTargetIceResistRatio, iResult;
-
-	if (target == nullptr)
-		return false;
-
-	if (target->IsPlayer())
-	{
-		Client * client = static_cast<Client *>(target);
-
-		if (client->IsInvincible()) return true;
-
-		iTargetIceResistRatio = client->IceResist();
-
-		if (client->m_dwWarmEffectTime == 0) {
-		}
-		else if ((unixtime() - client->m_dwWarmEffectTime) < 1000 * 30) return true;
-	}
-	else if (target->IsNPC())
-	{
-		Npc * npc = static_cast<Npc *>(target);
-		if (npc->element == ELEMENT_WATER) return true;
-		iTargetIceResistRatio = (npc->m_cResistMagic) - (npc->m_cResistMagic / 3);
-	}
-
-	if (iTargetIceResistRatio < 1) iTargetIceResistRatio = 1;
-
-	iResult = dice(1, 100);
-	if (iResult <= iTargetIceResistRatio) return true;
-
-	return false;
-}
 
 void GServer::CalculateSSN_SkillIndex(Client * client, short sSkillIndex, int iValue)
 {
@@ -7987,11 +7865,11 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 
 				if ((ctarget->IsPoisoned() == false) &&//TODO: overwrite poisons? At the moment, a stronger poison gets ignored if any is applied prior.
 					((cAttackerSA == 5) || (cAttackerSA == 6) || (cAttackerSA == 61))) {
-					if (CheckResistingPoisonSuccess(target) == false) {
+					if (target->CheckResistPoison() == false) {
 
-						if (cAttackerSA == 5)	ctarget->Poison(true, 15, dwTime);
-						else if (cAttackerSA == 6)  ctarget->Poison(true, 40, dwTime);
-						else if (cAttackerSA == 61) ctarget->Poison(true, iAttackerSAvalue, dwTime);
+						if (cAttackerSA == 5)	ctarget->SetPoison(15, dwTime);
+						else if (cAttackerSA == 6)  ctarget->SetPoison(40, dwTime);
+						else if (cAttackerSA == 61) ctarget->SetPoison(iAttackerSAvalue, dwTime);
 
 						ctarget->SetStatusFlag(STATUS_POISON, true);
 						SendNotifyMsg(nullptr, ctarget, NOTIFY_MAGICEFFECTON, MAGICTYPE_POISON, ctarget->PoisonLevel(), 0);

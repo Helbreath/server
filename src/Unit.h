@@ -44,15 +44,22 @@ public:
 	bool IsAres()		const	{ return (side == ARESDEN) ? true : false; }
 	bool IsElv()		const	{ return (side == ELVINE) ? true : false; }
 
+	Client * GetPlayer() { return reinterpret_cast<Client*>(this); }
+	Npc * GetNpc() { return reinterpret_cast<Npc*>(this); }
+
 	void SetOwnerType(int8_t type) { _ownerType = type; }
 	void SetType(int8_t type) { _type = type; }
 	void SetTypeOriginal(int8_t type) { _typeOriginal = type; }
-	int8_t OwnerType() { return _ownerType; }
-	int8_t Type() { return _type; }
-	int8_t TypeOriginal() { return _typeOriginal; }
+	int8_t OwnerType() const { return _ownerType; }
+	int8_t Type() const { return _type; }
+	int8_t TypeOriginal() const { return _typeOriginal; }
 
 	virtual float GetDropFactor()		const { return 1.0f; }
 
+
+	bool CheckResistMagic(char direction, int hitratio);
+	bool CheckResistPoison();
+	bool CheckResistIce(char direction, int iHitRatio);
 
 	Map * map;
 	uint64_t handle;

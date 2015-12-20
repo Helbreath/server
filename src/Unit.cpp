@@ -2,6 +2,7 @@
 #include "GServer.h"
 #include "netmessages.h"
 #include "Map.h"
+#include "Npc.h"
 // #include "ActionID.h"
 // #include "DelayEvent.h"
 // #include "maths.h"
@@ -115,7 +116,7 @@ bool Unit::AddMagicEffect(int16_t magicType, uint64_t effectTime, int8_t kind)
 // 			this, 0, 0, 0, kind, 0, 0);
 	
 	if (IsPlayer())
-		map->gserver->SendNotifyMsg(0, static_cast<Client*>(this), NOTIFY_MAGICEFFECTON, magicType, kind, 0);
+		map->gserver->SendNotifyMsg(nullptr, GetPlayer(), NOTIFY_MAGICEFFECTON, magicType, kind, 0);
 
 	SetMagicFlag(magicType, true);
  	return true;
@@ -123,19 +124,120 @@ bool Unit::AddMagicEffect(int16_t magicType, uint64_t effectTime, int8_t kind)
 
 bool Unit::RemoveMagicEffect(int8_t magicType)
 {
-// 	if(!m_cMagicEffectStatus[magicType])
-// 		return false;
-// 
-// 	if (IsPlayer())
-// 		gserver->SendNotifyMsg(NULL, m_handle, NOTIFY_MAGICEFFECTOFF, magicType, m_cMagicEffectStatus[magicType], NULL, NULL);
-// 
-// 	SetMagicFlag(magicType, false);
-// 	m_cMagicEffectStatus[magicType] = NULL;
-// 	gserver->RemoveFromDelayEventList(this, magicType);
+	if (!magicEffectStatus[magicType])
+		return false;
+
+	if (IsPlayer())
+		map->gserver->SendNotifyMsg(nullptr, GetPlayer(), NOTIFY_MAGICEFFECTOFF, magicType, magicEffectStatus[magicType], 0);
+
+	SetMagicFlag(magicType, false);
+	magicEffectStatus[magicType] = 0;
+	map->gserver->RemoveFromDelayEventList(this, magicType);
  	return true;
 }
 
 void Unit::SetSideFlag(Side side)
 {
 //	SetNibble(m_iStatus, 7, side);
+}
+bool Unit::CheckResistMagic(char direction, int hitratio)
+{
+	int targetMagicResistRatio = 0;
+	if (IsPlayer())
+	{
+		Client * player = GetPlayer();
+		if (player->IsInvincible()) return true;
+
+		targetMagicResistRatio = player->m_cSkillMastery[SKILL_MAGICRES] + player->m_iAddMR;
+		if (player->GetMag() > 50)
+			targetMagicResistRatio += (player->GetMag() - 50);
+
+		targetMagicResistRatio += player->m_iAddResistMagic;
+		if ((player->status & STATUS_REDSLATE) != 0) return true;
+	}
+	else
+	{
+		targetMagicResistRatio = GetNpc()->m_cResistMagic;
+	}
+
+	if (magicEffectStatus[MAGICTYPE_PROTECT] == MAGICPROTECT_AMP) return true;
+
+	if (magicEffectStatus[MAGICTYPE_PROTECT] == MAGICPROTECT_PFM && hitratio < 1000) return true;
+
+	if (hitratio >= 10000) hitratio -= 10000;
+
+	if (targetMagicResistRatio < 1) targetMagicResistRatio = 1;
+
+	hitratio = (hitratio / targetMagicResistRatio) / 50.0f;
+
+	if (hitratio < MINIMUMHITRATIO) hitratio = MINIMUMHITRATIO;
+	if (hitratio > MAXIMUMHITRATIO) hitratio = MAXIMUMHITRATIO;
+
+	if (dice(1, 100) <= hitratio) return false;
+
+	if (IsPlayer()) GetPlayer()->CalculateSSN_SkillIndex(SKILL_MAGICRES, 1);
+	return true;
+}
+
+bool Unit::CheckResistPoison()
+{
+	int iResist, iResult;
+
+	if (IsPlayer())
+	{
+		Client * client = GetPlayer();
+		iResist = client->m_cSkillMastery[SKILL_POISONRES] + client->m_iAddPR;
+	}
+	else if (IsNPC())
+	{
+		iResist = 0;
+	}
+	else
+	{
+		return true;
+	}
+
+	iResult = dice(1, 100);
+	if (iResult >= iResist)
+		return false;
+
+	if (IsPlayer())
+		GetPlayer()->CalculateSSN_SkillIndex(SKILL_POISONRES, 1);
+
+	return true;
+}
+
+bool Unit::CheckResistIce(char direction, int iHitRatio)
+{
+	int    iTargetIceResistRatio, iResult;
+
+	if (IsPlayer())
+	{
+		Client * client = GetPlayer();
+
+		if (client->IsInvincible()) return true;
+
+		iTargetIceResistRatio = client->IceResist();
+
+		if (client->m_dwWarmEffectTime == 0) {
+		}
+		else if ((unixtime() - client->m_dwWarmEffectTime) < 1000 * 30) return true;
+	}
+	else if (IsNPC())
+	{
+		Npc * npc = GetNpc();
+		if (npc->element == ELEMENT_WATER) return true;
+		iTargetIceResistRatio = (npc->m_cResistMagic) - (npc->m_cResistMagic / 3);
+	}
+	else
+	{
+		return true;
+	}
+
+	if (iTargetIceResistRatio < 1) iTargetIceResistRatio = 1;
+
+	iResult = dice(1, 100);
+	if (iResult <= iTargetIceResistRatio) return true;
+
+	return false;
 }
