@@ -4641,7 +4641,7 @@ void GServer::ClientCommonHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 // 		ReqRepairAllConfirmHandler(iClientH, iV1);
 // 		break;
 	default:
-		logger->error(Poco::format("Unknown common packet received from client - 0x%.2X", (uint32_t)command));
+		logger->error(Poco::format("Unknown common packet received from client - 0x%.2X", command));
 		break;
 	}
 }

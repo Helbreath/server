@@ -56,6 +56,10 @@ public:
 
 	virtual float GetDropFactor()		const { return 1.0f; }
 
+	bool IsPoisoned() const { return _poisonLevel > 0; }
+	int32_t PoisonLevel() const { return _poisonLevel; }
+
+	void SetPoison(uint32_t level, uint64_t time);
 
 	bool CheckResistMagic(char direction, int hitratio);
 	bool CheckResistPoison();
@@ -75,7 +79,8 @@ public:
 	shared_ptr<Unit> killer;
 	int8_t direction;
 
-
+	int32_t  _poisonLevel;
+	uint64_t _poisonTime;
 
 	string name;
 

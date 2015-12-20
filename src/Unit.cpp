@@ -140,6 +140,21 @@ void Unit::SetSideFlag(Side side)
 {
 //	SetNibble(m_iStatus, 7, side);
 }
+
+void Unit::SetPoison(uint32_t level, uint64_t time)
+{
+	if (_poisonLevel == 0 || _poisonTime == 0)
+	{
+		SetStatusFlag(STATUS_POISON, false);
+		_poisonLevel = 0;
+		_poisonTime = 0;
+		return;
+	}
+	SetStatusFlag(STATUS_POISON, true);
+	_poisonLevel = level;
+	_poisonTime = time;
+}
+
 bool Unit::CheckResistMagic(char direction, int hitratio)
 {
 	int targetMagicResistRatio = 0;

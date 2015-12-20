@@ -172,7 +172,6 @@ Client::Client()
 
 	crusadeLocation = false;
 
-	_poison    = false;
 	_poisonLevel   = 0;
 
 	m_iAdminUserLevel  = 0;

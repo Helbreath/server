@@ -34,8 +34,6 @@ enum Sex{
 #define FLAGRANGE_X		11
 #define FLAGRANGE_Y		9
 
-
-
 enum skillIndexes
 {
 	SKILL_MINING,			// 0
@@ -69,7 +67,6 @@ class Client : public Unit, public boost::enable_shared_from_this<Client>, publi
 public:
 	Client();
 	~Client();
-
 	// 0 = dead connect, 1 = login screen, 2 = in game
 	// can switch between 1 and 2 but can only be 0 when connection closing
 	uint8_t currentstatus;
@@ -187,17 +184,8 @@ public:
 	uint32_t GetItemCount(uint64_t id);
 	void SetItemCount(uint64_t id, uint32_t val, bool notify = true);
 
-
-#pragma region Status effects
-	bool IsPoisoned() { return _poison; }
-	void Poison(bool poison, int32_t level, uint64_t time) { _poison = poison; _poisonLevel = level; _poisonTime = time; }
-	int32_t PoisonLevel() { return _poisonLevel; }
-	bool IsParalyzed() { return false; }//TODO:
-	bool IsHeld() { return false; }
-	bool IsConfused() { return false; }
-	bool IsIllusioned() { return false; }
-	bool IsBerserked() { return false; }
-#pragma endregion
+	bool IsHero() const { return false; }//wearing full hero armor?
+	void SetHero(bool v);
 
 	bool IsFlooding(uint32_t sensitivity);
 	bool IsInCombatMode()	const { return ((m_sAppr2 & 0xF000) >> 12)>1; }
@@ -371,9 +359,6 @@ public:
 	string  profile;
 
 	int32_t   m_iHungerStatus;
-	bool  _poison;
-	int32_t  _poisonLevel;       
-	uint64_t _poisonTime;
 
 	int32_t   m_iPenaltyBlockYear, m_iPenaltyBlockMonth, m_iPenaltyBlockDay; 
 
