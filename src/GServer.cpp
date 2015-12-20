@@ -6391,154 +6391,6 @@ void GServer::Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, shor
 }
 
 
-void GServer::CalculateSSN_SkillIndex(Client * client, short sSkillIndex, int iValue)
-{
-	int   iOldSSN, iSSNpoint, iWeaponIndex;
-
-	if (client == nullptr) return;
-	if (client->m_bIsInitComplete == false) return;
-	if ((sSkillIndex < 0) || (sSkillIndex >= MAXSKILLTYPE)) return;
-	if (client->_dead == true) return;
-
-	if (client->m_cSkillMastery[sSkillIndex] == 0) return;
-
-	switch (sSkillIndex) {
-	case SKILL_MAGIC:
-		iValue *= 13;
-		break;
-	case SKILL_HANDATTACK:
-	case SKILL_ARCHERY:
-	case SKILL_SHORTSWORD:
-	case SKILL_LONGSWORD:
-	case SKILL_FENCING:
-	case SKILL_AXE:
-	case SKILL_HAMMER:
-	case SKILL_STAFF:
-	case SKILL_PRETENDCORPSE:
-		//case SKILL_MAGICRES:
-		//case SKILL_SHIELD:
-		//case SKILL_POISONRES:
-		iValue *= 15;
-		break;
-
-	case SKILL_SHIELD:
-	case SKILL_MAGICRES:
-	case SKILL_POISONRES:
-		iValue *= 3;
-		break;
-		//case SKILL_FARMING:
-		//case SKILL_MANUFACTURING:
-		//case SKILL_ALCHEMY:
-		//case SKILL_MINING:
-		//case SKILL_CRAFTING:
-		//case SKILL_FISHING:
-		//iValue *= 3;
-		//break;
-		/*case SKILL_CRAFTING:
-		iValue *= 20;
-		break;*/
-	}
-
-	iOldSSN = client->m_iSkillSSN[sSkillIndex];
-	client->m_iSkillSSN[sSkillIndex] += iValue;
-
-	iSSNpoint = m_iSkillSSNpoint[client->m_cSkillMastery[sSkillIndex] + 1];
-
-	if ((client->m_cSkillMastery[sSkillIndex] < 100) &&
-		(client->m_iSkillSSN[sSkillIndex] > iSSNpoint)) {
-
-		client->m_cSkillMastery[sSkillIndex]++;
-		switch (sSkillIndex)
-		{
-		case SKILL_MINING:
-		case SKILL_HANDATTACK:
-		case SKILL_MANUFACTURING:
-			if (client->m_cSkillMastery[sSkillIndex] > (client->GetStr() * 2)) {
-				client->m_cSkillMastery[sSkillIndex]--;
-				client->m_iSkillSSN[sSkillIndex] = iOldSSN;
-			}
-			else client->m_iSkillSSN[sSkillIndex] = 0;
-			break;
-
-		case SKILL_MAGICRES:
-			if (client->m_cSkillMastery[sSkillIndex] > (client->level * 2)) {
-				client->m_cSkillMastery[sSkillIndex]--;
-				client->m_iSkillSSN[sSkillIndex] = iOldSSN;
-			}
-			else client->m_iSkillSSN[sSkillIndex] = 0;
-			break;
-
-		case SKILL_MAGIC:
-		case SKILL_STAFF:
-		case SKILL_CRAFTING:
-			if (client->m_cSkillMastery[sSkillIndex] > (client->GetMag() * 2)) {
-				client->m_cSkillMastery[sSkillIndex]--;
-				client->m_iSkillSSN[sSkillIndex] = iOldSSN;
-			}
-			else client->m_iSkillSSN[sSkillIndex] = 0;
-			break;
-
-		case SKILL_FISHING:
-		case SKILL_ARCHERY:
-		case SKILL_SHORTSWORD:
-		case SKILL_LONGSWORD:
-		case SKILL_FENCING:
-		case SKILL_AXE:
-		case SKILL_SHIELD:
-		case SKILL_HAMMER:
-			if (client->m_cSkillMastery[sSkillIndex] > (client->GetDex() * 2)) {
-				client->m_cSkillMastery[sSkillIndex]--;
-				client->m_iSkillSSN[sSkillIndex] = iOldSSN;
-			}
-			else client->m_iSkillSSN[sSkillIndex] = 0;
-			break;
-
-		case SKILL_FARMING:
-		case SKILL_ALCHEMY:
-			//case SKILL_15:
-		case SKILL_PRETENDCORPSE:
-			if (client->m_cSkillMastery[sSkillIndex] > (client->GetInt() * 2)) {
-				client->m_cSkillMastery[sSkillIndex]--;
-				client->m_iSkillSSN[sSkillIndex] = iOldSSN;
-			}
-			else client->m_iSkillSSN[sSkillIndex] = 0;
-			break;
-
-		case SKILL_POISONRES:
-			if (client->m_cSkillMastery[sSkillIndex] > (client->m_iVit * 2)) {
-				client->m_cSkillMastery[sSkillIndex]--;
-				client->m_iSkillSSN[sSkillIndex] = iOldSSN;
-			}
-			else client->m_iSkillSSN[sSkillIndex] = 0;
-			break;
-
-		default:
-			client->m_iSkillSSN[sSkillIndex] = 0;
-			break;
-		}
-
-		if (client->m_iSkillSSN[sSkillIndex] == 0) {
-			if (client->Equipped.TwoHand != nullptr) {
-				if (client->Equipped.RightHand->relatedSkill == sSkillIndex) {
-					client->m_iHitRatio++;
-				}
-			}
-
-			if (client->Equipped.RightHand != nullptr) {
-				if (client->Equipped.RightHand->relatedSkill == sSkillIndex) {
-					client->m_iHitRatio++;
-				}
-			}
-		}
-
-		if (client->m_iSkillSSN[sSkillIndex] == 0) {
-			client->CheckTotalSkillMasteryPoints(sSkillIndex);
-
-			SendNotifyMsg(nullptr, client, NOTIFY_SKILL, sSkillIndex, client->m_cSkillMastery[sSkillIndex], 0);
-		}
-	}
-}
-
 void GServer::CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue)
 {
 	short sSkillIndex;
@@ -6550,7 +6402,7 @@ void GServer::CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue)
 
 	sSkillIndex = Weapon->relatedSkill;
 
-	CalculateSSN_SkillIndex(client, sSkillIndex, iValue);
+	client->CalculateSSN_SkillIndex(sSkillIndex, iValue);
 
 }
 
@@ -7719,7 +7571,7 @@ int32_t GServer::CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, 
 					{
 						shield = true;
 
-						CalculateSSN_SkillIndex(ctarget, SKILL_SHIELD, 1);
+						ctarget->CalculateSSN_SkillIndex(SKILL_SHIELD, 1);
 
 						if (ctarget->m_iDamageAbsorption_Shield >= 80)
 							dTmp1 = 80.0f;

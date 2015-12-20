@@ -206,6 +206,11 @@ public:
 	//		2 - limits were broken and not all of amount was applied
 	int8_t SetCurrency(int8_t id, int64_t amount);
 
+
+	void CalculateSSN_SkillIndex(short sSkillIndex, int iValue);
+
+
+
 	struct stCurrency
 	{
 		stCurrency() { _id = 0; _count = _min = _max = 0; }

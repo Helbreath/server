@@ -1702,3 +1702,150 @@ void Client::LockMap(string mapName, uint32_t time)
 	this->lockedMapName = mapName;
 	this->lockedMapTime = time;
 }
+
+void Client::CalculateSSN_SkillIndex(short sSkillIndex, int iValue)
+{
+	int   iOldSSN, iSSNpoint, iWeaponIndex;
+
+	if (m_bIsInitComplete == false) return;
+	if ((sSkillIndex < 0) || (sSkillIndex >= MAXSKILLTYPE)) return;
+	if (_dead == true) return;
+
+	if (m_cSkillMastery[sSkillIndex] == 0) return;
+
+	switch (sSkillIndex) {
+	case SKILL_MAGIC:
+		iValue *= 13;
+		break;
+	case SKILL_HANDATTACK:
+	case SKILL_ARCHERY:
+	case SKILL_SHORTSWORD:
+	case SKILL_LONGSWORD:
+	case SKILL_FENCING:
+	case SKILL_AXE:
+	case SKILL_HAMMER:
+	case SKILL_STAFF:
+	case SKILL_PRETENDCORPSE:
+		//case SKILL_MAGICRES:
+		//case SKILL_SHIELD:
+		//case SKILL_POISONRES:
+		iValue *= 15;
+		break;
+
+	case SKILL_SHIELD:
+	case SKILL_MAGICRES:
+	case SKILL_POISONRES:
+		iValue *= 3;
+		break;
+		//case SKILL_FARMING:
+		//case SKILL_MANUFACTURING:
+		//case SKILL_ALCHEMY:
+		//case SKILL_MINING:
+		//case SKILL_CRAFTING:
+		//case SKILL_FISHING:
+		//iValue *= 3;
+		//break;
+		/*case SKILL_CRAFTING:
+		iValue *= 20;
+		break;*/
+	}
+
+	iOldSSN = m_iSkillSSN[sSkillIndex];
+	m_iSkillSSN[sSkillIndex] += iValue;
+
+	iSSNpoint = gserver->m_iSkillSSNpoint[m_cSkillMastery[sSkillIndex] + 1];
+
+	if ((m_cSkillMastery[sSkillIndex] < 100) &&
+		(m_iSkillSSN[sSkillIndex] > iSSNpoint)) {
+
+		m_cSkillMastery[sSkillIndex]++;
+		switch (sSkillIndex)
+		{
+		case SKILL_MINING:
+		case SKILL_HANDATTACK:
+		case SKILL_MANUFACTURING:
+			if (m_cSkillMastery[sSkillIndex] > (GetStr() * 2)) {
+				m_cSkillMastery[sSkillIndex]--;
+				m_iSkillSSN[sSkillIndex] = iOldSSN;
+			}
+			else m_iSkillSSN[sSkillIndex] = 0;
+			break;
+
+		case SKILL_MAGICRES:
+			if (m_cSkillMastery[sSkillIndex] > (level * 2)) {
+				m_cSkillMastery[sSkillIndex]--;
+				m_iSkillSSN[sSkillIndex] = iOldSSN;
+			}
+			else m_iSkillSSN[sSkillIndex] = 0;
+			break;
+
+		case SKILL_MAGIC:
+		case SKILL_STAFF:
+		case SKILL_CRAFTING:
+			if (m_cSkillMastery[sSkillIndex] > (GetMag() * 2)) {
+				m_cSkillMastery[sSkillIndex]--;
+				m_iSkillSSN[sSkillIndex] = iOldSSN;
+			}
+			else m_iSkillSSN[sSkillIndex] = 0;
+			break;
+
+		case SKILL_FISHING:
+		case SKILL_ARCHERY:
+		case SKILL_SHORTSWORD:
+		case SKILL_LONGSWORD:
+		case SKILL_FENCING:
+		case SKILL_AXE:
+		case SKILL_SHIELD:
+		case SKILL_HAMMER:
+			if (m_cSkillMastery[sSkillIndex] > (GetDex() * 2)) {
+				m_cSkillMastery[sSkillIndex]--;
+				m_iSkillSSN[sSkillIndex] = iOldSSN;
+			}
+			else m_iSkillSSN[sSkillIndex] = 0;
+			break;
+
+		case SKILL_FARMING:
+		case SKILL_ALCHEMY:
+			//case SKILL_15:
+		case SKILL_PRETENDCORPSE:
+			if (m_cSkillMastery[sSkillIndex] > (GetInt() * 2)) {
+				m_cSkillMastery[sSkillIndex]--;
+				m_iSkillSSN[sSkillIndex] = iOldSSN;
+			}
+			else m_iSkillSSN[sSkillIndex] = 0;
+			break;
+
+		case SKILL_POISONRES:
+			if (m_cSkillMastery[sSkillIndex] > (m_iVit * 2)) {
+				m_cSkillMastery[sSkillIndex]--;
+				m_iSkillSSN[sSkillIndex] = iOldSSN;
+			}
+			else m_iSkillSSN[sSkillIndex] = 0;
+			break;
+
+		default:
+			m_iSkillSSN[sSkillIndex] = 0;
+			break;
+		}
+
+		if (m_iSkillSSN[sSkillIndex] == 0) {
+			if (Equipped.TwoHand != nullptr) {
+				if (Equipped.RightHand->relatedSkill == sSkillIndex) {
+					m_iHitRatio++;
+				}
+			}
+
+			if (Equipped.RightHand != nullptr) {
+				if (Equipped.RightHand->relatedSkill == sSkillIndex) {
+					m_iHitRatio++;
+				}
+			}
+		}
+
+		if (m_iSkillSSN[sSkillIndex] == 0) {
+			CheckTotalSkillMasteryPoints(sSkillIndex);
+
+			gserver->SendNotifyMsg(nullptr, this, NOTIFY_SKILL, sSkillIndex, m_cSkillMastery[sSkillIndex], 0);
+		}
+	}
+}
