@@ -4646,17 +4646,17 @@ void GServer::ClientCommonHandler(shared_ptr<Client> client, shared_ptr<MsgQueue
 	}
 }
 
-//TODO: fix all those nasty goto's
 int  _tmp_iMCProb[] = { 0, 300, 250, 200, 150, 100, 80, 70, 60, 50, 40 };
 int  _tmp_iMLevelPenalty[] = { 0, 5, 5, 8, 8, 10, 14, 28, 32, 36, 40 };
 void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t dY, int16_t sType, bool bItemEffect, int32_t iV1)
 {
-	short  * sp, sX, sY, sMagicCircle, rx, ry, sRemainItemSprite, sRemainItemSpriteFrame, sLevelMagic;
-	char   * cp, cData[120], cDir, cName[11], cNpcWaypoint[11], cName_Master[11], cNpcName[21], cRemainItemColor;
+	short  sX, sY, sMagicCircle, rx, ry, sRemainItemSprite, sRemainItemSpriteFrame, sLevelMagic;
+	char   cData[120], cDir, cName[11], cNpcWaypoint[11], cName_Master[11], cNpcName[21], cRemainItemColor;
 	double dV1, dV2, dV3, dV4;
 	int    i, iErr, iRet, ix, iy, iResult, iDiceRes, iNamingValue, iFollowersNum, iEraseReq, weatherBonus;
 	int    tX, tY, iManaCost, iMagicAttr, iItemID;
-	shared_ptr<Unit> owner;
+	Unit * owner;
+	Client * player;
 	Item * pItem;
 	DWORD * dwp;
 	uint64_t dwTime = unixtime();
@@ -4678,42 +4678,52 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 #endif
 
 	if (client == nullptr) return;
-	if (!client->m_bIsInitComplete) return;
 
-	if (client->map == nullptr) return;
+	player = client.get();
 
-	if ((dX < 0) || (dX >= client->map->sizeX) ||
-		(dY < 0) || (dY >= client->map->sizeY)) return;
+	if (!player->m_bIsInitComplete) return;
 
-	if ((sType < 0) || (sType >= 100))     return;
-	if (m_pMagicConfigList[sType] == 0) return;
-	if ((bItemEffect == false) && (client->magicMastery[sType] != 1)) return;
+	if (player->map == nullptr) return;
 
-	if (client->map->flags.attackEnabled == false) return;
+	if ((dX < 0) || (dX >= player->map->sizeX) ||
+		(dY < 0) || (dY >= player->map->sizeY)) return;
 
-	if (client->itemEquipStatus[EQUIPPOS_RHAND] != -1) {
-		wWeaponType = ((client->m_sAppr2 & 0x0FF0) >> 4);
-		if ((wWeaponType >= 35) && (wWeaponType < 39)) {
-		}
-		else return;
+	if (abs(dX - player->x) > 13 || abs(dY - player->y) > 13)
+	{
+		logger->error(Poco::format("Magic casted out of range - Player: %s : (%d,%d) -> (%d,%d)", player->name, player->x, player->y, dX, dY));
+		return;
 	}
 
-	if ((client->itemEquipStatus[EQUIPPOS_LHAND] != -1) ||
-		(client->itemEquipStatus[EQUIPPOS_TWOHAND] != -1)) return;
+	if ((sType < 0) || (sType >= 100))     return;
+	if (m_pMagicConfigList[sType] == nullptr) return;
+	if ((bItemEffect == false) && (player->magicMastery[sType] != 1)) return;
+
+	if (player->map->flags.attackEnabled == false) return;
+
+	//check if staff is equipped (can only cast with staff or empty hands)
+	if (player->itemEquipStatus[EQUIPPOS_RHAND] != -1)
+	{
+		wWeaponType = ((player->m_sAppr2 & 0x0FF0) >> 4);
+		if ((wWeaponType < 35) || (wWeaponType > 38))
+		return;
+	}
+
+	if ((player->itemEquipStatus[EQUIPPOS_LHAND] != -1) ||
+		(player->itemEquipStatus[EQUIPPOS_TWOHAND] != -1)) return;
 
 	//if ((dwTime - m_pClientList[iClientH]->m_dwRecentAttackTime) < 100) return; 
-	client->m_dwRecentAttackTime = dwTime;
-	client->m_dwLastActionTime = dwTime;
+	player->m_dwRecentAttackTime = dwTime;
+	player->m_dwLastActionTime = dwTime;
 
-	sX = client->x;
-	sY = client->y;
+	sX = player->x;
+	sY = player->y;
 
 	//         1      2     3     4     5	 6     7	 8	  9    10
 	//        300%	250%  200%  150%  100%  80%   70%   60%  50%   40%
 	sMagicCircle = (sType / 10) + 1;
-	if (client->m_cSkillMastery[4] == 0)
+	if (player->m_cSkillMastery[4] == 0)
 		dV1 = 1.0f;
-	else dV1 = (double)client->m_cSkillMastery[4];
+	else dV1 = (double)player->m_cSkillMastery[4];
 
 	if (bItemEffect == TRUE) dV1 = (double)100.0f;
 
@@ -4723,13 +4733,13 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 	dV1 = dV2 * dV3;
 	iResult = (int)dV1;
 
-	if (client->GetInt() > 50)
-		iResult += (client->GetInt() - 50) / 2;
+	if (player->GetInt() > 50)
+		iResult += (player->GetInt() - 50) / 2;
 
-	sLevelMagic = (client->level / 10);
+	sLevelMagic = (player->level / 10);
 	if (sMagicCircle != sLevelMagic) {
 		if (sMagicCircle > sLevelMagic) {
-			dV1 = (double)(client->level - sLevelMagic * 10);
+			dV1 = (double)(player->level - sLevelMagic * 10);
 			dV2 = (double)abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle];
 			dV3 = (double)abs(sMagicCircle - sLevelMagic) * 10;
 			dV4 = (dV1 / dV3)*dV2;
@@ -4741,16 +4751,19 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 		}
 	}
 
-	switch (client->map->weather) {
-	case 0: break;
-	case 1: iResult = iResult - (iResult / 24); break;
-	case 2:	iResult = iResult - (iResult / 12); break;
-	case 3: iResult = iResult - (iResult / 5);  break;
+	switch (player->map->weather)
+	{
+		case 0: break;
+		case 1: iResult = iResult - (iResult / 24); break;
+		case 2:	iResult = iResult - (iResult / 12); break;
+		case 3: iResult = iResult - (iResult / 5);  break;
+		default: break;
 	}
 
-	if (client->m_iSpecialWeaponEffectType == 10) {
+	if (player->m_iSpecialWeaponEffectType == 10)
+	{
 		dV1 = (double)iResult;
-		dV2 = (double)(client->m_iSpecialWeaponEffectValue * 3);
+		dV2 = (double)(player->m_iSpecialWeaponEffectValue * 3);
 		dV3 = dV1 + dV2;
 		iResult = (int)dV3;
 	}
@@ -4762,8 +4775,9 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 	//iWhetherBonus = iGetWhetherMagicBonusEffect(sType, m_pMapList[m_pClientList[iClientH]->m_cMapIndex]->m_cWhetherStatus);
 
 	iManaCost = m_pMagicConfigList[sType]->m_sValue[0];//Value1 ??
-	if ((client->safeAttackMode == true) &&
-		(client->map->flags.fightZone == false)) {
+	if ((player->safeAttackMode == true) &&
+		(player->map->flags.fightZone == false))
+	{
 		iManaCost += (iManaCost / 2) - (iManaCost / 10);
 	}
 
@@ -4779,68 +4793,88 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 
 	if (iResult < 100) {
 		iDiceRes = dice(1, 100);
-		if (iResult < iDiceRes) {
-			SendEventToNearClient_TypeA(client.get(), MSGID_MOTION_DAMAGE, 0, -1, 0);
+		if (iResult < iDiceRes)
+		{
+			SendEventToNearClient_TypeA(player, MSGID_MOTION_DAMAGE, 0, -1, 0);
 			return;
 		}
 	}
-	if (((client->m_iHungerStatus <= 10) || (client->stamina <= 0)) && (dice(1, 1000) <= 100)) {
-		SendEventToNearClient_TypeA(client.get(), MSGID_MOTION_DAMAGE, 0, -1, 0);
+	if (((player->m_iHungerStatus <= 10) || (player->stamina <= 0)) && (dice(1, 1000) <= 100))
+	{
+		SendEventToNearClient_TypeA(player, MSGID_MOTION_DAMAGE, 0, -1, 0);
 		return;
 	}
 
-	if (client->mana < iManaCost) {
+	if (player->mana < iManaCost)
+	{
 		return;
 	}
 
-	iResult = client->m_cSkillMastery[4];
-	if (client->GetMag() > 50) iResult += (client->GetMag() - 50);
+	iResult = player->m_cSkillMastery[4];
+	if (player->GetMag() > 50) iResult += (player->GetMag() - 50);
 
-	sLevelMagic = (client->level / 10);
-	if (sMagicCircle != sLevelMagic) {
-		if (sMagicCircle > sLevelMagic) {
-			dV1 = (double)(client->level - sLevelMagic * 10);
-			dV2 = (double)abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle];
-			dV3 = (double)abs(sMagicCircle - sLevelMagic) * 10;
+	sLevelMagic = (player->level / 10);
+	if (sMagicCircle != sLevelMagic)
+	{
+		if (sMagicCircle > sLevelMagic)
+		{
+			dV1 = double(player->level - sLevelMagic * 10);
+			dV2 = double(abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle]);
+			dV3 = double(abs(sMagicCircle - sLevelMagic) * 10);
 			dV4 = (dV1 / dV3)*dV2;
 
-			iResult -= abs(abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle] - (int)dV4);
+			iResult -= abs(abs(sMagicCircle - sLevelMagic)*_tmp_iMLevelPenalty[sMagicCircle] - int(dV4));
 		}
-		else {
+		else
+		{
 			iResult += 5 * abs(sMagicCircle - sLevelMagic);
 		}
 	}
 
-	iResult += client->m_iAddAR;
+	iResult += player->m_iAddAR;
 
 	if (iResult <= 0) iResult = 1;
 	if (sType >= 80) iResult += 10000;
 
-	if (m_pMagicConfigList[sType]->category == 1) {
-		if (client->map->iGetAttribute(sX, sY, 0x00000005) != 0) return;
-	}
+	if (m_pMagicConfigList[sType]->category == 1)
+		if (player->map->iGetAttribute(sX, sY, 0x00000005) != 0) return;
 
 	iMagicAttr = 0;
 	//iMagicAttr = m_pMagicConfigList[sType]->m_iAttribute;
 
-	if ((client->status & 0x10) != 0)	{
-		//SetInvisibilityFlag(iClientH, OWNERTYPE_PLAYER, FALSE);
+	if ((player->status & 0x10) != 0)
+	{
+		player->SetStatusFlag(STATUS_INVISIBILITY, false);
 
-		//bRemoveFromDelayEventList(iClientH, DEF_OWNERTYPE_PLAYER, DEF_MAGICTYPE_INVISIBILITY);
-		//m_pClientList[iClientH]->m_cMagicEffectStatus[DEF_MAGICTYPE_INVISIBILITY] = NULL;
+		RemoveFromDelayEventList(player->GetPlayer(), MAGICTYPE_INVISIBILITY);
 	}
 
-	owner = client->map->GetOwner(dX, dY);
+	owner = player->map->GetOwner(dX, dY).get();
 
-	if ((owner != nullptr) && (m_bIsCrusadeMode == FALSE) && (owner->IsPlayer()))
+	//old MAGIC_NOEFFECT
+
+	player->mana -= iManaCost;
+	if (player->mana < 0)
+		player->mana = 0;
+
+	owner->GetPlayer()->CalculateSSN_SkillIndex(SKILL_MAGIC, 1);
+
+	SendNotifyMsg(nullptr, owner->GetPlayer(), NOTIFY_MP, 0, 0, 0);
+
+	SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, player->map,
+		player->x, player->y, dX, dY, (sType + 100), player->Type());
+
+
+	if ((owner != nullptr) && (m_bIsCrusadeMode == false) && (owner->IsPlayer()))
 	{
-		if (((client->civilian == true) ||
-			(((Client*)owner.get())->civilian == true)) && (client->side != owner->side))
-			goto MAGIC_NOEFFECT;
+		if (((player->civilian == true) ||
+			(owner->GetPlayer()->civilian == true)) && (player->side != owner->side))
+			return;
 
-		if ((client->civilian == true) && (((Client*)owner.get())->civilian == false))
+		if ((player->civilian == true) && (owner->GetPlayer()->civilian == false))
 		{
-			switch (m_pMagicConfigList[sType]->magicType) {
+			switch (m_pMagicConfigList[sType]->magicType)
+			{
 			case MAGICTYPE_SPDOWN_AREA:
 			case MAGICTYPE_SUMMON:
 			case MAGICTYPE_PROTECT:
@@ -4849,86 +4883,90 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 			case MAGICTYPE_BERSERK:
 			case MAGICTYPE_POISON:
 			case MAGICTYPE_HPUP_SPOT:
-				goto MAGIC_NOEFFECT;
+				return;
 			}
 		}
 	}
 
 
 
-	if (m_pMagicConfigList[sType]->delayTime == 0) {
-		switch (m_pMagicConfigList[sType]->magicType) {
+	if (m_pMagicConfigList[sType]->delayTime == 0)
+	{
+		switch (m_pMagicConfigList[sType]->magicType)
+		{
 		case MAGICTYPE_POLYMORPH:
-			owner = client->map->GetOwner(dX, dY);
-			if (owner == nullptr) goto MAGIC_NOEFFECT;
-			if (1) { // bCheckResistingMagicSuccess(m_pClientList[iClientH]->m_cDir, sOwnerH, cOwnerType, iResult) == FALSE) {
-				switch (owner->OwnerType()) {
-				case OWNERTYPE_PLAYER:
+			owner = player->map->GetOwner(dX, dY).get();
+			if (owner == nullptr) return;
+			if (owner->CheckResistMagic(player->direction, iResult) == false)
+			{
+				switch (owner->OwnerType())
 				{
-					Client * temp = (Client*)owner.get();
-					if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) goto MAGIC_NOEFFECT;
-					temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = (char)m_pMagicConfigList[sType]->m_sValue[3];//4
-					temp->SetTypeOriginal(temp->Type());
-					temp->SetType(18);
-					SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
-					break;
-				}
+					case OWNERTYPE_PLAYER:
+					{
+						Client * temp = owner->GetPlayer();
+						if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) return;
+						temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = m_pMagicConfigList[sType]->m_sValue[3];//4
+						temp->SetTypeOriginal(temp->Type());
+						temp->SetType(18);
+						SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
+						break;
+					}
 
-				case OWNERTYPE_NPC:
-				{
-					Npc * temp = (Npc*)owner.get();
-					if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) goto MAGIC_NOEFFECT;
-					temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = (char)m_pMagicConfigList[sType]->m_sValue[3];//4
-					temp->SetTypeOriginal(temp->Type());
-					temp->SetType(18);
-					SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
-					break;
-				}
+					case OWNERTYPE_NPC:
+					{
+						Npc * temp = owner->GetNpc();
+						if (temp->magicEffectStatus[MAGICTYPE_POLYMORPH] != 0) return;
+						temp->magicEffectStatus[MAGICTYPE_POLYMORPH] = m_pMagicConfigList[sType]->m_sValue[3];//4
+						temp->SetTypeOriginal(temp->Type());
+						temp->SetType(18);
+						SendEventToNearClient_TypeA(temp, MSGID_MOTION_NULL, 0, 0, 0);
+						break;
+					}
 				}
 
 				RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, MAGICTYPE_POLYMORPH, dwTime + (m_pMagicConfigList[sType]->lastTime * 1000),
-					owner.get(), owner->map, 0, 0, 0, m_pMagicConfigList[sType]->m_sValue[3], 0);//4
+					owner, owner->map, 0, 0, 0, m_pMagicConfigList[sType]->m_sValue[3], 0);//4
 
 				if (owner->IsPlayer())
-					SendNotifyMsg(nullptr, (Client*)owner.get(), NOTIFY_MAGICEFFECTON, MAGICTYPE_POLYMORPH, m_pMagicConfigList[sType]->m_sValue[3], 0, 0);//4
+					SendNotifyMsg(nullptr, owner->GetPlayer(), NOTIFY_MAGICEFFECTON, MAGICTYPE_POLYMORPH, m_pMagicConfigList[sType]->m_sValue[3], 0, 0);//4
 			}
 			break;
 
 		case MAGICTYPE_DAMAGE_SPOT:
-			owner = client->map->GetOwner(dX, dY);
-			if (owner == nullptr) goto MAGIC_NOEFFECT;
-			if (CheckResistingMagicSuccess(client->direction, owner.get(), iResult) == false)
-				Effect_Damage_Spot(client.get(), owner.get(), m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);//4,5,6
+			owner = player->map->GetOwner(dX, dY).get();
+			if (owner == nullptr) return;
+			if (owner->CheckResistMagic(player->direction, iResult) == false)
+				Effect_Damage_Spot(player, owner, m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);//4,5,6
 
-			owner = client->map->GetDeadOwner(dX, dY);//pretend corpse skill check
-			if (owner == nullptr) goto MAGIC_NOEFFECT;
+			owner = player->map->GetDeadOwner(dX, dY).get();//pretend corpse skill check
+			if (owner == nullptr) return;
 			if ((owner->IsPlayer()) && (owner->health > 0)) {
-				if (CheckResistingMagicSuccess(client->direction, owner.get(), iResult) == false)
-					Effect_Damage_Spot(client.get(), owner.get(), m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);
+				if (owner->CheckResistMagic(player->direction, iResult) == false)
+					Effect_Damage_Spot(player, owner, m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2] + weatherBonus, true, iMagicAttr);
 			}
 			break;
 
 		case MAGICTYPE_HPUP_SPOT:
-			owner = client->map->GetOwner(dX, dY);
-			//Effect_HpUp_Spot(client, owner, m_pMagicConfigList[sType]->m_sValue[3], m_pMagicConfigList[sType]->m_sValue[4], m_pMagicConfigList[sType]->m_sValue[5]);
+			owner = player->map->GetOwner(dX, dY).get();
+			Effect_HpUp_Spot(player, owner, m_pMagicConfigList[sType]->m_sValue[0], m_pMagicConfigList[sType]->m_sValue[1], m_pMagicConfigList[sType]->m_sValue[2]);
 			break;
 
 		case MAGICTYPE_TELEPORT:
-			owner = client->map->GetOwner(dX, dY);
+			owner = player->map->GetOwner(dX, dY).get();
 
 			switch (m_pMagicConfigList[sType]->m_sValue[3]) {
 			case 1:
-				if ((owner->IsPlayer()) && (client.get() == owner.get())) {
+				if ((owner->IsPlayer()) && (player->GetPlayer() == owner->GetPlayer())) {
 					//RequestTeleportHandler(client.get(), "1   ");
-					RequestTeleportHandler(client.get(), 1);
+					RequestTeleportHandler(player, 1);
 				}
 				break;
 			}
 			break;
 
 		case MAGICTYPE_CREATE:
-			if (client->map->bGetIsMoveAllowedTile(dX, dY) == false)
-				goto MAGIC_NOEFFECT;
+			if (player->map->bGetIsMoveAllowedTile(dX, dY) == false)
+				return;
 
 			pItem = new Item;
 
@@ -4947,11 +4985,11 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 			pItem->effectV2 = dice(1, 100000);
 			pItem->effectV3 = unixtime();
 
-			client->map->bSetItem(dX, dY, pItem);
+			player->map->bSetItem(dX, dY, pItem);
 
 			//_bItemLog(DEF_ITEMLOG_DROP, iClientH, (int)-1, pItem);
 
-			SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, client->map,
+			SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, player->map,
 				dX, dY, pItem->spriteID, pItem->spriteFrame, pItem->color); // v1.4 color
 			break;
 
@@ -4963,19 +5001,6 @@ void GServer::PlayerMagicHandler(shared_ptr<Client> client, int32_t dX, int32_t 
 	else {
 
 	}
-
-MAGIC_NOEFFECT:;
-
-	client->mana -= iManaCost;
-	if (client->mana < 0)
-		client->mana = 0;
-
-	CalculateSSN_SkillIndex(client.get(), 4, 1);
-
-	SendNotifyMsg(nullptr, client.get(), NOTIFY_MP, 0, 0, 0);
-
-	SendEventToNearClient_TypeB(MSGID_EVENT_COMMON, COMMONTYPE_MAGIC, client->map,
-		client->x, client->y, dX, dY, (sType + 100), client->Type());
 }
 
 shared_ptr<Client> GServer::GetClient(uint64_t ObjectID)
