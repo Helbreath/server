@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{c70f3ebc-0cb5-4229-8448-7cd01c3684bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\redisclient">
+      <UniqueIdentifier>{055a0cd2-eca9-421a-82c0-8624bc9f4363}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\redisclient\impl">
+      <UniqueIdentifier>{7c19ac85-24cd-4bb1-aed0-f10a479aa493}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\net">
+      <UniqueIdentifier>{c15c9a67-0d95-4495-bb3c-68d43f03dfff}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\server.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisasyncclient.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisclientimpl.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisparser.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redissyncclient.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisvalue.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\net\socket.cpp">
+      <Filter>src\net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\net\net_handler.cpp">
+      <Filter>src\net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\client.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\utility.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\server.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\config.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisasyncclient.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisbuffer.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisparser.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redissyncclient.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisvalue.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\version.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\impl\redisclientimpl.h">
+      <Filter>src\redisclient\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="src\streams.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\net\socket.hpp">
+      <Filter>src\net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\net\net_handler.hpp">
+      <Filter>src\net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\net\netmessages.hpp">
+      <Filter>src\net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\client.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

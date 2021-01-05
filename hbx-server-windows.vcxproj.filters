@@ -1,0 +1,136 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{0ab9f8ba-585b-4eee-86e8-5543adbb6ba6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\redisclient">
+      <UniqueIdentifier>{4b03b909-6768-41c0-8616-45f61d197fec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\redisclient\impl">
+      <UniqueIdentifier>{85205969-84a3-42fd-95ae-563ba312c62e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\net">
+      <UniqueIdentifier>{6ec8e4c9-1a54-4692-b412-eecd240a8363}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\server.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\client.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisasyncclient.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisclientimpl.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisparser.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redissyncclient.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\redisclient\impl\redisvalue.cpp">
+      <Filter>src\redisclient\impl</Filter>
+    </ClCompile>
+    <ClCompile Include="src\net\socket.cpp">
+      <Filter>src\net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\net\net_handler.cpp">
+      <Filter>src\net</Filter>
+    </ClCompile>
+    <ClCompile Include="src\magic.hpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\map.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="gserver.cpp" />
+    <ClCompile Include="lserver.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\server.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utility.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\client.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\config.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisasyncclient.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisbuffer.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisparser.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redissyncclient.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\redisvalue.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\version.h">
+      <Filter>src\redisclient</Filter>
+    </ClInclude>
+    <ClInclude Include="src\redisclient\impl\redisclientimpl.h">
+      <Filter>src\redisclient\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="src\net\socket.hpp">
+      <Filter>src\net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\net\net_handler.hpp">
+      <Filter>src\net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\net\netmessages.hpp">
+      <Filter>src\net</Filter>
+    </ClInclude>
+    <ClInclude Include="src\item.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\map.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\occupyflag.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\strategicpoint.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\teleportloc.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tile.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\unit.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\streams.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\defines.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\npc.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\structs.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="gserver.hpp" />
+    <ClInclude Include="lserver.hpp" />
+  </ItemGroup>
+</Project>
