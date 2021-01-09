@@ -98,7 +98,8 @@ public:
         }
     }
 
-    server_status get_state() const noexcept { return status_; }
+    server_status get_status() const noexcept { return status_; }
+    void set_status(server_status _status) noexcept;
     void run();
     void stop();
 

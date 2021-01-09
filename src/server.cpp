@@ -238,6 +238,12 @@ void server::update_stats()
     web_stats_timer.async_wait(std::bind(&server::update_stats, this));
 }
 
+void server::set_status(server_status _status) noexcept
+{
+    status_ = _status;
+    lserver_->status_ = _status;
+}
+
 void server::run()
 {
     nh = std::make_unique<net_handler>(io_context_, this);
