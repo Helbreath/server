@@ -14,9 +14,12 @@
 namespace hbx
 {
 
-gserver::gserver(server * _server)
+gserver::gserver(server * _server, const std::string & _config_file)
     : server_(*_server)
 {
+    std::ifstream config_file(fmt::format("config/{}", _config_file));
+    config_file >> config;
+
     auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     std::vector<spdlog::sink_ptr> sinks;
     sinks.push_back(stdout_sink);
@@ -27,12 +30,37 @@ gserver::gserver(server * _server)
     log = std::make_shared<spdlog::async_logger>("hbx-gserver", sinks.begin(), sinks.end(), spdlog::thread_pool(), spdlog::async_overflow_policy::block);
     spdlog::register_logger(log);
 
+    if (config.count("name") == 0)
+    {
+        std::cout << "No name set for gserver\n";
+    }
+
 #ifndef _NDEBUG
-    log->set_pattern("%^%Y-%m-%d %H:%M:%S.%e [%L] [th#%5t]%$ : %v");
+    log->set_pattern(fmt::format("%^%Y-%m-%d %H:%M:%S.%e [%L] [th#%5t] [{}]%$ : %v", config["name"]));
 #else
-    log->set_pattern("%^%Y-%m-%d %H:%M:%S.%e [%L]%$ : %v");
+    log->set_pattern(fmt::format("%^%Y-%m-%d %H:%M:%S.%e [%L] [{}]%$ : %v", config["name"]));
 #endif
     log->set_level(spdlog::level::level_enum::trace);
+
+    if (config.count("maps") == 0 || config["maps"].size() == 0)
+    {
+        log->error("No maps configured to be loaded");
+        return;
+    }
+
+    server_name = config["name"].get<std::string>();
+
+    for (auto & m : config["maps"])
+    {
+        auto ret = maps.emplace(std::make_unique<map>());
+        map & newmap = *(*ret.first);
+        if (!newmap.bInit(m.get<std::string>()))
+        {
+            log->error("Map [{}] failed to load.", newmap.name);
+            return;
+        }
+    }
+    log->info("All maps loaded.");
 }
 
 gserver::~gserver()
@@ -40,14 +68,14 @@ gserver::~gserver()
 
 }
 
-bool gserver::has_map(std::string map_name)
+hbx::map * gserver::get_map(std::string map_name)
 {
     for (auto & m : maps)
     {
         if (m->name == map_name)
-            return true;
+            return m.get();
     }
-    return false;
+    return nullptr;
 }
 
 void gserver::handle_message(const message_entry & msg, std::shared_ptr<client> _client)

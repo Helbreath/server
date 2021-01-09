@@ -4,6 +4,7 @@
 #include <memory>
 #include <set>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include "utility.hpp"
 #include "streams.hpp"
 #include "map.hpp"
@@ -17,14 +18,16 @@ class server;
 class client;
 struct message_entry;
 
+using namespace nlohmann;
+
 class gserver
 {
 public:
-    gserver(server * _server);
+    gserver(server * _server, const std::string & _config_file);
     ~gserver();
 
     server_status get_status() const noexcept { return status_; }
-    bool has_map(std::string map_name);
+    map * get_map(std::string map_name);
     void handle_message(const message_entry & msg, std::shared_ptr<client> _client);
     void handle_new_client(std::shared_ptr<client> _client);
     void handle_close_client(std::shared_ptr<client> _client);
@@ -41,7 +44,7 @@ public:
     std::mutex cl_m;
     std::set<std::shared_ptr<client>> clients;
     std::set<std::unique_ptr<map>> maps;
-
+    json config;
 };
 
 }
