@@ -40,6 +40,16 @@ gserver::~gserver()
 
 }
 
+bool gserver::has_map(std::string map_name)
+{
+    for (auto & m : maps)
+    {
+        if (m->name == map_name)
+            return true;
+    }
+    return false;
+}
+
 void gserver::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
 {
     stream_read sr(msg.data, msg.size);
