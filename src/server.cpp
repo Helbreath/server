@@ -362,6 +362,13 @@ void server::handle_message(const message_entry & msg, std::shared_ptr<client> _
 
 gserver * server::find_gserver(int8_t server_id)
 {
+    for (auto & g : gservers_)
+    {
+        gserver & gs = g.get();
+        if (gs.id != server_id)
+            continue;
+        return *g;
+    }
     return nullptr;
 }
 
