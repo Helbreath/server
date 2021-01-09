@@ -387,6 +387,7 @@ void server::close_client(std::shared_ptr<client> _client)
 
     std::unique_lock<std::mutex> l(cl_m);
     clients.erase(_client);
+    _client->socket_ = nullptr;
 }
 
 void server::handle_message(const message_entry & msg, std::shared_ptr<client> _client)

@@ -110,7 +110,7 @@ void socket::handle_read_header(const asio::error_code & e, std::size_t bytes_tr
     }
     else if (e != asio::error::operation_aborted)
     {
-        nh.stop(shared_from_this());
+        //nh.stop(shared_from_this());
         return;
     }
     else
