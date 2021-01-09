@@ -119,7 +119,7 @@ public:
 
     void handle_message(const message_entry & msg, std::shared_ptr<client> _client);
 
-    gserver * find_gserver(int8_t server_id);
+    gserver * find_gserver(uint64_t server_id);
 
     template <typename int_type, typename ratio = std::nano>
     uint64_t set_timeout(std::function <void(void)> fn, const std::chrono::duration<int_type, ratio> & t)

@@ -404,7 +404,7 @@ void server::handle_message(const message_entry & msg, std::shared_ptr<client> _
     }
 }
 
-gserver * server::find_gserver(int8_t server_id)
+hbx::gserver * server::find_gserver(uint64_t server_id)
 {
     for (auto & g : gservers_)
     {

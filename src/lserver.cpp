@@ -126,7 +126,6 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
     std::map<std::string, std::string> res;
 
     {
-        connection & pg = *server_.pg;
         work W{ *server_.pg };
         result R{ W.exec_params("SELECT * FROM accounts WHERE forum_member_id = $1", str.c_str()) };
 
@@ -198,25 +197,25 @@ void lserver::build_character_list(std::shared_ptr<client> _client, stream_write
         sw.write_string(c["name"], 10);
         sw.write_int8(1);
         sw.write_uint64(std::stoull(c["id"]));
-        sw.write_uint16(std::stoi(c["appr1"]));
-        sw.write_uint16(std::stoi(c["appr2"]));
-        sw.write_uint16(std::stoi(c["appr3"]));
-        sw.write_uint16(std::stoi(c["appr4"]));
-        sw.write_uint16(std::stoi(c["head_appr"]));
-        sw.write_uint16(std::stoi(c["body_appr"]));
-        sw.write_uint16(std::stoi(c["arm_appr"]));
-        sw.write_uint16(std::stoi(c["leg_appr"]));
-        sw.write_uint16(std::stoi(c["gender"]));
-        sw.write_uint16(std::stoi(c["skin"]));
-        sw.write_uint16(std::stoi(c["level"]));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["appr1"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["appr2"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["appr3"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["appr4"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["head_appr"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["body_appr"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["arm_appr"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["leg_appr"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["gender"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["skin"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["level"])));
         sw.write_uint64(std::stoull(c["experience"]));
-        sw.write_uint16(std::stoi(c["strength"]));
-        sw.write_uint16(std::stoi(c["vitality"]));
-        sw.write_uint16(std::stoi(c["dexterity"]));
-        sw.write_uint16(std::stoi(c["intelligence"]));
-        sw.write_uint16(std::stoi(c["magic"]));
-        sw.write_uint16(std::stoi(c["charisma"]));
-        sw.write_uint32(std::stoi(c["apprcolor"]));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["strength"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["vitality"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["dexterity"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["intelligence"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["magic"])));
+        sw.write_uint16(static_cast<uint16_t>(std::stoul(c["charisma"])));
+        sw.write_uint32(static_cast<uint32_t>(std::stoul(c["apprcolor"])));
         sw.write_uint16(0);
         sw.write_uint16(0);
         sw.write_uint16(0);
@@ -228,7 +227,6 @@ void lserver::build_character_list(std::shared_ptr<client> _client, stream_write
 
 void lserver::fetch_character_list(std::shared_ptr<client> _client)
 {
-    connection & pg = *server_.pg;
     work W{ *server_.pg };
     result R{ W.exec_params("select * from characters where account_id = $1", _client->account_id) };
 

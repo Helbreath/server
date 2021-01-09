@@ -11,6 +11,8 @@
 #include <fstream>
 #include <string>
 #include <climits>
+#include <cstring>
+#include <array>
 #include "defines.hpp"
 
 using std::ofstream;
@@ -165,7 +167,7 @@ public:
         position += sz;
     };
 
-    void write_array(const char * value, int16_t sz)
+    void write_array(const uint8_t * value, int16_t sz)
     {
         VerifyData;
         write_int16(sz);

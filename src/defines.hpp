@@ -166,7 +166,7 @@ enum class motion_id
 enum class log_message_id
 {
     login = 25,
-    create_new_account = 26,
+    //create_new_account = 26,
     create_new_character = 28,
     enter_game = 29,
     delete_character = 31
