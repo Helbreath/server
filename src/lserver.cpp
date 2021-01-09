@@ -147,11 +147,128 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
 
 void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & sr)
 {
-    //server_.transfer_client();
+    std::string wat = sr.read_string(12);
+    std::string username = sr.read_string(60);
+    std::string password = sr.read_string(60);
+    std::string player_name = sr.read_string(10);
+    std::string world_name = sr.read_string(30);
+
+    // find and apply character info
+    for (auto & c : _client->characters)
+    {
+        if (c["name"] == player_name)
+        {
+            // found character
+
+            gserver * gs = server_.find_gserver(world_name, c["maploc"]);
+            if (gs == nullptr)
+            {
+                stream_write sw;
+                sw.write_enum(log_rsp_message_id::log);
+                sw.write_enum(enter_game_msg::REJECT);
+                sw.write_string("Game server or map not online. Please contact support.");
+                sw.write_int32(0); // block year
+                sw.write_int32(0); // block month
+                sw.write_int32(0); // block day
+                _client->write(sw);
+                return;
+            }
+
+            _client->char_id = std::stoull(c["id"]);
+            _client->account_id = std::stoull(c["account_id"]);
+            _client->name = c["id"];
+            //_client->id1 = std::stoull(c["id1"]);
+            //_client->id2 = std::stoull(c["id2"]);
+            //_client->id3 = std::stoull(c["id3"]);
+            _client->level = std::stoull(c["level"]);
+            _client->strength = std::stoull(c["strength"]);
+            _client->vitality = std::stoull(c["vitality"]);
+            _client->dexterity = std::stoull(c["dexterity"]);
+            _client->intelligence = std::stoull(c["intelligence"]);
+            _client->magic = std::stoull(c["magic"]);
+            _client->charisma = std::stoull(c["charisma"]);
+            _client->experience = std::stoull(c["experience"]);
+
+
+            _client->m_cSex = std::stoull(c["gender"]);
+            _client->m_cSkin = std::stoull(c["skin"]);
+            _client->m_cHairStyle = std::stoull(c["hairstyle"]);
+            _client->m_cHairColor = std::stoull(c["haircolor"]);
+            _client->m_cUnderwear= std::stoull(c["underwear"]);
+            _client->m_iApprColor = std::stoull(c["apprcolor"]);
+            _client->m_sAppr1 = std::stoull(c["appr1"]);
+            _client->m_sAppr2 = std::stoull(c["appr2"]);
+            _client->m_sAppr3 = std::stoull(c["appr3"]);
+            _client->m_sAppr4 = std::stoull(c["appr4"]);
+            _client->head_appr = std::stoull(c["headAppr"]);
+            _client->body_appr = std::stoull(c["bodyAppr"]);
+            _client->arm_appr = std::stoull(c["armAppr"]);
+            _client->leg_appr = std::stoull(c["legAppr"]);
+
+            _client->nation = c["nation"];
+            _client->map_name = c["maploc"];
+
+            _client->m_sX = std::stoull(c["locx"]);
+            _client->m_sY = std::stoull(c["locy"]);
+
+            _client->profile = c["profile"];
+
+            _client->admin_level = std::stoull(c["adminlevel"]);
+            _client->m_iContribution = std::stoull(c["contribution"]);
+            _client->m_iSpecialAbilityTime = std::stoull(c["leftspectime"]);
+            _client->locked_map_name = std::stoull(c["lockmapname"]);
+            _client->m_iLockedMapTime = std::stoull(c["lockmaptime"]);
+            //_client->admin_level = std::stoull(c["blockdate"]); // check this and reject?
+            _client->m_iGuildGUID = std::stoull(c["guild_id"]);
+            _client->m_iFightzoneNumber = std::stoull(c["fightnum"]);
+            _client->m_iFightzoneDate = std::stoull(c["fightdate"]);
+            _client->m_iFightZoneTicketNumber = std::stoull(c["fightticket"]);
+//             _client->questnum = std::stoull(c["questnum"]);
+//             _client->questid = std::stoull(c["questid"]);
+//             _client->questcount = std::stoull(c["questcount"]);
+//             _client->questrewardtype = std::stoull(c["questrewardtype"]);
+//             _client->questrewardamount = std::stoull(c["questrewardamount"]);
+//             _client->questcompleted = std::stoull(c["questcompleted"]);
+//             _client->eventid = std::stoull(c["eventid"]);
+            _client->m_iWarContribution = std::stoull(c["warcon"]);
+            _client->m_iCrusadeDuty = std::stoull(c["crusadejob"]);
+            _client->crusade_construction_point = std::stoull(c["crusadeconstructionpoint"]);
+            _client->reputation = std::stoull(c["reputation"]);
+            _client->m_iHP = std::stoull(c["hp"]);
+            _client->m_iMP = std::stoull(c["mp"]);
+            _client->m_iSP = std::stoull(c["sp"]);
+            _client->m_iEnemyKillCount = std::stoull(c["ek"]);
+            _client->m_iPKCount = std::stoull(c["pk"]);
+            _client->m_iRewardGold = std::stoull(c["rewardgold"]);
+            _client->m_iDownSkillIndex = std::stoull(c["downskillid"]);
+            _client->m_iHungerStatus = std::stoull(c["hunger"]);
+            _client->m_iSuperAttackLeft = std::stoull(c["leftsac"]);
+            _client->m_iTimeLeft_ShutUp = std::stoull(c["leftshutuptime"]);
+            _client->m_iTimeLeft_Rating = std::stoull(c["leftreptime"]);
+            _client->m_iTimeLeft_ForceRecall = std::stoull(c["leftforcerecalltime"]);
+            _client->m_iTimeLeft_FirmStaminar = std::stoull(c["leftfirmstaminatime"]);
+            _client->m_iDeadPenaltyTime = std::stoull(c["leftdeadpenaltytime"]);
+            _client->admin_level = std::stoull(c["magicmastery"]);
+            _client->m_iPartyID = std::stoull(c["party_id"]);
+            _client->m_iGizonItemUpgradeLeft = std::stoull(c["itemupgradeleft"]);
+            _client->total_ek = std::stoull(c["totalek"]);
+            _client->total_pk = std::stoull(c["totalpk"]);
+            _client->mmr = std::stoull(c["mmr"]);
+            _client->altmmr = std::stoull(c["altmmr"]);
+
+            server_.transfer_client(_client, world_name, _client->map_name);
+        }
+    }
+
     stream_write sw;
     sw.write_enum(log_rsp_message_id::log);
-    sw.write_enum(enter_game_msg::CONFIRM);
+    sw.write_enum(enter_game_msg::REJECT);
+    sw.write_string("Unable to enter game. Please contact support.");
+    sw.write_int32(0); // block year
+    sw.write_int32(0); // block month
+    sw.write_int32(0); // block day
     _client->write(sw);
+
 }
 
 void lserver::handle_create_new_character(std::shared_ptr<client> _client, stream_read & sr)
