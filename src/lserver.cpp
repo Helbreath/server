@@ -86,7 +86,7 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
     if (username.length() == 0 || password.length() == 0)
     {
         log->warn("Invalid login - {}", username);
-        server_.close_client(_client);
+        _client->disconnect();
     }
 
     request_params rp;

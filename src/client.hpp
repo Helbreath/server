@@ -37,6 +37,7 @@ public:
 
     bool bCreateNewParty();
     void write(stream_write & sw);
+    void disconnect();
 
     std::vector<std::map<std::string, std::string>> characters;
 

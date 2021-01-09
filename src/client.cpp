@@ -1,7 +1,7 @@
 
 #include "utility.hpp"
 #include "client.hpp"
-#include "net/socket.hpp"
+#include "net/net_handler.hpp"
 
 namespace hbx
 {
@@ -255,6 +255,10 @@ client::~client()
         delete it;
 }
 
+void client::disconnect()
+{
+    socket_->nh.stop(socket_);
+}
 
 bool client::bCreateNewParty()
 {
