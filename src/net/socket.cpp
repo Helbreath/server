@@ -37,7 +37,7 @@ void socket::start()
     else
     {
         //error
-        printf("connection exception: %s\n", ec.message().c_str());
+        nh.server_->log->error("connection exception: {}", ec.message().c_str());
         stop();
     }
 }
@@ -50,7 +50,7 @@ void socket::stop()
     }
     catch (std::exception & e)
     {
-        printf("connection::stop() exception: %s", e.what());
+        nh.server_->log->error("connection::stop() exception: {}", e.what());
     }
 }
 
@@ -73,7 +73,7 @@ void socket::write(const char * data, const uint64_t size)
     }
     catch (std::exception & e)
     {
-        printf("asio::write_some() exception: %s", e.what());
+        nh.server_->log->error("asio::write_some() exception: {}", e.what());
     }
 }
 
@@ -90,7 +90,7 @@ void socket::write(stream_write & sw)
     }
     catch (std::exception & e)
     {
-        nh.server_->log->error("asio::write_some() exception: %s", e.what());
+        nh.server_->log->error("asio::write_some() exception: {}", e.what());
     }
 }
 
@@ -101,7 +101,7 @@ void socket::handle_read_header(const asio::error_code & e, std::size_t bytes_tr
         size = *(int16_t *)((char *)buffer_.data());
         if (size > 8192 || size <= 0)//temporary set size .. shouldn't really be more than this anyway//2048
         {
-            nh.server_->log->error("Invalid packet size : %d", size);
+            nh.server_->log->error("Invalid packet size : {}", size);
             nh.stop(shared_from_this());
             return;
         }
@@ -129,7 +129,7 @@ void socket::handle_read(const asio::error_code & e,
     {
         if (bytes_transferred != size)
         {
-            nh.server_->log->error("Did not receive proper amount of bytes : rcv: %d needed: %d", (int32_t)bytes_transferred, size);
+            nh.server_->log->error("Did not receive proper amount of bytes : rcv: {} needed: {}", (int32_t)bytes_transferred, size);
             nh.stop(shared_from_this());
             return;
         }
@@ -138,7 +138,7 @@ void socket::handle_read(const asio::error_code & e,
         if ((size > 8192) || (size <= 0))//2048
         {
             //ERROR - object too large - close connection
-            nh.server_->log->error("Invalid packet size : %?d", size);
+            nh.server_->log->error("Invalid packet size : {}", size);
             nh.stop(shared_from_this());
             return;
         }
