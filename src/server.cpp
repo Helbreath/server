@@ -338,10 +338,18 @@ void server::start_lserver()
     lserver_ = std::make_unique<lserver>(this);
 }
 
+void server::start_gservers()
+{
+    // start all up
+}
+
 void server::start_gserver(const std::string & name)
 {
-    auto gs = std::make_unique<gserver>(this);
-    gservers_.insert(gs);
+    auto res = gservers_.insert(std::make_unique<gserver>(this));
+    gserver * gs = (*res.first).get();
+    static uint64_t gserver_id = 0;
+
+    gs->id = ++gserver_id;
 }
 
 void server::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
