@@ -74,6 +74,8 @@ public:
     std::string guild_name;
     std::string location;
 
+    int32_t eventid = 0;
+
     int   m_iGuildRank;
 
     uint32_t m_dwHPTime, m_dwMPTime, m_dwSPTime, m_dwAutoSaveTime, m_dwHungerTime;
