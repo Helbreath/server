@@ -163,6 +163,21 @@ enum class motion_id
     max
 };
 
+enum class log_message_id
+{
+    login = 25,
+    create_new_account = 26,
+    create_new_character = 28,
+    enter_game = 29,
+    delete_character = 31
+};
+
+enum class log_rsp_message_id
+{
+    log = 27,
+    enter_game = 30
+};
+
 enum class message_id
 {
     NOTIFY,
@@ -197,14 +212,14 @@ enum class message_id
     REQUEST_REGISTERDBSERVER,
     RESPONSE_REGISTERDBSERVER,
 
-    REQUEST_LOGIN,
-    REQUEST_CREATENEWACCOUNT,
-    RESPONSE_LOG,
-    REQUEST_CREATENEWCHARACTER,
-    REQUEST_ENTERGAME,
-    RESPONSE_ENTERGAME,
-    REQUEST_DELETECHARACTER,
-    REQUEST_CREATENEWGUILD,
+//     REQUEST_LOGIN,
+//     REQUEST_CREATENEWACCOUNT,
+//     RESPONSE_LOG,
+//     REQUEST_CREATENEWCHARACTER,
+//     REQUEST_ENTERGAME,
+//     RESPONSE_ENTERGAME,
+//     REQUEST_DELETECHARACTER,
+    REQUEST_CREATENEWGUILD = 32,
     RESPONSE_CREATENEWGUILD,
     REQUEST_DISBANDGUILD,
     RESPONSE_DISBANDGUILD,
@@ -523,7 +538,7 @@ enum class log_res_msg
     NOTEXISTINGCHARACTER = 0x0f1b,
     NEWCHARACTERCREATED = 0x0f1c,
     NEWCHARACTERFAILED = 0x0f1d,
-    _ALREADYEXISTINGCHARACTER = 0x0f1e,
+    ALREADYEXISTINGCHARACTER = 0x0f1e,
     CHARACTERDELETED = 0x0f1f,
     NOTENOUGHPOINT = 0x0f30,
     ACCOUNTLOCKED = 0x0f31,
