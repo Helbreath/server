@@ -26,13 +26,13 @@ public:
         Error,
     };
 
-    REDIS_CLIENT_DECL std::pair<size_t, ParseResult> parse(const char *ptr, size_t size);
+    REDIS_CLIENT_DECL std::pair<int64_t, ParseResult> parse(const char *ptr, int64_t size);
 
     REDIS_CLIENT_DECL RedisValue result();
 
 protected:
-    REDIS_CLIENT_DECL std::pair<size_t, ParseResult> parseChunk(const char *ptr, size_t size);
-    REDIS_CLIENT_DECL std::pair<size_t, ParseResult> parseArray(const char *ptr, size_t size);
+    REDIS_CLIENT_DECL std::pair<int64_t, ParseResult> parseChunk(const char *ptr, int64_t size);
+    REDIS_CLIENT_DECL std::pair<int64_t, ParseResult> parseArray(const char *ptr, int64_t size);
 
     inline bool isChar(int c)
     {
@@ -44,7 +44,7 @@ protected:
         return (c >= 0 && c <= 31) || (c == 127);
     }
 
-    REDIS_CLIENT_DECL long int bufToLong(const char *str, size_t size);
+    REDIS_CLIENT_DECL long int bufToLong(const char *str, int64_t size);
 
 private:
     enum State {
@@ -70,7 +70,7 @@ private:
 
     } state;
 
-    std::size_t bulkSize;
+    int64_t bulkSize;
     std::vector<char> buf;
     std::stack<int64_t> arrayStack;
     std::stack<RedisValue> valueStack;

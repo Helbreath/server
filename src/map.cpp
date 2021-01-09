@@ -296,7 +296,7 @@ bool map::bSetItem(int16_t  sX, int16_t  sY, item * pItem)
 }
 
 
-item * map::pGetItem(int16_t  sX, int16_t  sY, int16_t * pRemainItemSprite, int16_t * pRemainItemSpriteFrame, char * pRemainItemColor) //v1.4 color
+item * map::pGetItem(int16_t  sX, int16_t  sY, int16_t * pRemainItemSprite, int16_t * pRemainItemSpriteFrame, uint32_t * pRemainItemColor) //v1.4 color
 {
     tile * pTile;
     item * pItem;
@@ -355,7 +355,6 @@ bool map::_bDecodeMapDataFileContents()
 {
     std::string filename;
     char  cHeader[260], cTemp[100];
-    std::size_t dwFileSize;
     std::string token;
     char cReadMode;
     char seps[] = "= \t\n";
@@ -368,10 +367,6 @@ bool map::_bDecodeMapDataFileContents()
 
     if (!istrm.is_open())
         return false;
-
-    istrm.seekg(0, std::ios::end);
-    dwFileSize = istrm.tellg();
-    istrm.seekg(0);
 
     memset(cHeader, 0, sizeof(cHeader));
 
@@ -577,7 +572,7 @@ void map::set_temp_move_allowed_flag(int32_t dX, int32_t dY, bool bFlag)
     pTile->temp_move_allowed = bFlag;
 }
 
-int32_t map::get_occupy_flag(int32_t dX, int32_t dY, int32_t iSide, int32_t iEKNum, int32_t iDOI)
+int32_t map::get_occupy_flag(int32_t dX, int32_t dY, int8_t iSide, int32_t iEKNum, int32_t iDOI)
 {
     if ((dX < 20) || (dX >= m_sSizeX - 20) || (dY < 20) || (dY >= m_sSizeY - 20)) return -1;
 

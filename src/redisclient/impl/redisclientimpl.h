@@ -41,7 +41,7 @@ public:
             const asio::error_code &ec,
             const std::function<void(bool, const std::string &)> &handler);
 
-    REDIS_CLIENT_DECL size_t subscribe(const std::string &command,
+    REDIS_CLIENT_DECL int64_t subscribe(const std::string &command,
         const std::string &channel,
         std::function<void(std::vector<char> msg)> msgHandler,
         std::function<void(RedisValue)> handler);
@@ -52,7 +52,7 @@ public:
         std::function<void(RedisValue)> handler);
 
     REDIS_CLIENT_DECL void unsubscribe(const std::string &command, 
-        size_t handle_id, const std::string &channel, 
+        int64_t handle_id, const std::string &channel,
         std::function<void(RedisValue)> handler);
 
     REDIS_CLIENT_DECL void close() noexcept;
@@ -70,8 +70,8 @@ public:
     REDIS_CLIENT_DECL void sendNextCommand();
     REDIS_CLIENT_DECL void processMessage();
     REDIS_CLIENT_DECL void doProcessMessage(RedisValue v);
-    REDIS_CLIENT_DECL void asyncWrite(const asio::error_code &ec, const size_t);
-    REDIS_CLIENT_DECL void asyncRead(const asio::error_code &ec, const size_t);
+    REDIS_CLIENT_DECL void asyncWrite(const asio::error_code &ec, const int64_t);
+    REDIS_CLIENT_DECL void asyncRead(const asio::error_code &ec, const int64_t);
 
     REDIS_CLIENT_DECL void onRedisError(const RedisValue &);
     REDIS_CLIENT_DECL static void defaulErrorHandler(const std::string &s);
@@ -80,7 +80,7 @@ public:
     REDIS_CLIENT_DECL static void append(std::vector<char> &vec, const std::string &s);
     REDIS_CLIENT_DECL static void append(std::vector<char> &vec, const char *s);
     REDIS_CLIENT_DECL static void append(std::vector<char> &vec, char c);
-    template<size_t size>
+    template<int64_t size>
     static inline void append(std::vector<char> &vec, const char (&s)[size]);
 
     template<typename Handler>
@@ -90,9 +90,9 @@ public:
     asio::ip::tcp::socket socket;
     RedisParser redisParser;
     std::array<char, 4096> buf;
-    size_t subscribeSeq;
+    int64_t subscribeSeq;
 
-    typedef std::pair<size_t, std::function<void(const std::vector<char> &buf)> > MsgHandlerType;
+    typedef std::pair<int64_t, std::function<void(const std::vector<char> &buf)> > MsgHandlerType;
     typedef std::function<void(const std::vector<char> &buf)> SingleShotHandlerType;
 
     typedef std::multimap<std::string, MsgHandlerType> MsgHandlersMap;
@@ -108,7 +108,7 @@ public:
     State state;
 };
 
-template<size_t size>
+template<int64_t size>
 void RedisClientImpl::append(std::vector<char> &vec, const char (&s)[size])
 {
     vec.insert(vec.end(), s, s + size);

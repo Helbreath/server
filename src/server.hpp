@@ -34,7 +34,7 @@
 #include "redisclient/redissyncclient.h"
 #include "redisclient/redisasyncclient.h"
 
-
+namespace pqxx { class connection; }
 
 namespace hbx
 {
@@ -78,7 +78,7 @@ public:
 
     void update_stats();
 
-    void execute(request_params && params);
+    std::string execute(request_params && params);
 
     std::string get_method(RequestMethod method) const noexcept
     {
@@ -179,7 +179,7 @@ public:
     }
 
 private:
-    std::size_t threadcount;
+    int64_t threadcount;
     std::unique_ptr<lserver> lserver_;
     std::set<std::unique_ptr<gserver>> gservers_;
     std::shared_ptr<asio::io_context> io_context_;

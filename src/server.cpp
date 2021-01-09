@@ -68,8 +68,8 @@ server::server(std::shared_ptr<asio::io_context> io_)
     wrk = std::make_unique<asio_exec>(asio::make_work_guard(*io_context_));
     threadcount = std::thread::hardware_concurrency();
     if (config.contains("threads"))
-        threadcount = config["threads"].get<uint64_t>();
-    for (std::size_t i = 0; i < threadcount; ++i)
+        threadcount = config["threads"].get<int64_t>();
+    for (int64_t i = 0; i < threadcount; ++i)
         threads.emplace_back(std::bind(static_cast<asio::io_context::count_type(asio::io_context:: *)()>(&asio::io_context::run), io_context_.get()));
 
     web_stats_timer.expires_after(5s);
@@ -77,7 +77,7 @@ server::server(std::shared_ptr<asio::io_context> io_)
 
     std::string errmsg;
     asio::ip::address connectaddress = asio::ip::make_address(config["redis"]["host"].get<std::string>().c_str());
-    if (!redis.connect(connectaddress, config["redis"]["port"].get<int32_t>(), errmsg))
+    if (!redis.connect(connectaddress, config["redis"]["port"].get<uint16_t>(), errmsg))
     {
         log->critical("Can't connect to redis: {}", errmsg);
         throw std::runtime_error("Can't connect to redis.");
@@ -95,7 +95,7 @@ server::~server()
         t.join();
 }
 
-void server::execute(request_params && params)
+std::string server::execute(request_params && params)
 {
     std::chrono::system_clock::time_point http_date;
 
@@ -162,6 +162,13 @@ void server::execute(request_params && params)
 
             if (error != asio::error::eof && error != asio::ssl::error::stream_truncated)
                 throw asio::system_error(error);
+
+            std::string s = response_content.str();
+            if (std::size_t index = s.find("\r\n\r\n"); index != std::string::npos)
+            {
+                return s.substr(index + 4, s.length() - index - 4);
+            }
+            return "";
         }
         else
         {

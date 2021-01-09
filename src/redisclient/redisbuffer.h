@@ -20,17 +20,17 @@ class RedisBuffer
 {
 public:
     inline RedisBuffer();
-    inline RedisBuffer(const char *ptr, size_t dataSize);
+    inline RedisBuffer(const char *ptr, int64_t dataSize);
     inline RedisBuffer(const char *s);
     inline RedisBuffer(const std::string &s);
     inline RedisBuffer(const std::vector<char> &buf);
 
-    inline size_t size() const;
+    inline int64_t size() const;
     inline const char *data() const;
 
 private:
     const char *ptr_;
-    size_t size_;
+    int64_t size_;
 };
 
 
@@ -39,7 +39,7 @@ RedisBuffer::RedisBuffer()
 {
 }
 
-RedisBuffer::RedisBuffer(const char *ptr, size_t dataSize)
+RedisBuffer::RedisBuffer(const char *ptr, int64_t dataSize)
     : ptr_(ptr), size_(dataSize)
 {
 }
@@ -59,7 +59,7 @@ RedisBuffer::RedisBuffer(const std::vector<char> &buf)
 {
 }
 
-size_t RedisBuffer::size() const
+int64_t RedisBuffer::size() const
 {
     return size_;
 }

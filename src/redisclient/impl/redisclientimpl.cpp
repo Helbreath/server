@@ -131,7 +131,7 @@ void RedisClientImpl::doProcessMessage(RedisValue v)
     }
 }
 
-void RedisClientImpl::asyncWrite(const asio::error_code &ec, size_t)
+void RedisClientImpl::asyncWrite(const asio::error_code &ec, int64_t)
 {
     dataWrited.clear();
 
@@ -145,7 +145,7 @@ void RedisClientImpl::asyncWrite(const asio::error_code &ec, size_t)
     {
         std::vector<asio::const_buffer> buffers(dataQueued.size());
 
-        for(size_t i = 0; i < dataQueued.size(); ++i)
+        for(std::size_t i = 0; i < dataQueued.size(); ++i)
         {
             buffers[i] = ::asio::buffer(dataQueued[i]);
         }
@@ -218,11 +218,11 @@ RedisValue RedisClientImpl::doSyncCommand(const std::deque<RedisBuffer> &buff)
 
         for(;;)
         {
-            size_t size = socket.read_some(asio::buffer(inbuff));
+            int64_t size = socket.read_some(asio::buffer(inbuff));
 
-            for(size_t pos = 0; pos < size;)
+            for(int64_t pos = 0; pos < size;)
             {
-                std::pair<size_t, RedisParser::ParseResult> result =
+                std::pair<int64_t, RedisParser::ParseResult> result =
                     redisParser.parse(inbuff.data() + pos, size - pos);
 
                 if( result.second == RedisParser::Completed )
@@ -257,7 +257,7 @@ void RedisClientImpl::doAsyncCommand(std::vector<char> buff,
     }
 }
 
-void RedisClientImpl::asyncRead(const asio::error_code &ec, const size_t size)
+void RedisClientImpl::asyncRead(const asio::error_code &ec, const int64_t size)
 {
     if( ec || size == 0 )
     {
@@ -265,9 +265,9 @@ void RedisClientImpl::asyncRead(const asio::error_code &ec, const size_t size)
         return;
     }
 
-    for(size_t pos = 0; pos < size;)
+    for(int64_t pos = 0; pos < size;)
     {
-        std::pair<size_t, RedisParser::ParseResult> result = redisParser.parse(buf.data() + pos, size - pos);
+        std::pair<int64_t, RedisParser::ParseResult> result = redisParser.parse(buf.data() + pos, size - pos);
 
         if( result.second == RedisParser::Completed )
         {
@@ -321,7 +321,7 @@ void RedisClientImpl::append(std::vector<char> &vec, char c)
     vec[vec.size() - 1] = c;
 }
 
-size_t RedisClientImpl::subscribe(
+int64_t RedisClientImpl::subscribe(
     const std::string &command,
     const std::string &channel,
     std::function<void(std::vector<char> msg)> msgHandler,
@@ -382,7 +382,7 @@ void RedisClientImpl::singleShotSubscribe(
 }
 
 void RedisClientImpl::unsubscribe(const std::string &command, 
-                                  size_t handleId, 
+                                  int64_t handleId, 
                                   const std::string &channel,
                                   std::function<void(RedisValue)> handler)
 {

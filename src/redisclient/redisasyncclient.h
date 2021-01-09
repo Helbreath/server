@@ -26,7 +26,7 @@ class RedisAsyncClient {
 public:
     // Subscribe handle.
     struct Handle {
-        size_t id;
+        int64_t id;
         std::string channel;
     };
 

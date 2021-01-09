@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include <mutex>
 #include "utility.hpp"
 #include "occupyflag.hpp"
 #include "tile.hpp"
@@ -32,7 +33,7 @@ public:
     void setup_no_attack_area();
     void clear_temp_sector_info();
     void clear_sector_info();
-    int32_t get_occupy_flag(int32_t dX, int32_t dY, int32_t iSide, int32_t iEKNum, int32_t iDOI);
+    int32_t get_occupy_flag(int32_t dX, int32_t dY, int8_t iSide, int32_t iEKNum, int32_t iDOI);
     int32_t  check_item(int16_t sX, int16_t sY);
     void set_temp_move_allowed_flag(int32_t dX, int32_t dY, bool bFlag);
     int32_t iAnalyze(char cType, int32_t * pX, int32_t * pY, int32_t * pV1, int32_t * pV2, int32_t * pV3);
@@ -50,7 +51,7 @@ public:
     bool bSearchTeleportDest(int32_t sX, int32_t sY, std::string & pMapName, int32_t * pDx, int32_t * pDy, char * pDir);
     bool bInit(const std::string & map_name);
     bool bIsValidLoc(int16_t sX, int16_t sY);
-    item * pGetItem(int16_t sX, int16_t sY, int16_t * pRemainItemSprite, int16_t * pRemainItemSpriteFrame, char * pRemainItemColor);
+    item * pGetItem(int16_t sX, int16_t sY, int16_t * pRemainItemSprite, int16_t * pRemainItemSpriteFrame, uint32_t * pRemainItemColor);
     bool bSetItem(int16_t sX, int16_t sY, item * pItem);
     void ClearDeadOwner(int16_t sX, int16_t sY);
     void ClearOwner(int32_t iDebugCode, int16_t sOwnerH, char cOwnerType, int16_t sX, int16_t sY);
@@ -61,7 +62,7 @@ public:
     tile * m_pTile;
     std::string name;
     std::string location_name;
-    int16_t m_sSizeX, m_sSizeY, m_sTileDataSize;
+    int32_t m_sSizeX, m_sSizeY, m_sTileDataSize;
     teleport_loc * m_pTeleportLoc[DEF_MAXTELEPORTLOC];
 
     point m_pInitialPoint[DEF_MAXINITIALPOINT];

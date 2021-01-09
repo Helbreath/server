@@ -105,7 +105,7 @@ std::string RedisValue::inspect() const
 
         if( values.empty() == false )
         {
-            for(size_t i = 0; i < values.size(); ++i)
+            for(std::size_t i = 0; i < values.size(); ++i)
             {
                 result += values[i].inspect();
                 result += ", ";

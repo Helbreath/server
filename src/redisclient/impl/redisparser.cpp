@@ -18,7 +18,7 @@ RedisParser::RedisParser()
 {
 }
 
-std::pair<size_t, RedisParser::ParseResult> RedisParser::parse(const char *ptr, size_t size)
+std::pair<int64_t, RedisParser::ParseResult> RedisParser::parse(const char *ptr, int64_t size)
 {
     if( !arrayStack.empty() )
         return RedisParser::parseArray(ptr, size);
@@ -26,22 +26,22 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parse(const char *ptr, 
         return RedisParser::parseChunk(ptr, size);
 }
 
-std::pair<size_t, RedisParser::ParseResult> RedisParser::parseArray(const char *ptr, size_t size)
+std::pair<int64_t, RedisParser::ParseResult> RedisParser::parseArray(const char *ptr, int64_t size)
 {
     assert( !arrayStack.empty() );
     assert( !valueStack.empty() );
 
-    std::size_t arraySize = arrayStack.top();
+    int64_t arraySize = arrayStack.top();
     std::vector<RedisValue> arrayValue = valueStack.top().toArray();
 
     arrayStack.pop();
     valueStack.pop();
 
-    size_t position = 0;
+    int64_t position = 0;
 
     if( arrayStack.empty() == false  )
     {
-        std::pair<size_t, RedisParser::ParseResult>  pair = parseArray(ptr, size);
+        std::pair<int64_t, RedisParser::ParseResult>  pair = parseArray(ptr, size);
 
         if( pair.second != Completed )
         {
@@ -75,11 +75,11 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parseArray(const char *
         }
     }
 
-    long int arrayIndex = 0;
+    int64_t arrayIndex = 0;
 
     for(; arrayIndex < arraySize; ++arrayIndex)
     {
-        std::pair<size_t, RedisParser::ParseResult>  pair = parse(ptr + position, size - position);
+        std::pair<int64_t, RedisParser::ParseResult>  pair = parse(ptr + position, size - position);
 
         position += pair.first;
 
@@ -109,9 +109,9 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parseArray(const char *
     return std::make_pair(position, Completed);
 }
 
-std::pair<size_t, RedisParser::ParseResult> RedisParser::parseChunk(const char *ptr, size_t size)
+std::pair<int64_t, RedisParser::ParseResult> RedisParser::parseChunk(const char *ptr, int64_t size)
 {
-    size_t position = 0;
+    int64_t position = 0;
 
     for(; position < size; ++position)
     {
@@ -249,8 +249,8 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parseChunk(const char *
                     {
                         buf.reserve(bulkSize);
 
-                        std::size_t available = size - position - 1;
-                        std::size_t canRead = (std::min)(bulkSize, available);
+                        int64_t available = size - position - 1;
+                        int64_t canRead = (std::min)(bulkSize, available);
 
                         if( canRead > 0 )
                         {
@@ -280,8 +280,8 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parseChunk(const char *
             case Bulk: {
                 assert( bulkSize > 0 );
 
-                std::size_t available = size - position;
-                std::size_t canRead = (std::min)(available, bulkSize);
+                int64_t available = size - position;
+                int64_t canRead = (std::min)(available, bulkSize);
 
                 buf.insert(buf.end(), ptr + position, ptr + canRead);
                 bulkSize -= canRead;
@@ -378,7 +378,7 @@ std::pair<size_t, RedisParser::ParseResult> RedisParser::parseChunk(const char *
 
                         if( position + 1 != size )
                         {
-                            std::pair<size_t, ParseResult> parseResult = parseArray(ptr + position + 1, size - position - 1);
+                            std::pair<int64_t, ParseResult> parseResult = parseArray(ptr + position + 1, size - position - 1);
                             parseResult.first += position + 1;
                             return parseResult;
                         }
@@ -466,7 +466,7 @@ RedisValue RedisParser::result()
  * work only with null terminated string. I can use temporary
  * std::string object but that is slower then bufToLong.
  */
-long int RedisParser::bufToLong(const char *str, size_t size)
+long int RedisParser::bufToLong(const char *str, int64_t size)
 {
     long int value = 0;
     bool sign = false;
