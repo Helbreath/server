@@ -115,6 +115,7 @@ public:
 
     void transfer_client(std::shared_ptr<client> _client, std::string server_name, std::string map_name);
 
+    /// Socket is not closed in this function. It is primarily called from net_handler after a socket closure
     void close_client(std::shared_ptr<client> _client);
 
     void handle_message(const message_entry & msg, std::shared_ptr<client> _client);

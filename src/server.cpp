@@ -266,15 +266,15 @@ void server::run()
         int32_t port = sql["port"];
         pg = std::make_unique<pqxx::connection>(fmt::format("host={} port={} dbname={} user={} password={}", host, port, db, user, pass));
         std::cout << "Connected to " << pg->dbname() << "\n";
-        pqxx::work W{ *pg };
-
-        pqxx::result R{ W.exec("select * from characters where account_id = 4") };
-
-        std::cout << "Found " << R.size() << " characters:\n";
-        for (auto row : R)
-            std::cout << row[0].c_str() << '\n';
-
-        W.commit();
+//         pqxx::work W{ *pg };
+// 
+//         pqxx::result R{ W.exec("select * from characters where account_id = 4") };
+// 
+//         std::cout << "Found " << R.size() << " characters:\n";
+//         for (auto row : R)
+//             std::cout << row[0].c_str() << '\n';
+// 
+//         W.commit();
     }
     catch (pqxx::broken_connection & e)
     {
@@ -363,6 +363,7 @@ void server::start_gserver(const std::string & name)
 
 void server::transfer_client(std::shared_ptr<client> _client, std::string server_name, std::string map_name)
 {
+    log->info("Client transferred: {} - {} -> {}", _client->account_name, _client->name, _client->map_name);
     for (auto & g : gservers_)
     {
         gserver & gs = *g;
@@ -376,7 +377,7 @@ void server::transfer_client(std::shared_ptr<client> _client, std::string server
 
 void server::close_client(std::shared_ptr<client> _client)
 {
-    nh->stop(_client->socket_);
+    log->info("Client disconnected: {} - {}", _client->socket_->address, _client->account_name);
     if (_client->server_id != 0)
     {
         gserver * gs = find_gserver(_client->server_id);
