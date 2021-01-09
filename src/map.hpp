@@ -78,6 +78,7 @@ public:
 
     bool  m_bIsFixedDayMode;
     bool  m_bIsFixedSnowMode;
+    uint8_t day_or_night = 0;
 
     struct spot_mob_generator_st 
     {
