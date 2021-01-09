@@ -56,6 +56,7 @@ public:
     std::string account_password;
 
     uint64_t internal_id;
+    uint64_t char_id;
 
     uint64_t account_id;
     uint64_t forum_id;
@@ -88,10 +89,31 @@ public:
     int  m_iDamageAbsorption_Armor[DEF_MAXITEMEQUIPPOS];
     int  m_iDamageAbsorption_Shield;
 
-    int  m_iLevel;
-    int  m_iStr, m_iInt, m_iVit, m_iDex, m_iMag, m_iCharisma;
+    uint16_t level;
+    uint16_t strength;
+    uint16_t vitality;
+    uint16_t dexterity;
+    uint16_t intelligence;
+    uint16_t magic;
+    uint16_t charisma;
+    uint64_t experience;
+
+    uint64_t head_appr;
+    uint64_t body_appr;
+    uint64_t arm_appr;
+    uint64_t leg_appr;
+
+    std::string nation;
+
+    //int  m_iStr, m_iInt, m_iVit, m_iDex, m_iMag, m_iCharisma;
     char m_cLU_Str, m_cLU_Int, m_cLU_Vit, m_cLU_Dex, m_cLU_Mag, m_cLU_Char;
     int  m_iLuck;
+    uint32_t reputation;
+    uint32_t player_kills;
+    uint32_t total_ek;
+    uint32_t total_pk;
+    uint32_t mmr;
+    uint32_t altmmr;
 
     int  m_iEnemyKillCount, m_iPKCount, m_iRewardGold;
     int  m_iCurWeightLoad;
@@ -132,7 +154,9 @@ public:
 
     int   m_iPenaltyBlockYear, m_iPenaltyBlockMonth, m_iPenaltyBlockDay;
 
-    int   m_iFightzoneNumber, m_iReserveTime, m_iFightZoneTicketNumber;
+    int   m_iFightzoneNumber, m_iReserveTime, m_iFightZoneTicketNumber, m_iFightzoneDate;
+
+    uint32_t crusade_construction_point;
 
     int16_t   admin_level;
     int   m_iRating;
