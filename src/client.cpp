@@ -272,4 +272,9 @@ bool client::bCreateNewParty()
     return true;
 }
 
+void client::write(stream_write & sw)
+{
+    if (socket_) socket_->write(sw);
+}
+
 }

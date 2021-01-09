@@ -12,6 +12,7 @@ namespace hbx
 
 class server;
 class socket;
+class stream_write;
 
 namespace socket_modes
 {
@@ -32,6 +33,7 @@ public:
     ~client();
 
     bool bCreateNewParty();
+    void write(stream_write & sw);
 
     std::shared_ptr<socket> socket_;
 
