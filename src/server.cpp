@@ -198,12 +198,20 @@ std::string server::execute(request_params && params)
             asio::read_until(socket, response, "\r\n");
             std::stringstream response_content;
             response_content << &response;
+
+            std::string s = response_content.str();
+            if (std::size_t index = s.find("\r\n\r\n"); index != std::string::npos)
+            {
+                return s.substr(index + 4, s.length() - index - 4);
+            }
+            return "";
         }
     }
     catch (std::exception & e)
     {
         log->error("Exception: {}", e.what());
     }
+    return "";
 }
 
 void server::update_stats()
