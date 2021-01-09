@@ -76,7 +76,10 @@ void net_handler::handle_accept(const asio::error_code & e)
         //client->lastpackettime = unixtime();
         client_->socket_ = clientsocket;
         clientsocket->client_ = client_.get();
-        server_->client_list.insert(client_);
+        {
+            std::unique_lock<std::mutex> l(server_->cl_m);
+            server_->clients.insert(client_);
+        }
 
         start(clientsocket);
 
@@ -95,6 +98,7 @@ void net_handler::stop(std::shared_ptr<socket> c)
 {
     c->stop();
     connections.erase(c);
+    server_->close_client(c->client_->shared_from_this());
 }
 
 void net_handler::stop()
