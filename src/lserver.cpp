@@ -163,7 +163,7 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
 
 void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & sr)
 {
-    server_.transfer_client();
+    //server_.transfer_client();
     stream_write sw;
     sw.write_enum(log_rsp_message_id::log);
     sw.write_enum(enter_game_msg::CONFIRM);

@@ -108,6 +108,7 @@
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\async++.hpp" />
     <ClInclude Include="src\client.hpp" />
     <ClInclude Include="src\defines.hpp" />
     <ClInclude Include="src\gserver.hpp" />

@@ -47,7 +47,7 @@ void gserver::handle_message(const message_entry & msg, std::shared_ptr<client> 
 
     switch (msg_id)
     {
-        case message_id::REQUEST_INITPLAYER
+        case message_id::REQUEST_INITPLAYER:
             return handle_initplayer(_client, sr);
         case message_id::REQUEST_INITDATA:
             return handle_initdata(_client, sr);
@@ -70,7 +70,7 @@ void gserver::handle_initplayer(std::shared_ptr<client> _client, stream_read & s
 {
     std::string name = sr.read_string(10);
     uint8_t observer_mode = sr.read_int8();
-    std::string name = sr.read_string(20);
+    std::string gameserver_name = sr.read_string(20);
 
     stream_write sw;
     sw.write_enum(message_id::RESPONSE_INITPLAYER);
@@ -83,7 +83,7 @@ void gserver::handle_initdata(std::shared_ptr<client> _client, stream_read & sr)
 {
     std::string name = sr.read_string(10);
     uint8_t observer_mode = sr.read_int8();
-    std::string name = sr.read_string(20);
+    std::string gameserver_name = sr.read_string(20);
 
 
 

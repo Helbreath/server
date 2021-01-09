@@ -92,7 +92,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "config.hpp"
 
 #define LIBASYNC_EXPORT inline
 #define LIBASYNC_EXPORT_EXCEPTION

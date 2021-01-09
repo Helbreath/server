@@ -320,7 +320,7 @@ public:
     /// Time when logout was initiated from the client
     uint64_t logout_hack_time;
 
-    int8_t server_id;
+    uint64_t server_id;
 };
 
 }

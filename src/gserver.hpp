@@ -3,8 +3,10 @@
 
 #include <memory>
 #include <set>
+#include <mutex>
 #include "utility.hpp"
 #include "streams.hpp"
+#include "map.hpp"
 
 namespace spdlog { class logger; }
 

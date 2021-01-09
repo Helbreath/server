@@ -4,7 +4,6 @@
 #include "server.hpp"
 #include <climits>
 #include <iostream>
-#include <async++.h>
 #include <nlohmann/json.hpp>
 #include <asio/connect.hpp>
 #include <asio/write.hpp>
@@ -366,7 +365,7 @@ void server::transfer_client(std::shared_ptr<client> _client, std::string server
 {
     for (auto & g : gservers_)
     {
-        gserver & gs = g.get();
+        gserver & gs = *g;
         if (gs.server_name != server_name)
             continue;
 
@@ -409,10 +408,10 @@ gserver * server::find_gserver(int8_t server_id)
 {
     for (auto & g : gservers_)
     {
-        gserver & gs = g.get();
+        gserver & gs = *g;
         if (gs.id != server_id)
             continue;
-        return *g;
+        return g.get();
     }
     return nullptr;
 }

@@ -140,5 +140,8 @@
     <ClInclude Include="src\unit.hpp">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\async++.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

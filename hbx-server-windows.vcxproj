@@ -35,6 +35,7 @@
     <ClCompile Include="src\magic.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\async++.hpp" />
     <ClInclude Include="src\gserver.hpp" />
     <ClInclude Include="src\lserver.hpp" />
     <ClInclude Include="src\defines.hpp" />
