@@ -68,6 +68,11 @@ void gserver::handle_new_client(std::shared_ptr<client> _client)
 {
     std::unique_lock<std::mutex> l(cl_m);
     clients.insert(_client);
+
+    stream_write sw;
+    sw.write_enum(log_rsp_message_id::enter_game);
+    sw.write_enum(enter_game_msg::CONFIRM);
+    _client->write(sw);
 }
 
 void gserver::handle_close_client(std::shared_ptr<client> _client)
