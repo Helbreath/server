@@ -47,7 +47,6 @@ lserver::~lserver()
 void lserver::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
 {
     stream_read sr(msg.data, msg.size);
-    //log_message_id msg_id = sr.read_enum<log_message_id>();
     log_message_id msg_id = sr.read_enum();
 
     switch (msg_id)
@@ -82,6 +81,8 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
 
     _client->screenwidth_v = sr.read_int32();
     _client->screenheight_v = sr.read_int32();
+    _client->screenwidth = sr.read_int32();
+    _client->screenheight = sr.read_int32();
 
     if (username.length() == 0 || password.length() == 0)
     {

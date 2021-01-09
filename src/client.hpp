@@ -62,6 +62,8 @@ public:
 
     int32_t screenwidth_v = 0;
     int32_t screenheight_v = 0;
+    int32_t screenwidth = 0;
+    int32_t screenheight = 0;
 
     bool  m_bIsInitComplete;
     bool  m_bIsMsgSendAvailable;
