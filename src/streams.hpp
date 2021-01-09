@@ -149,7 +149,7 @@ public:
         return position;
     };
 
-    void write_bytes(const char * value, int sz)
+    void write_bytes(const int8_t * value, int sz)
     {
         VerifyData;
         VerifySize(sz);
@@ -157,7 +157,15 @@ public:
         position += sz;
     };
 
-    void write_array(const char * value, int sz)
+    void write_bytes(const uint8_t * value, int sz)
+    {
+        VerifyData;
+        VerifySize(sz);
+        std::memcpy(data + position, value, sz);
+        position += sz;
+    };
+
+    void write_array(const char * value, int16_t sz)
     {
         VerifyData;
         write_int16(sz);
@@ -246,9 +254,10 @@ public:
         position += 8;
     };
 
-    void write_message_id(message_id id)
+    template<typename T>
+    void write_enum(T id)
     {
-        write_int32(static_cast<int32_t>(id));
+        write_uint32(static_cast<uint32_t>(id));
     }
 
     void write_string(const std::string & value)
@@ -370,7 +379,7 @@ public:
 class stream_read
 {
 public:
-    stream_read(char * input, uint32_t in)
+    stream_read(char * input, std::size_t in)
         : data(input), position(0), size(in) {
         //size += 4;
     };
@@ -379,8 +388,8 @@ public:
     }
 
     char * data;
-    uint64_t position;
-    uint64_t size;
+    std::size_t position;
+    std::size_t size;
 
     uint16_t read_size()
     {
@@ -497,9 +506,20 @@ public:
         return *fp;
     };
 
-    message_id read_message_id()
+    struct return_result
     {
-        return static_cast<message_id>(read_int32());
+        return_result(uint32_t v) : v(v) {}
+        uint32_t v;
+        template <typename T>
+        operator T() const
+        {
+            return static_cast<T>(v);
+        }
+    };
+
+    return_result read_enum()
+    {
+        return static_cast<return_result>(read_uint32());
     }
 
     std::string read_string()
