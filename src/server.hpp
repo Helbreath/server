@@ -111,7 +111,7 @@ public:
 
     void start_lserver();
     void start_gservers();
-    void start_gserver(const std::string & name);
+    void start_gserver(const std::string & config_file);
 
     void transfer_client(std::shared_ptr<client> _client, std::string server_name, std::string map_name);
 

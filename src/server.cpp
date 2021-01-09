@@ -350,11 +350,16 @@ void server::start_lserver()
 void server::start_gservers()
 {
     // start all up
+    for (auto & s : config["servers"])
+    {
+        std::string config_file = s["config"].get<std::string>();
+        start_gserver(config_file);
+    }
 }
 
-void server::start_gserver(const std::string & name)
+void server::start_gserver(const std::string & config_file)
 {
-    auto res = gservers_.insert(std::make_unique<gserver>(this));
+    auto res = gservers_.insert(std::make_unique<gserver>(this, config_file));
     gserver * gs = (*res.first).get();
     static uint64_t gserver_id = 0;
 
@@ -396,7 +401,7 @@ void server::handle_message(const message_entry & msg, std::shared_ptr<client> _
     if (mode == gameserver)
     {
         gserver * gs = find_gserver(_client->server_id);
-        if (gs) lserver_->handle_message(msg, _client);
+        if (gs) gs->handle_message(msg, _client);
         else log->error("No gserver attached to client gs:{} client id:{}", _client->server_id, _client->account_id);
     }
 
@@ -435,7 +440,7 @@ gserver * server::find_gserver(std::string name, std::string map_name)
     for (auto & g : gservers_)
     {
         gserver & gs = *g;
-        if ((gs.server_name != name) && (gs.has_map(map_name)))
+        if ((gs.server_name != name) || (!gs.get_map(map_name)))
             continue;
         return g.get();
     }
