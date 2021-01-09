@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="gserver.cpp" />
-    <ClCompile Include="lserver.cpp" />
+    <ClCompile Include="src\gserver.cpp" />
+    <ClCompile Include="src\lserver.cpp" />
     <ClCompile Include="src\map.cpp" />
     <ClCompile Include="src\client.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -35,8 +35,8 @@
     <ClCompile Include="src\magic.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gserver.hpp" />
-    <ClInclude Include="lserver.hpp" />
+    <ClInclude Include="src\gserver.hpp" />
+    <ClInclude Include="src\lserver.hpp" />
     <ClInclude Include="src\defines.hpp" />
     <ClInclude Include="src\map.hpp" />
     <ClInclude Include="src\item.hpp" />
@@ -172,6 +172,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>C:\Code\hbx-server\include;C:\Code\vcpkg\installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

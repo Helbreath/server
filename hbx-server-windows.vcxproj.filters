@@ -51,8 +51,12 @@
     <ClCompile Include="src\map.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="gserver.cpp" />
-    <ClCompile Include="lserver.cpp" />
+    <ClCompile Include="src\gserver.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lserver.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\server.hpp">
@@ -130,7 +134,11 @@
     <ClInclude Include="src\structs.hpp">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="gserver.hpp" />
-    <ClInclude Include="lserver.hpp" />
+    <ClInclude Include="src\lserver.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gserver.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

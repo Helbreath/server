@@ -79,15 +79,24 @@
     <RemoteCppCompileToolExe>g++-10</RemoteCppCompileToolExe>
     <EnableASAN>true</EnableASAN>
     <RemoteLdToolExe>g++-10</RemoteLdToolExe>
-    <IncludePath>C:\Code\hbx-server\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Code\hbx-server\include;/usr/local/pgsql/include;$(IncludePath)</IncludePath>
     <EnableIncrementalBuild>WithNinja</EnableIncrementalBuild>
+    <LibraryPath>/usr/local/pgsql/lib</LibraryPath>
+    <RemoteTargetPath>
+    </RemoteTargetPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <RemoteLdToolExe>g++-10</RemoteLdToolExe>
     <EnableIncrementalBuild>WithNinja</EnableIncrementalBuild>
+    <LibraryPath>/usr/local/pgsql/lib</LibraryPath>
+    <RemoteTargetPath>hbx-server</RemoteTargetPath>
+    <IncludePath>C:\Code\hbx-server\include;/usr/local/pgsql/include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemGroup>
     <ClCompile Include="src\client.cpp" />
+    <ClCompile Include="src\gserver.cpp" />
+    <ClCompile Include="src\lserver.cpp" />
+    <ClCompile Include="src\map.cpp" />
     <ClCompile Include="src\net\net_handler.cpp" />
     <ClCompile Include="src\net\socket.cpp" />
     <ClCompile Include="src\redisclient\impl\redisasyncclient.cpp" />
@@ -100,9 +109,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\client.hpp" />
+    <ClInclude Include="src\defines.hpp" />
+    <ClInclude Include="src\gserver.hpp" />
+    <ClInclude Include="src\item.hpp" />
+    <ClInclude Include="src\lserver.hpp" />
+    <ClInclude Include="src\magic.hpp" />
+    <ClInclude Include="src\map.hpp" />
     <ClInclude Include="src\net\netmessages.hpp" />
     <ClInclude Include="src\net\net_handler.hpp" />
     <ClInclude Include="src\net\socket.hpp" />
+    <ClInclude Include="src\npc.hpp" />
+    <ClInclude Include="src\occupyflag.hpp" />
     <ClInclude Include="src\redisclient\config.h" />
     <ClInclude Include="src\redisclient\impl\redisclientimpl.h" />
     <ClInclude Include="src\redisclient\redisasyncclient.h" />
@@ -112,7 +129,12 @@
     <ClInclude Include="src\redisclient\redisvalue.h" />
     <ClInclude Include="src\redisclient\version.h" />
     <ClInclude Include="src\server.hpp" />
-    <ClInclude Include="src\streams.h" />
+    <ClInclude Include="src\strategicpoint.hpp" />
+    <ClInclude Include="src\streams.hpp" />
+    <ClInclude Include="src\structs.hpp" />
+    <ClInclude Include="src\teleportloc.hpp" />
+    <ClInclude Include="src\tile.hpp" />
+    <ClInclude Include="src\unit.hpp" />
     <ClInclude Include="src\utility.hpp" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -123,17 +145,19 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>-pthread %(AdditionalOptions)</AdditionalOptions>
-      <LibraryDependencies>ssl; crypto;lpqxx;lpq</LibraryDependencies>
+      <LibraryDependencies>pqxx;pq;ssl;crypto</LibraryDependencies>
+      <OutputFile>$(TargetPath)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <PreprocessorDefinitions>ASIO_HAS_STD_CHRONO;ASIO_NO_DEPRECATED;ASIO_STANDALONE;ASIO_HEADER_ONLY;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CppLanguageStandard>c++17</CppLanguageStandard>
+      <AdditionalOptions>-Wno-unknown-pragmas %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalOptions>-pthread %(AdditionalOptions)</AdditionalOptions>
-      <LibraryDependencies>ssl; crypto;lpqxx;lpq</LibraryDependencies>
+      <LibraryDependencies>pqxx;pq;ssl;crypto</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -45,6 +45,15 @@
     <ClCompile Include="src\client.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\gserver.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lserver.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\map.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\utility.hpp">
@@ -77,9 +86,6 @@
     <ClInclude Include="src\redisclient\impl\redisclientimpl.h">
       <Filter>src\redisclient\impl</Filter>
     </ClInclude>
-    <ClInclude Include="src\streams.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="src\net\socket.hpp">
       <Filter>src\net</Filter>
     </ClInclude>
@@ -90,6 +96,48 @@
       <Filter>src\net</Filter>
     </ClInclude>
     <ClInclude Include="src\client.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\defines.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gserver.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\item.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lserver.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\magic.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\map.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\npc.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\occupyflag.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\strategicpoint.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\streams.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\structs.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\teleportloc.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tile.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\unit.hpp">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
