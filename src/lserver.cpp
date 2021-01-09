@@ -142,23 +142,7 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
 
     fetch_character_list(_client);
 
-    sw.write_enum(log_rsp_message_id::log);
-    sw.write_enum(log_res_msg::CONFIRM);
-    sw.write_uint16(server_.upper_version);
-    sw.write_uint16(server_.lower_version);
-    sw.write_uint16(server_.patch_version);
-    sw.write_int8(0);
-    sw.write_int16(0); // account year
-    sw.write_int16(0); // account month
-    sw.write_int16(0); // account day
-    sw.write_int16(0); // ip year
-    sw.write_int16(0); // ip month
-    sw.write_int16(0); // ip day
-    build_character_list(_client, sw);
-    sw.write_int32(0); // timeleftsecaccount
-    sw.write_int32(0); // timeleftsecip
-    sw.write_bytes(enc_key.data(), sizeof enc_key);
-    _client->write(sw);
+    send_login_success(_client);
 }
 
 void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & sr)
@@ -241,6 +225,28 @@ void lserver::fetch_character_list(std::shared_ptr<client> _client)
             character[column.name()] = column.c_str();
         _client->characters.push_back(character);
     }
+}
+
+void lserver::send_login_success(std::shared_ptr<client> _client)
+{
+    stream_write sw;
+    sw.write_enum(log_rsp_message_id::log);
+    sw.write_enum(log_res_msg::CONFIRM);
+    sw.write_uint16(server_.upper_version);
+    sw.write_uint16(server_.lower_version);
+    sw.write_uint16(server_.patch_version);
+    sw.write_int8(0);
+    sw.write_int16(0); // account year
+    sw.write_int16(0); // account month
+    sw.write_int16(0); // account day
+    sw.write_int16(0); // ip year
+    sw.write_int16(0); // ip month
+    sw.write_int16(0); // ip day
+    build_character_list(_client, sw);
+    sw.write_int32(0); // timeleftsecaccount
+    sw.write_int32(0); // timeleftsecip
+    sw.write_bytes(enc_key.data(), sizeof enc_key);
+    _client->write(sw);
 }
 
 }

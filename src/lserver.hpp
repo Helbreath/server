@@ -30,6 +30,7 @@ public:
     void handle_delete_character(std::shared_ptr<client> _client, stream_read & sr);
     void build_character_list(std::shared_ptr<client> _client, stream_write & sw);
     void fetch_character_list(std::shared_ptr<client> _client);
+    void send_login_success(std::shared_ptr<client> _client);
 
     std::shared_ptr<spdlog::logger> log;
     server & server_;
