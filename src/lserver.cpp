@@ -54,6 +54,16 @@ void lserver::handle_message(const message_entry & msg, std::shared_ptr<client> 
 
 void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
 {
+    stream_write sw;
+
+    if (get_status() != server_status::online)
+    {
+        sw.write_int32(0);
+        sw.write_enum(log_res_msg::SERVICENOTAVAILABLE);
+        _client->write(sw);
+        return;
+    }
+
     auto wat = sr.read_string(12);
     auto username = sr.read_string(60);
     auto password = sr.read_string(60);
