@@ -82,6 +82,37 @@ server::server(std::shared_ptr<asio::io_context> io_)
         throw std::runtime_error("Can't connect to redis.");
     }
 
+
+    try
+    {
+        const json & sql = config["sql"];
+        std::string host = sql["host"];
+        std::string user = sql["user"];
+        std::string pass = sql["pass"];
+        std::string db = sql["db"];
+        int32_t port = sql["port"];
+        pg = std::make_unique<pqxx::connection>(fmt::format("host={} port={} dbname={} user={} password={}", host, port, db, user, pass));
+        std::cout << "Connected to " << pg->dbname() << "\n";
+        //         pqxx::work W{ *pg };
+        // 
+        //         pqxx::result R{ W.exec("select * from characters where account_id = 4") };
+        // 
+        //         std::cout << "Found " << R.size() << " characters:\n";
+        //         for (auto row : R)
+        //             std::cout << row[0].c_str() << '\n';
+        // 
+        //         W.commit();
+    }
+    catch (pqxx::broken_connection & e)
+    {
+        std::cerr << e.what() << '\n';
+        return;
+    }
+    catch (const std::exception & e)
+    {
+        std::cerr << e.what() << '\n';
+        return;
+    }
 }
 
 server::~server()
@@ -255,38 +286,6 @@ void server::run()
 {
     nh = std::make_unique<net_handler>(io_context_, this);
     status_ = server_status::online;
-
-    try
-    {
-        const json & sql = config["sql"];
-        std::string host = sql["host"];
-        std::string user = sql["user"];
-        std::string pass = sql["pass"];
-        std::string db = sql["db"];
-        int32_t port = sql["port"];
-        pg = std::make_unique<pqxx::connection>(fmt::format("host={} port={} dbname={} user={} password={}", host, port, db, user, pass));
-        std::cout << "Connected to " << pg->dbname() << "\n";
-//         pqxx::work W{ *pg };
-// 
-//         pqxx::result R{ W.exec("select * from characters where account_id = 4") };
-// 
-//         std::cout << "Found " << R.size() << " characters:\n";
-//         for (auto row : R)
-//             std::cout << row[0].c_str() << '\n';
-// 
-//         W.commit();
-    }
-    catch (pqxx::broken_connection & e)
-    {
-        std::cerr << e.what() << '\n';
-        return;
-    }
-    catch (const std::exception & e)
-    {
-        std::cerr << e.what() << '\n';
-        return;
-    }
-
 
 //     request_params rp;
 //     rp.method = Get;
