@@ -132,7 +132,23 @@ void gserver::handle_initdata(std::shared_ptr<client> _client, stream_read & sr)
 
     _client->internal_id = ++object_counter;
 
-    map * m = nullptr;
+    map * m = get_map(_client->map_name);
+    if (!m)
+    {
+        // invalid map
+        stream_write sw;
+        sw.write_enum(message_id::RESPONSE_INITDATA);
+        sw.write_enum(msg_type::REJECT);
+        _client->write(sw);
+        return;
+    }
+
+    //init coords
+    if (_client->m_sX == -1 || _client->m_sY == -1)
+    {
+        _client->m_sX = 50;
+        _client->m_sY = 50;
+    }
 
     stream_write sw;
     sw.write_enum(message_id::RESPONSE_INITDATA);
@@ -145,7 +161,7 @@ void gserver::handle_initdata(std::shared_ptr<client> _client, stream_read & sr)
     sw.write_uint16(_client->m_sAppr2);
     sw.write_uint16(_client->m_sAppr3);
     sw.write_uint16(_client->m_sAppr4);
-    sw.write_uint16(_client->m_iApprColor);
+    sw.write_uint32(_client->m_iApprColor);
     sw.write_uint16(_client->head_appr);
     sw.write_uint16(_client->body_appr);
     sw.write_uint16(_client->arm_appr);
