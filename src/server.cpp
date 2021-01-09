@@ -360,6 +360,33 @@ void server::start_gserver(const std::string & name)
     gs->id = ++gserver_id;
 }
 
+void server::transfer_client(std::shared_ptr<client> _client, std::string server_name, std::string map_name)
+{
+    for (auto & g : gservers_)
+    {
+        gserver & gs = g.get();
+        if (gs.server_name != server_name)
+            continue;
+
+        _client->server_id = gs.id;
+        gs.handle_new_client(_client);
+    }
+}
+
+void server::close_client(std::shared_ptr<client> _client)
+{
+    nh->stop(_client->socket_);
+    if (_client->server_id != 0)
+    {
+        gserver * gs = find_gserver(_client->server_id);
+        if (gs)
+            gs->handle_close_client(_client);
+    }
+
+    std::unique_lock<std::mutex> l(cl_m);
+    clients.erase(_client);
+}
+
 void server::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
 {
     skt_mode mode = _client->socket_mode();

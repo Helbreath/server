@@ -110,13 +110,14 @@ public:
     void stop();
 
     void start_lserver();
+    void start_gservers();
     void start_gserver(const std::string & name);
 
+    void transfer_client(std::shared_ptr<client> _client, std::string server_name, std::string map_name);
+
+    void close_client(std::shared_ptr<client> _client);
+
     void handle_message(const message_entry & msg, std::shared_ptr<client> _client);
-
-    gserver * find_gserver(int8_t server_id);
-
-    std::set<std::shared_ptr<client>> client_list;
 
     gserver * find_gserver(int8_t server_id);
 
