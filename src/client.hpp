@@ -2,6 +2,9 @@
 #pragma once
 
 #include <memory>
+#include <vector>
+#include <map>
+#include <mutex>
 #include "structs.hpp"
 #include "unit.hpp"
 #include "item.hpp"
@@ -35,10 +38,17 @@ public:
     bool bCreateNewParty();
     void write(stream_write & sw);
 
+    std::vector<std::map<std::string, std::string>> characters;
+
     std::shared_ptr<socket> socket_;
+    uint64_t xcoins = 0;
+    uint64_t last_login = 0;
+    bool banned = false;
 
     skt_mode socket_mode() { return socket_mode_; }
-    skt_mode socket_mode_;
+    skt_mode socket_mode_ = skt_mode::loginserver;
+
+    std::mutex char_list_m;
 
 
     std::string account_name;
@@ -47,6 +57,7 @@ public:
     uint64_t internal_id;
 
     uint64_t account_id;
+    uint64_t forum_id;
 
     int32_t screenwidth_v = 0;
     int32_t screenheight_v = 0;
