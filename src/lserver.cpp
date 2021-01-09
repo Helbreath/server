@@ -160,14 +160,60 @@ void lserver::handle_create_new_character(std::shared_ptr<client> _client, strea
     sw.write_enum(log_rsp_message_id::log);
     sw.write_enum(log_res_msg::NEWCHARACTERCREATED);
 
-    _client->write(sw);
-}
-
 void lserver::handle_delete_character(std::shared_ptr<client> _client, stream_read & sr)
 {
+    std::string wat = sr.read_string(12);
+    std::string username = sr.read_string(60);
+    std::string password = sr.read_string(60);
+    std::string player_name = sr.read_string(10);
+    std::string world_name = sr.read_string(30);
+
+    uint64_t account_id = _client->account_id;
+
+    {
+        work W{ *server_.pg };
+        result R{ W.exec_params("select count(*) from characters where account_id = $1 and name = $2", account_id, player_name) };
+
+        if (R.empty() || R.at(0).empty())
+        {
+            stream_write sw;
+            sw.write_enum(log_rsp_message_id::log);
+            sw.write_enum(log_res_msg::REJECT);
+            sw.write_string("Unable to delete character. Please contact support.");
+            sw.write_int32(0); // block year
+            sw.write_int32(0); // block month
+            sw.write_int32(0); // block day
+
+            _client->write(sw);
+            return;
+        }
+
+        auto field = R.at(0)[0];
+
+        if (field.get<int>().value_or(0) > 0)
+        {
+            result R2{ W.exec_params("delete from characters where account_id = $1 and name = $2", account_id, player_name) };
+            W.commit();
+            for (auto c = _client->characters.begin(); c != _client->characters.end(); c++)
+            {
+                if ((*c)["name"] == player_name)
+                {
+                    _client->characters.erase(c);
+                    send_login_success(_client);
+                    return;
+                }
+            }
+        }
+    }
+
+
     stream_write sw;
     sw.write_enum(log_rsp_message_id::log);
-    sw.write_enum(log_res_msg::CHARACTERDELETED);
+    sw.write_enum(log_res_msg::REJECT);
+    sw.write_string("Test string to write");
+    sw.write_int32(0); // block year
+    sw.write_int32(0); // block month
+    sw.write_int32(0); // block day
 
     _client->write(sw);
 }
