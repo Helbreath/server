@@ -54,6 +54,10 @@ void lserver::handle_message(const message_entry & msg, std::shared_ptr<client> 
     {
         case log_message_id::login:
             return handle_login(_client, sr);
+        case log_message_id::create_new_character:
+            return handle_create_new_character(_client, sr);
+        case log_message_id::delete_character:
+            return handle_delete_character(_client, sr);
     }
 }
 
@@ -155,6 +159,77 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
     _client->write(sw);
 }
 
+void lserver::handle_create_new_character(std::shared_ptr<client> _client, stream_read & sr)
+{
+    stream_write sw;
+    sw.write_enum(log_rsp_message_id::log);
+    sw.write_enum(log_res_msg::NEWCHARACTERCREATED);
+
+    _client->write(sw);
+}
+
+void lserver::handle_delete_character(std::shared_ptr<client> _client, stream_read & sr)
+{
+    stream_write sw;
+    sw.write_enum(log_rsp_message_id::log);
+    sw.write_enum(log_res_msg::CHARACTERDELETED);
+
+    _client->write(sw);
+}
+
+void lserver::build_character_list(std::shared_ptr<client> _client, stream_write & sw)
+{
+    std::unique_lock<std::mutex> l(_client->char_list_m);
+    sw.write_int8(static_cast<uint8_t>(_client->characters.size()));
+
+    for (auto & c : _client->characters)
+    {
+        sw.write_string(c["name"], 10);
+        sw.write_int8(1);
+        sw.write_uint64(std::stoull(c["id"]));
+        sw.write_uint16(std::stoi(c["appr1"]));
+        sw.write_uint16(std::stoi(c["appr2"]));
+        sw.write_uint16(std::stoi(c["appr3"]));
+        sw.write_uint16(std::stoi(c["appr4"]));
+        sw.write_uint16(std::stoi(c["head_appr"]));
+        sw.write_uint16(std::stoi(c["body_appr"]));
+        sw.write_uint16(std::stoi(c["arm_appr"]));
+        sw.write_uint16(std::stoi(c["leg_appr"]));
+        sw.write_uint16(std::stoi(c["gender"]));
+        sw.write_uint16(std::stoi(c["skin"]));
+        sw.write_uint16(std::stoi(c["level"]));
+        sw.write_uint64(std::stoull(c["experience"]));
+        sw.write_uint16(std::stoi(c["strength"]));
+        sw.write_uint16(std::stoi(c["vitality"]));
+        sw.write_uint16(std::stoi(c["dexterity"]));
+        sw.write_uint16(std::stoi(c["intelligence"]));
+        sw.write_uint16(std::stoi(c["magic"]));
+        sw.write_uint16(std::stoi(c["charisma"]));
+        sw.write_uint32(std::stoi(c["apprcolor"]));
+        sw.write_uint16(0);
+        sw.write_uint16(0);
+        sw.write_uint16(0);
+        sw.write_uint16(0);
+        sw.write_uint16(0);
+        sw.write_string(c["maploc"], 10);
+    }
+}
+
+void lserver::fetch_character_list(std::shared_ptr<client> _client)
+{
+    connection & pg = *server_.pg;
+    work W{ *server_.pg };
+    result R{ W.exec_params("select * from characters where account_id = $1", _client->account_id) };
+
+    std::unique_lock<std::mutex> l(_client->char_list_m);
+ 
+    _client->characters.clear();
+    for (const_result_iterator::reference row : R)
+    {
+        std::map<std::string, std::string> character;
+        for (const_row_iterator::reference column : row)
+            character[column.name()] = column.c_str();
+        _client->characters.push_back(character);
     }
 }
 
