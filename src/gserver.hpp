@@ -33,6 +33,7 @@ public:
     void handle_close_client(std::shared_ptr<client> _client);
     void handle_initplayer(std::shared_ptr<client> _client, stream_read & sr);
     void handle_initdata(std::shared_ptr<client> _client, stream_read & sr);
+    void handle_fullobjectdata(std::shared_ptr<client> _client, stream_read & sr);
 
     uint64_t object_counter = 0;
 

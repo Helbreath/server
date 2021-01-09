@@ -89,6 +89,8 @@ void gserver::handle_message(const message_entry & msg, std::shared_ptr<client> 
             return handle_initplayer(_client, sr);
         case message_id::REQUEST_INITDATA:
             return handle_initdata(_client, sr);
+        case message_id::REQUEST_FULLOBJECTDATA;:
+            return handle_fullobjectdata(_client, sr);
     }
 }
 
@@ -179,6 +181,16 @@ void gserver::handle_initdata(std::shared_ptr<client> _client, stream_read & sr)
     sw.write_int8(0); // discount
 
     _client->write(sw);
+}
+
+void gserver::handle_fullobjectdata(std::shared_ptr<client> _client, stream_read & sr)
+{
+    uint32_t object_id = sr.read_uint32();
+
+    stream_write sw;
+    sw.write_enum(message_id::RESPONSE_MOTION);
+    sw.write_enum(motion_id::stop);
+
 }
 
 }
