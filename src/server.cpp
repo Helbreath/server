@@ -405,12 +405,36 @@ void server::handle_message(const message_entry & msg, std::shared_ptr<client> _
     }
 }
 
-hbx::gserver * server::find_gserver(uint64_t server_id)
+gserver * server::find_gserver(uint64_t server_id)
 {
     for (auto & g : gservers_)
     {
         gserver & gs = *g;
         if (gs.id != server_id)
+            continue;
+        return g.get();
+    }
+    return nullptr;
+}
+
+gserver * server::find_gserver(std::string name)
+{
+    for (auto & g : gservers_)
+    {
+        gserver & gs = *g;
+        if (gs.server_name != name)
+            continue;
+        return g.get();
+    }
+    return nullptr;
+}
+
+gserver * server::find_gserver(std::string name, std::string map_name)
+{
+    for (auto & g : gservers_)
+    {
+        gserver & gs = *g;
+        if ((gs.server_name != name) && (gs.has_map(map_name)))
             continue;
         return g.get();
     }
