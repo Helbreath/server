@@ -265,15 +265,17 @@ void server::run()
         std::string pass = sql["pass"];
         std::string db = sql["db"];
         int32_t port = sql["port"];
-        pqxx::connection C(fmt::format("host={} port={} dbname={} user={} password={}", host, port, db, user, pass));
-        std::cout << "Connected to " << C.dbname() << std::endl;
-        pqxx::work W{ C };
+        pg = std::make_unique<pqxx::connection>(fmt::format("host={} port={} dbname={} user={} password={}", host, port, db, user, pass));
+        std::cout << "Connected to " << pg->dbname() << "\n";
+        pqxx::work W{ *pg };
 
         pqxx::result R{ W.exec("select * from characters where account_id = 4") };
 
         std::cout << "Found " << R.size() << " characters:\n";
         for (auto row : R)
             std::cout << row[0].c_str() << '\n';
+
+        W.commit();
     }
     catch (pqxx::broken_connection & e)
     {
