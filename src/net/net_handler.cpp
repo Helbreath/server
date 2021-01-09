@@ -51,9 +51,7 @@ net_handler::net_handler(std::shared_ptr<asio::io_context> io_, server * _server
 
     new_socket_ = std::make_shared<socket>(*io_context_, *this, ctx);
 
-    //asio::ip::tcp::resolver resolver(*io_context_);
-    //asio::ip::basic_resolver<asio::ip::tcp>::results_type r = resolver.resolve("0.0.0.0", "2848");
-    //acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+    acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
     acceptor_.listen();
     acceptor_.async_accept(new_socket_->get_socket(), std::bind(&net_handler::handle_accept, this, std::placeholders::_1));
 }
@@ -67,7 +65,6 @@ void net_handler::handle_accept(const asio::error_code & e)
 {
     if (!e)
     {
-        server_->log->info("Accept");
         std::shared_ptr<socket> clientsocket = new_socket_;
 
         asio::ip::tcp::endpoint endp = clientsocket->get_socket().remote_endpoint();
@@ -83,21 +80,19 @@ void net_handler::handle_accept(const asio::error_code & e)
 
         start(clientsocket);
 
-        new_socket_.reset(new socket(*io_context_, *this, ctx));
+        new_socket_ = std::make_shared<socket>(*io_context_, *this, ctx);
         acceptor_.async_accept(new_socket_->get_socket(), std::bind(&net_handler::handle_accept, this, std::placeholders::_1));
     }
 }
 
 void net_handler::start(std::shared_ptr<socket> c)
 {
-    server_->log->info("Start {}", c->address);
     connections.insert(c);
     c->start();
 }
 
 void net_handler::stop(std::shared_ptr<socket> c)
 {
-    server_->log->info("Stop {}", c->address);
     c->stop();
     connections.erase(c);
 }
@@ -105,24 +100,18 @@ void net_handler::stop(std::shared_ptr<socket> c)
 void net_handler::stop()
 {
     acceptor_.close();
-    for (auto c : connections)
+    for (const auto& c : connections)
         c->stop();
     connections.clear();
 }
 
 void net_handler::handle_request(const request & req)
 {
-    server_->log->info("handle_request {}", req.socket_->address);
-    if (!req.socket_)
-    {
-        //missing socket
-    }
     server & s = *server_;
 
     try
     {
         message_entry msg{ req.data, req.size };
-
         s.handle_message(msg, req.socket_->client_->shared_from_this());
     }
     catch (std::exception & e)

@@ -90,7 +90,7 @@ client::client()
     m_bIsPoisoned = false;
     m_iPoisonLevel = 0;
 
-    m_iAdminUserLevel = 0;
+    admin_level = 0;
     m_iRating = 0;
     m_iTimeLeft_ShutUp = 0;
     m_iTimeLeft_Rating = 0;

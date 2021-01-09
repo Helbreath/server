@@ -118,7 +118,7 @@ public:
 
     int   m_iFightzoneNumber, m_iReserveTime, m_iFightZoneTicketNumber;
 
-    int   m_iAdminUserLevel;
+    int16_t   admin_level;
     int   m_iRating;
 
     int   m_iTimeLeft_ShutUp;

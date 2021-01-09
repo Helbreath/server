@@ -208,7 +208,7 @@ std::string server::execute(request_params && params)
 
 void server::update_stats()
 {
-    if (get_state() >= server_status::closing)
+    if (get_status() >= server_status::closing)
         return;
     web_stats_timer.expires_at(std::chrono::steady_clock::now() + std::chrono::seconds(10));
     try
@@ -269,7 +269,8 @@ void server::run()
     }
     catch (pqxx::broken_connection & e)
     {
-
+        std::cerr << e.what() << '\n';
+        return;
     }
     catch (const std::exception & e)
     {

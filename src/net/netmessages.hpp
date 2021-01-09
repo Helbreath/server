@@ -1,3 +1,4 @@
+/*
 
 enum class motion {
     MSGIDTYPE_MOTION = 1 << 15,
@@ -408,3 +409,4 @@ enum class reject_type {
     REJECTTYPE_WORLDSERVERISFULL = 0x07,
     REJECTTYPE_LOGINERROR = 0x08,
 };
+*/
