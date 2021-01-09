@@ -42,7 +42,57 @@ gserver::~gserver()
 
 void gserver::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
 {
+    stream_read sr(msg.data, msg.size);
+    message_id msg_id = sr.read_enum();
 
+    switch (msg_id)
+    {
+        case message_id::REQUEST_INITPLAYER
+            return handle_initplayer(_client, sr);
+        case message_id::REQUEST_INITDATA:
+            return handle_initdata(_client, sr);
+    }
+}
+
+void gserver::handle_new_client(std::shared_ptr<client> _client)
+{
+    std::unique_lock<std::mutex> l(cl_m);
+    clients.insert(_client);
+}
+
+void gserver::handle_close_client(std::shared_ptr<client> _client)
+{
+    std::unique_lock<std::mutex> l(cl_m);
+    clients.erase(_client);
+}
+
+void gserver::handle_initplayer(std::shared_ptr<client> _client, stream_read & sr)
+{
+    std::string name = sr.read_string(10);
+    uint8_t observer_mode = sr.read_int8();
+    std::string name = sr.read_string(20);
+
+    stream_write sw;
+    sw.write_enum(message_id::RESPONSE_INITPLAYER);
+    sw.write_enum(msg_type::CONFIRM);
+    _client->write(sw);
+
+}
+
+void gserver::handle_initdata(std::shared_ptr<client> _client, stream_read & sr)
+{
+    std::string name = sr.read_string(10);
+    uint8_t observer_mode = sr.read_int8();
+    std::string name = sr.read_string(20);
+
+
+
+    _client->internal_id = ++object_counter;
+
+    stream_write sw;
+    sw.write_enum(message_id::RESPONSE_INITDATA);
+    sw.write_enum(msg_type::CONFIRM);
+    _client->write(sw);
 }
 
 }
