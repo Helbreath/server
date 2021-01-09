@@ -11,8 +11,12 @@
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/async.h>
 
+#include <pqxx/pqxx>
+
 namespace hbx
 {
+
+using namespace pqxx;
 
 lserver::lserver(server * _server)
     : server_(*_server)
@@ -43,11 +47,12 @@ lserver::~lserver()
 void lserver::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
 {
     stream_read sr(msg.data, msg.size);
-    message_id msg_id = sr.read_message_id();
+    //log_message_id msg_id = sr.read_enum<log_message_id>();
+    log_message_id msg_id = sr.read_enum();
 
     switch (msg_id)
     {
-        case message_id::REQUEST_LOGIN:
+        case log_message_id::login:
             return handle_login(_client, sr);
     }
 }
@@ -75,7 +80,81 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
     if (username.length() == 0 || password.length() == 0)
     {
         log->warn("Invalid login - {}", username);
-        
+        server_.close_client(_client);
+    }
+
+    request_params rp;
+    rp.method = Get;
+    rp.host = "helbreathx.net";
+    rp.body = json({ { "email", username }, { "pass", password }, { "key", "06c2a11ba3375c31ad674df2ce512eda6fcb6cd9c7e6cec429486bb81493f0eff2b691d7e97fa1878f7fc425d5d46f3f09c4456d53c035fa953b388505853c8f" } }).dump();
+    rp.path = "/serverlogin.php";
+
+    std::string str = server_.execute(std::forward<request_params>(rp));
+
+    if (str.empty() || str.length() > 10)
+    {
+        sw.write_int32(0);
+        sw.write_enum(log_res_msg::PASSWORDMISMATCH);
+        _client->write(sw);
+        return;
+    }
+
+    // login successful
+
+    client & c = *_client;
+
+    c.account_name = username;
+    c.account_password = password;
+    try
+    {
+        c.forum_id = std::stoull(str);
+    }
+    catch (...)
+    {
+        sw.write_int32(0);
+        sw.write_enum(log_res_msg::SERVICENOTAVAILABLE);
+        _client->write(sw);
+        return;
+    }
+
+    std::map<std::string, std::string> res;
+
+    {
+        connection & pg = *server_.pg;
+        work W{ *server_.pg };
+        result R{ W.exec_params("SELECT * FROM accounts WHERE forum_member_id = $1", str.c_str()) };
+
+
+        for (auto row : R)
+            for (auto column : row)
+                res[column.name()] = column.c_str();
+                //std::cout << column.name() << " - " << column.c_str() << '\n';
+    }
+
+    _client->account_id = std::stoull(res["id"]);
+    _client->xcoins = std::stoull(res["xcoins"]);
+
+    fetch_character_list(_client);
+
+    sw.write_enum(log_rsp_message_id::log);
+    sw.write_enum(log_res_msg::CONFIRM);
+    sw.write_uint16(server_.upper_version);
+    sw.write_uint16(server_.lower_version);
+    sw.write_uint16(server_.patch_version);
+    sw.write_int8(0);
+    sw.write_int16(0); // account year
+    sw.write_int16(0); // account month
+    sw.write_int16(0); // account day
+    sw.write_int16(0); // ip year
+    sw.write_int16(0); // ip month
+    sw.write_int16(0); // ip day
+    build_character_list(_client, sw);
+    sw.write_int32(0); // timeleftsecaccount
+    sw.write_int32(0); // timeleftsecip
+    sw.write_bytes(enc_key.data(), sizeof enc_key);
+    _client->write(sw);
+}
+
     }
 }
 
