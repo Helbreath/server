@@ -157,8 +157,127 @@ void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & s
 void lserver::handle_create_new_character(std::shared_ptr<client> _client, stream_read & sr)
 {
     stream_write sw;
+  
+    std::string wat = sr.read_string(12);
+    std::string username = sr.read_string(60);
+    std::string password = sr.read_string(60);
+    std::string player_name = sr.read_string(10);
+    std::string world_name = sr.read_string(30);
+
+    uint32_t gender = sr.read_int8();
+    uint32_t skin_color = sr.read_int8();
+    uint32_t hair_style = sr.read_int8();
+    uint32_t hair_color = sr.read_int8();
+    uint32_t underwear_color = sr.read_int8();
+    uint32_t strength = sr.read_int8();
+    uint32_t vitality = sr.read_int8();
+    uint32_t dexterity = sr.read_int8();
+    uint32_t intelligence = sr.read_int8();
+    uint32_t magic = sr.read_int8();
+    uint32_t charisma = sr.read_int8();
+
+    if (
+        strength + vitality + dexterity + intelligence + magic + charisma != 70 ||
+        strength < 10 || strength > 14 ||
+        vitality < 10 || vitality > 14 ||
+        dexterity < 10 || dexterity > 14 ||
+        intelligence < 10 || intelligence > 14 ||
+        magic < 10 || magic > 14 ||
+        player_name.length() == 0 || player_name.length() > 10 ||
+        hair_style > 15 || hair_style < 0 ||
+        hair_color > 15 || hair_color < 0 ||
+        underwear_color > 15 || underwear_color < 0 ||
+        skin_color > 3 || skin_color < 0
+        ) {
+        sw.write_enum(log_rsp_message_id::log);
+        sw.write_enum(log_res_msg::NEWCHARACTERFAILED);
+        return _client->write(sw);
+    }
+
+    uint32_t appr1;
+    appr1 = (hair_style << 8) | (hair_color << 4) | underwear_color;
+    uint32_t HP = vitality * 8 + strength * 2 + intelligence * 2 + 8;
+    uint32_t MP = magic * 3 + intelligence * 2 + 2;
+    uint32_t SP = strength + 17;
+
+
+    // check if too many characters
+    {
+        work W{ *server_.pg };
+        result R{ W.exec_params("select count(*) from characters where account_id = $1", _client->account_id) };
+
+        auto field = R.at(0)[0];
+
+        if (field.get<int>().value_or(0) > 10)
+        {
+            sw.write_enum(log_rsp_message_id::log);
+            sw.write_enum(log_res_msg::NEWCHARACTERFAILED);
+            return _client->write(sw);
+        }
+    }
+
+    // check if name exists already
+    {
+        work W{ *server_.pg };
+        result R{ W.exec_params("select count(*) from characters where name = $1", player_name) };
+
+        auto field = R.at(0)[0];
+
+        if (field.get<int>().value_or(0) > 0)
+        {
+            sw.write_enum(log_rsp_message_id::log);
+            sw.write_enum(log_res_msg::ALREADYEXISTINGCHARACTER);
+            return _client->write(sw);
+        }
+    }
+
+    {
+        work W{ *server_.pg };
+        result R{ W.exec_params("insert into characters(account_id, name, strength, vitality, dexterity, intelligence, magic, charisma, appr1, gender, skin, hairstyle, haircolor, underwear, hp, mp, sp) \
+            values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning id;",
+            _client->account_id, player_name, strength, vitality, dexterity, intelligence, magic, charisma, appr1, gender, skin_color, hair_style, hair_color, underwear_color, HP, MP, SP) };
+
+        if (R.empty() || R.at(0).empty())
+        {
+            sw.write_enum(log_rsp_message_id::log);
+            sw.write_enum(log_res_msg::NEWCHARACTERFAILED);
+            return _client->write(sw);
+        }
+
+        auto field = R.at(0)[0];
+
+        uint64_t char_id = field.get<int>().value_or(0);
+        if (char_id > 0)
+        {
+            for (int i = 0; i < 24; ++i)
+            {
+                switch (i)
+                {
+                    case 6:
+                    case 7:
+                    case 8:
+                    case 9:
+                    case 10:
+                    case 11:
+                    case 14:
+                    case 19:
+                    case 21:
+                        W.exec_params("insert into skills (char_id, skill_id, mastery, experience) values ($1, $2, 20, 0)", char_id, i);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        W.commit();
+    }
+    fetch_character_list(_client);
     sw.write_enum(log_rsp_message_id::log);
     sw.write_enum(log_res_msg::NEWCHARACTERCREATED);
+    sw.write_string(player_name, 10);
+    build_character_list(_client, sw);
+    _client->write(sw);
+}
 
 void lserver::handle_delete_character(std::shared_ptr<client> _client, stream_read & sr)
 {
