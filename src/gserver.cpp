@@ -100,13 +100,38 @@ void gserver::handle_initdata(std::shared_ptr<client> _client, stream_read & sr)
     uint8_t observer_mode = sr.read_int8();
     std::string gameserver_name = sr.read_string(20);
 
-
-
     _client->internal_id = ++object_counter;
+
+    map * m = nullptr;
 
     stream_write sw;
     sw.write_enum(message_id::RESPONSE_INITDATA);
     sw.write_enum(msg_type::CONFIRM);
+    sw.write_uint64(_client->internal_id);
+    sw.write_int16(_client->m_sX);
+    sw.write_int16(_client->m_sY);
+    sw.write_int16(/*_client->m_sType*/ 1);
+    sw.write_uint16(_client->m_sAppr1);
+    sw.write_uint16(_client->m_sAppr2);
+    sw.write_uint16(_client->m_sAppr3);
+    sw.write_uint16(_client->m_sAppr4);
+    sw.write_uint16(_client->m_iApprColor);
+    sw.write_uint16(_client->head_appr);
+    sw.write_uint16(_client->body_appr);
+    sw.write_uint16(_client->arm_appr);
+    sw.write_uint16(_client->leg_appr);
+    sw.write_uint32(_client->m_sStatus);
+    sw.write_string(_client->map_name, 10);
+    sw.write_string(_client->nation, 10);
+    sw.write_int8(m->m_bIsFixedDayMode ? 1 : m->day_or_night);
+    sw.write_int8(m->m_cWhetherStatus);
+    sw.write_int32(_client->m_iContribution);
+    sw.write_int8(0); // observer mode
+    sw.write_int32(_client->m_iRating);
+    sw.write_int64(_client->m_iHP);
+    sw.write_int32(_client->m_iLuck);
+    sw.write_int8(0); // discount
+
     _client->write(sw);
 }
 
