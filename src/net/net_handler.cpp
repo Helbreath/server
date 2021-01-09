@@ -120,7 +120,7 @@ void net_handler::handle_request(const request & req)
     }
     catch (std::exception & e)
     {
-        s.log->error("handle_request() exception: %s", e.what());
+        s.log->error("handle_request() exception: {}", e.what());
         stop(req.socket_->shared_from_this());
     }
 }
