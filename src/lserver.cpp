@@ -58,6 +58,8 @@ void lserver::handle_message(const message_entry & msg, std::shared_ptr<client> 
             return handle_create_new_character(_client, sr);
         case log_message_id::delete_character:
             return handle_delete_character(_client, sr);
+        case log_message_id::enter_game:
+            return handle_enter_game(_client, sr);
     }
 }
 
@@ -156,6 +158,15 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
     sw.write_int32(0); // timeleftsecaccount
     sw.write_int32(0); // timeleftsecip
     sw.write_bytes(enc_key.data(), sizeof enc_key);
+    _client->write(sw);
+}
+
+void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & sr)
+{
+    server_.transfer_client();
+    stream_write sw;
+    sw.write_enum(log_rsp_message_id::log);
+    sw.write_enum(enter_game_msg::CONFIRM);
     _client->write(sw);
 }
 
