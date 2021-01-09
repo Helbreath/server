@@ -74,7 +74,13 @@ public:
     server(std::shared_ptr<asio::io_context> io_);
     ~server();
 
-    std::shared_ptr<spdlog::logger> log;
+    struct hbx_timer
+    {
+        hbx_timer(asio::io_context & _io) : timer(_io) {}
+        uint64_t id;
+        asio::steady_timer timer;
+        std::function <void(void)> fn;
+    };
 
     void update_stats();
 
@@ -112,22 +118,7 @@ public:
 
     std::set<std::shared_ptr<client>> client_list;
 
-    std::condition_variable cv;
-
-    std::unique_ptr<net_handler> nh;
-
-    struct hbx_timer
-    {
-        hbx_timer(asio::io_context & _io) : timer(_io) {}
-        uint64_t id;
-        asio::steady_timer timer;
-        std::function <void(void)> fn;
-    };
-
-    std::set<std::shared_ptr<hbx_timer>> timers;
-    uint64_t timer_count = 1;
-
-    std::mutex timer_m;
+    gserver * find_gserver(int8_t server_id);
 
     template <typename int_type, typename ratio = std::nano>
     uint64_t set_timeout(std::function <void(void)> fn, const std::chrono::duration<int_type, ratio> & t)
@@ -139,6 +130,7 @@ public:
         tmr->timer.async_wait(std::bind(&server::timer_cb, this, tmr));
         timers.insert(tmr);
         tmr->timer.expires_after(t);
+        return tmr->id;
     }
 
     template <typename int_type, typename ratio = std::nano>
@@ -151,6 +143,7 @@ public:
         tmr->timer.async_wait(std::bind(&server::interval_cb, this, tmr));
         timers.insert(tmr);
         tmr->timer.expires_after(t);
+        return tmr->id;
     }
 
     void clear_timeout(uint64_t t)
@@ -178,6 +171,26 @@ public:
         std::unique_lock<std::mutex> l(timer_m);
         t->fn();
     }
+
+    std::shared_ptr<spdlog::logger> log;
+
+    std::mutex cl_m;
+    std::set<std::shared_ptr<client>> clients;
+
+    std::condition_variable cv;
+
+    std::unique_ptr<net_handler> nh;
+
+    std::set<std::shared_ptr<hbx_timer>> timers;
+    uint64_t timer_count = 1;
+
+    std::mutex timer_m;
+
+    std::unique_ptr<pqxx::connection> pg;
+
+    uint16_t upper_version;
+    uint16_t lower_version;
+    uint16_t patch_version;
 
 private:
     int64_t threadcount;
