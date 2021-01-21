@@ -12,10 +12,10 @@ class server;
 struct message_entry
 {
     message_entry() = default;
-    ~message_entry() { delete[] data; }
+    ~message_entry() { if (data) delete[] data; }
     char * data = nullptr;
     size_t size = 0;
-
+    std::shared_ptr<client> client_;
 };
 class net_handler
 {

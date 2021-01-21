@@ -57,6 +57,51 @@
     <ClCompile Include="src\lserver.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\chat_handler.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\party.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\party_mgr.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\unit.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tile.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\npc.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\magic.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\item.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dropmanager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\guild.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\inventory.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\inventory_mgr.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\potion.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fish.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gameserver.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\server.hpp">
@@ -107,15 +152,6 @@
     <ClInclude Include="src\map.hpp">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="src\occupyflag.hpp">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\strategicpoint.hpp">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\teleportloc.hpp">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="src\tile.hpp">
       <Filter>src</Filter>
     </ClInclude>
@@ -140,6 +176,65 @@
     <ClInclude Include="src\gserver.hpp">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="src\async++.hpp" />
+    <ClInclude Include="src\action_id.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\async++.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\itembag.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dropmanager.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\guild.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\inventory.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\skill.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\inventory_mgr.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\occupy_flag.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\strategic_point.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\build_item.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\teleport_loc.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mineral.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\potion.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fish.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dynamic_object.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\chat_handler.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\delay_event.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\party.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\party_mgr.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

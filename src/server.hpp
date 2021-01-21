@@ -18,6 +18,7 @@
 #include <asio/bind_executor.hpp>
 #include <asio/executor_work_guard.hpp>
 #include <asio/steady_timer.hpp>
+#include <asio/signal_set.hpp>
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
@@ -76,10 +77,11 @@ public:
 
     struct hbx_timer
     {
-        hbx_timer(asio::io_context & _io) : timer(_io) {}
+        hbx_timer(asio::io_context & _io): timer(_io), id(0), interval(0) {}
         uint64_t id;
         asio::steady_timer timer;
         std::function <void(void)> fn;
+        std::chrono::duration<long long, std::nano> interval;
     };
 
     void update_stats();
@@ -118,42 +120,47 @@ public:
     /// Socket is not closed in this function. It is primarily called from net_handler after a socket closure
     void close_client(std::shared_ptr<client> _client);
 
-    void handle_message(const message_entry & msg, std::shared_ptr<client> _client);
+    void handle_message(const message_entry & msg);
 
     gserver * find_gserver(uint64_t server_id);
     gserver * find_gserver(std::string name);
     gserver * find_gserver(std::string name, std::string map_name);
 
-    template <typename int_type, typename ratio = std::nano>
-    uint64_t set_timeout(std::function <void(void)> fn, const std::chrono::duration<int_type, ratio> & t)
+    std::set<std::shared_ptr<hbx_timer>> timers;
+    std::mutex timer_m;
+    uint64_t timer_count = 1;
+
+    template <typename ratio = std::milli>
+    uint64_t set_timeout(std::function <void(void)> fn, const std::chrono::duration<int64_t, ratio> & t)
     {
         std::unique_lock<std::mutex> l(timer_m);
         std::shared_ptr<hbx_timer> tmr = std::make_shared<hbx_timer>(*io_context_);
         tmr->id = timer_count++;
         tmr->fn = fn;
-        tmr->timer.async_wait(std::bind(&server::timer_cb, this, tmr));
-        timers.insert(tmr);
         tmr->timer.expires_after(t);
+        tmr->timer.async_wait(std::bind(&server::timer_cb, this, std::placeholders::_1, tmr));
+        timers.insert(tmr);
         return tmr->id;
     }
 
-    template <typename int_type, typename ratio = std::nano>
-    uint64_t set_interval(std::function <void(void)> fn, const std::chrono::duration<int_type, ratio> & t)
+    template <typename ratio = std::milli>
+    uint64_t set_interval(std::function <void(void)> fn, const std::chrono::duration<int64_t, ratio> & t)
     {
         std::unique_lock<std::mutex> l(timer_m);
         std::shared_ptr<hbx_timer> tmr = std::make_shared<hbx_timer>(*io_context_);
         tmr->id = timer_count++;
         tmr->fn = fn;
-        tmr->timer.async_wait(std::bind(&server::interval_cb, this, tmr));
-        timers.insert(tmr);
+        tmr->interval = t;
         tmr->timer.expires_after(t);
+        tmr->timer.async_wait(std::bind(&server::interval_cb, this, std::placeholders::_1, tmr));
+        timers.insert(tmr);
         return tmr->id;
     }
 
     void clear_timeout(uint64_t t)
     {
         std::unique_lock<std::mutex> l(timer_m);
-        for (auto timer : timers)
+        for (const auto & timer : timers)
         {
             if (timer->id == t)
             {
@@ -163,17 +170,27 @@ public:
         }
     }
 
-    void timer_cb(std::shared_ptr<hbx_timer> t)
+    void timer_cb(const asio::error_code & ec, std::shared_ptr<hbx_timer> tmr)
     {
         std::unique_lock<std::mutex> l(timer_m);
-        timers.erase(t);
-        t->fn();
+        timers.erase(tmr);
+
+        if (ec == asio::error::operation_aborted)
+            return;
+
+        tmr->fn();
     }
 
-    void interval_cb(std::shared_ptr<hbx_timer> t)
+    void interval_cb(const asio::error_code & ec, std::shared_ptr<hbx_timer> tmr)
     {
         std::unique_lock<std::mutex> l(timer_m);
-        t->fn();
+
+        if (ec == asio::error::operation_aborted)
+            return;
+
+        tmr->fn();
+        tmr->timer.expires_after(tmr->interval);
+        tmr->timer.async_wait(std::bind(&server::interval_cb, this, std::placeholders::_1, tmr));
     }
 
     std::shared_ptr<spdlog::logger> log;
@@ -185,16 +202,13 @@ public:
 
     std::unique_ptr<net_handler> nh;
 
-    std::set<std::shared_ptr<hbx_timer>> timers;
-    uint64_t timer_count = 1;
-
-    std::mutex timer_m;
-
     std::unique_ptr<pqxx::connection> pg;
 
     uint16_t upper_version;
     uint16_t lower_version;
     uint16_t patch_version;
+
+    asio::signal_set signals_;
 
 private:
     int64_t threadcount;
@@ -208,13 +222,6 @@ private:
     asio::steady_timer web_stats_timer;
     std::unordered_map<std::string, asio::ip::basic_resolver<asio::ip::tcp>::results_type> resolver_cache_;
     server_status status_ = server_status::uninitialized;
-
-    inline int32_t gen_rand(int32_t _min = 0, int32_t _max = INT32_MAX)
-    {
-        std::uniform_int_distribution<int32_t> distribution(_min, _max);
-        std::mt19937 engine;
-        return distribution(engine);
-    }
 
     json config;
 

@@ -9,56 +9,35 @@
 
 #include <cstdint>
 #include <mutex>
+#include <vector>
+#include <list>
+#include <queue>
 #include "utility.hpp"
-#include "occupyflag.hpp"
+#include "occupy_flag.hpp"
 #include "tile.hpp"
-#include "strategicpoint.hpp"
-#include "teleportloc.hpp"
+#include "strategic_point.hpp"
+#include "teleport_loc.hpp"
 #include "structs.hpp"
 #include "defines.hpp"
+#include "net/net_handler.hpp"
 
 namespace hbx
 {
 
+class unit;
+class npc;
+class item;
+class teleport_loc;
+class delay_event;
+class gserver;
+struct message_entry;
+
 class map
 {
 public:
-    map();
+    map(gserver * gs_);
     ~map();
 
-    void restore_strike_points();
-    bool remove_crusade_structure_info(int16_t sX, int16_t sY);
-    bool add_crusade_structure_info(char cType, int16_t sX, int16_t sY, char cSide);
-    int32_t get_attribute(int32_t dX, int32_t dY, int32_t iBitMask);
-    void setup_no_attack_area();
-    void clear_temp_sector_info();
-    void clear_sector_info();
-    int32_t get_occupy_flag(int32_t dX, int32_t dY, int8_t iSide, int32_t iEKNum, int32_t iDOI);
-    int32_t  check_item(int16_t sX, int16_t sY);
-    void set_temp_move_allowed_flag(int32_t dX, int32_t dY, bool bFlag);
-    int32_t iAnalyze(char cType, int32_t * pX, int32_t * pY, int32_t * pV1, int32_t * pV2, int32_t * pV3);
-    bool bGetIsWater(int16_t dX, int16_t dY);
-    bool bGetIsFarm(int16_t dX, int16_t dY);
-    bool bAddCropsTotalSum();
-    bool bRemoveCropsTotalSum();
-    void GetDeadOwner(int16_t * pOwner, char * pOwnerClass, int16_t sX, int16_t sY);
-    bool bGetIsMoveAllowedTile(int16_t dX, int16_t dY);
-    void SetNamingValueEmpty(int32_t iValue);
-    int32_t iGetEmptyNamingValue();
-    bool bGetDynamicObject(int16_t sX, int16_t sY, int16_t * pType, uint32_t * pTime, int32_t * pIndex = 0);
-    void SetDynamicObject(uint16_t wID, int16_t sType, int16_t sX, int16_t sY, uint32_t dwTime);
-    bool bGetIsTeleport(int16_t dX, int16_t dY);
-    bool bSearchTeleportDest(int32_t sX, int32_t sY, std::string & pMapName, int32_t * pDx, int32_t * pDy, char * pDir);
-    bool bInit(const std::string & map_name);
-    bool bIsValidLoc(int16_t sX, int16_t sY);
-    item * pGetItem(int16_t sX, int16_t sY, int16_t * pRemainItemSprite, int16_t * pRemainItemSpriteFrame, uint32_t * pRemainItemColor);
-    bool bSetItem(int16_t sX, int16_t sY, item * pItem);
-    void ClearDeadOwner(int16_t sX, int16_t sY);
-    void ClearOwner(int32_t iDebugCode, int16_t sOwnerH, char cOwnerType, int16_t sX, int16_t sY);
-    bool bGetMoveable(int16_t dX, int16_t dY, int16_t * pDOtype = 0, item * pTopItem = 0); // v2.172
-    void GetOwner(int16_t * pOwner, char * pOwnerClass, int16_t sX, int16_t sY);
-    void SetOwner(int16_t sOwner, char cOwnerClass, int16_t sX, int16_t sY);
-    void SetDeadOwner(int16_t sOwner, char cOwnerClass, int16_t sX, int16_t sY);
     tile * m_pTile;
     std::string name;
     std::string location_name;
@@ -196,6 +175,291 @@ public:
     int16_t sMobEventAmount;
 
     std::mutex m;
+
+    void run();
+
+    std::thread * actionthread;
+    std::thread * timerthread;
+    std::queue<std::unique_ptr<message_entry>> actionpipe;
+    std::mutex mutaction;
+    bool TimerThreadRunning;
+
+    void handle_message(std::shared_ptr<client> client_, stream_read & sr);
+
+    void TimerThread();
+    void SocketThread();
+    void put_msg_queue(message_entry * msg);
+
+
+
+    void NpcProcess();
+
+    void RemoveFromTarget(std::shared_ptr<unit> target, int iCode = 0);
+    void NpcKilledHandler(std::shared_ptr<unit> attacker, std::shared_ptr<npc> npc_, int16_t damage) const;
+    void NpcBehavior_Flee(std::shared_ptr<npc> npc_) const;
+    void NpcBehavior_Dead(std::shared_ptr<npc> npc_);
+    void NpcDeadItemGenerator(std::shared_ptr<unit> attacker, std::shared_ptr<npc> npc_) const;
+
+    std::shared_ptr<npc> CreateNpc(string & pNpcName, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, faction changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
+    void DeleteNpc(std::shared_ptr<npc> npc_);
+
+    char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, map * map_, char cTurn, int * pError) const;
+    char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, map * map_, char cTurn, int * pError, short * DOType) const;
+
+    void RemoveFromDelayEventList(unit * unit_, int32_t iEffectType);
+    bool RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, std::shared_ptr<unit> unit_, int dX, int dY, int iV1, int iV2, int iV3);
+    void DelayEventProcessor();
+    bool bGetEmptyPosition(int16_t & pX, int16_t & pY, std::shared_ptr<unit> client_);
+
+    std::shared_ptr<npc> GetNpc(uint64_t ObjectID);
+
+    std::list<std::shared_ptr<npc>> npclist;
+
+    uint64_t npchandle;
+
+    //	DropManager	drops;
+
+    struct
+    {
+        item * item_;
+        time_t dropTime;
+        uint16_t sx, sy;
+        map * cMapIndex;
+        bool bEmpty;
+    } m_stGroundNpcItem[MAXGROUNDITEMS];
+
+    std::list<std::shared_ptr<delay_event>> DelayEventList;
+    std::mutex delayMutex;
+
+
+
+    void RestoreStrikePoints();
+    bool bRemoveCrusadeStructureInfo(short sX, short sY);
+    bool bAddCrusadeStructureInfo(char cType, short sX, short sY, char cSide);
+    int iGetAttribute(int dX, int dY, int iBitMask) const;
+    void _SetupNoAttackArea();
+    void ClearTempSectorInfo();
+    void ClearSectorInfo();
+    uint64_t iCheckItem(short sX, short sY) const;
+    void SetTempMoveAllowedFlag(int dX, int dY, bool bFlag) const;
+    int iAnalyze(char cType, int * pX, int * pY, int * pV1, int * pV2, int * pV3) const;
+    bool bGetIsWater(short dX, short dY) const;
+    bool bGetIsFarm(short dX, short dY) const;
+    bool IsBuild(short dX, short dY) const;
+    bool bAddCropsTotalSum();
+    bool bRemoveCropsTotalSum();
+    bool bGetIsMoveAllowedTile(short dX, short dY) const;
+    bool bGetIsMoveAllowedTile(Point p) const;
+    bool bGetDynamicObject(short sX, short sY, short * pType, uint64_t * pRegisterTime, int * pIndex = 0) const;
+    void SetDynamicObject(uint16_t wID, short sType, short sX, short sY, uint64_t dwRegisterTime) const;
+    bool bGetIsTeleport(short dX, short dY) const;
+    bool bSearchTeleportDest(int sX, int sY, std::string & pMapName, uint16_t * pDx, uint16_t * pDy, uint8_t * pDir);
+    bool bInit(std::string pName);
+    bool bIsValidLoc(short sX, short sY) const;
+    item * pGetItem(short sX, short sY, short * pRemainItemSprite, short * pRemainItemSpriteFrame, uint32_t * pRemainItemColor) const;
+    bool bSetItem(short sX, short sY, item * pItem) const;
+    void ClearDeadOwner(short sX, short sY) const;
+    void ClearOwner(short sX, short sY) const;
+    bool bGetMoveable(short dX, short dY, short * pDOtype = nullptr, item * pTopItem = nullptr) const;
+    std::shared_ptr<unit> GetOwner(short sX, short sY) const;
+    void SetOwner(std::shared_ptr<unit> sOwner, short sX, short sY);
+    std::shared_ptr<unit> GetDeadOwner(short sX, short sY) const;
+    void SetDeadOwner(std::shared_ptr<unit> sOwner, short sX, short sY);
+    std::list<std::shared_ptr<unit>>GetOwners(short x1, short x2, short y1, short y2) const;
+    void IncPlayerActivity(client * player);
+    bool bDecodeMapConfig();
+    bool GetInitialPoint(int16_t & pX, int16_t & pY, std::string & pPlayerLocation);
+    tile * GetTile(int16_t x, int16_t y) const;
+
+    gserver * gs;
+    std::string factionName;
+    short sizeX, sizeY, tileDataSize;
+    std::vector<teleport_loc *> teleportLocationList;
+
+    //short m_sInitialPointX, m_sInitialPointY;
+    std::vector<point> initialPointList;
+
+
+    //map flags
+    struct stMapFlags {
+        bool apocalypseMap;
+        bool heldenianMap;
+        bool mineralGenerator;
+        bool randomMobGenerator;
+        bool attackEnabled;
+        bool partyDisabled;
+        bool shieldDisabled;
+        bool armorDisabled;
+        bool chatDisabled;
+        bool magicLimited[MAXMAGICTYPE];
+        bool permIllusionOn;
+        bool disabled;
+        bool fightZone;
+    } flags;
+
+    uint8_t mineralGenLevel;
+    std::vector<point> mineralPointList;
+    uint16_t   mineralTotalPoint, mineralMax, mineralCurrent;
+
+
+    int8_t  heldenianModeMap;
+    int16_t heldenianWinningZoneX;
+    int16_t heldenianWinningZoneY;
+
+    ApocMobGenType apocalypseMobGenType;
+    int32_t apocalypseBossMobNpcID;
+    rect	apocalypseBossMobRect;
+
+    uint16_t mobGenLevel;
+    uint16_t totalActiveObject;
+    uint16_t totalAliveObject;
+    uint16_t maximumObject;//redundant?
+
+    char    dynamicGateType;
+    int16_t dynamicGateCoordRectX1, dynamicGateCoordRectY1, dynamicGateCoordRectX2, dynamicGateCoordRectY2;
+    std::string  dynamicGateCoordDestMap;
+    int16_t dynamicGateCoordTgtX, dynamicGateCoordTgtY;
+
+
+
+    struct heldgatedoor {
+        char  cDir;
+        short dX;
+        short dY;
+    };
+    std::vector<heldgatedoor> heldenianGateDoor;
+
+    struct heldtower {
+        short sTypeID;
+        short dX;
+        short dY;
+        char  cSide;
+    };
+    std::vector<heldtower> heldenianTower;
+
+
+
+    int8_t type;
+    bool   fixedDay;
+    bool   fixedSnow;
+
+    struct spotmobgen {
+        bool defined;
+        char genType;				// 1:RANDOMAREA   2:RANDOMWAYPOINT
+
+        char waypoints[10];
+        rect rcRect;
+
+        int  active;//??
+        int  type;
+        int  max;
+        int  current;
+
+    };
+    std::vector<spotmobgen> spotMobGenerator;
+
+    std::vector<point> waypointList;
+    std::vector<rect>  mobGeneratorAvoidList;
+    std::vector<rect>  safeZoneList;
+
+    //TODO: figure out something with fishing. no one ever did it for 16 years, why should they do it now?
+    std::vector<point> fishingPointList;
+    uint16_t   totalFishPoints, fishMax, fishCurrent;
+
+
+
+
+    Weather weather;
+    uint32_t weatherEndTime, weatherStartTime;
+
+    uint16_t   levelLimitLower;
+    uint16_t   levelLimitUpper;
+
+
+    struct OccupyFlag
+    {
+        OccupyFlag(int16_t dX, int16_t dY, char cSide, int32_t iEKNum, int32_t iDOI)
+        {
+            x = dX;
+            y = dY;
+
+            side = cSide;
+            EKCount = iEKNum;
+
+            dynamicObjectIndex = iDOI;
+        }
+
+        char side;
+        int  EKCount;
+        int  x, y;
+
+        int  dynamicObjectIndex;
+    };
+
+    struct StrategicPoint
+    {
+        StrategicPoint()
+        {
+            side = value = x = y = 0;
+        }
+        int8_t		side;
+        int32_t     value;
+        int16_t		x, y;
+    };
+    std::vector<StrategicPoint *> strategicPointList;
+
+    std::vector<OccupyFlag *> occupyFlag;
+    int   occupyFlagTotal;
+
+    struct sectorinfo {
+        int playerActivity;
+        int neutralActivity;
+        int aresdenActivity;
+        int elvineActivity;
+        int mobActivity;
+    };
+
+    //use vectors or maps?
+    std::vector<sectorinfo> sectorInfo;
+    std::vector<sectorinfo> sectorInfoTemp;
+
+    struct strikepoint {
+        //map * map_;
+        int16_t x, y;
+        int64_t hp, hpInit;
+
+        int32_t effectX[5];
+        int32_t effectY[5];
+
+    };
+    std::vector<strikepoint> strikePointList;
+
+    struct crusadestructure {
+        char cType;
+        char cSide;
+        short sX, sY;
+    };
+    std::vector<crusadestructure> m_stCrusadeStructureInfo;
+
+    struct itemeventlist {
+        std::string cItemName;
+        int iAmount;
+        int iTotalNum;
+        int iMonth;
+        int iDay;
+        int iType;
+        std::string cMob[5];
+
+        int iCurNum;
+        int	iNumMob;
+    };
+    std::vector<itemeventlist> itemEventList;
+
+    short mobEventAmount;
+
+    int chatZone;//?
+
+    map::OccupyFlag * iRegisterOccupyFlag(int dX, int dY, int iSide, int iEKNum, int iDOI);
 
 private:
     bool _bDecodeMapDataFileContents();

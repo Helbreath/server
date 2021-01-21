@@ -44,7 +44,7 @@ lserver::~lserver()
 
 }
 
-void lserver::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
+void lserver::handle_message(const message_entry & msg)
 {
     stream_read sr(msg.data, msg.size);
     log_message_id msg_id = sr.read_enum();
@@ -52,13 +52,13 @@ void lserver::handle_message(const message_entry & msg, std::shared_ptr<client> 
     switch (msg_id)
     {
         case log_message_id::login:
-            return handle_login(_client, sr);
+            return handle_login(msg.client_, sr);
         case log_message_id::create_new_character:
-            return handle_create_new_character(_client, sr);
+            return handle_create_new_character(msg.client_, sr);
         case log_message_id::delete_character:
-            return handle_delete_character(_client, sr);
+            return handle_delete_character(msg.client_, sr);
         case log_message_id::enter_game:
-            return handle_enter_game(_client, sr);
+            return handle_enter_game(msg.client_, sr);
     }
 }
 
@@ -69,7 +69,7 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
     if (get_status() != server_status::online)
     {
         sw.write_int32(0);
-        sw.write_enum(log_res_msg::SERVICENOTAVAILABLE);
+        sw.write_int16((int16_t)log_res_msg::SERVICENOTAVAILABLE);
         _client->write(sw);
         return;
     }
@@ -119,7 +119,7 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
     catch (...)
     {
         sw.write_int32(0);
-        sw.write_enum(log_res_msg::SERVICENOTAVAILABLE);
+        sw.write_int16((int16_t)log_res_msg::SERVICENOTAVAILABLE);
         _client->write(sw);
         return;
     }
@@ -134,7 +134,6 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
         for (auto row : R)
             for (auto column : row)
                 res[column.name()] = column.c_str();
-                //std::cout << column.name() << " - " << column.c_str() << '\n';
     }
 
     _client->account_id = std::stoull(res["id"]);
@@ -166,7 +165,7 @@ void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & s
             {
                 stream_write sw;
                 sw.write_enum(log_rsp_message_id::log);
-                sw.write_enum(enter_game_msg::REJECT);
+                sw.write_int16((int16_t)enter_game_msg::REJECT);
                 sw.write_string("Game server or map not online. Please contact support.");
                 sw.write_int32(0); // block year
                 sw.write_int32(0); // block month
@@ -175,88 +174,107 @@ void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & s
                 return;
             }
 
+            _client->handle = std::stoull(c["id"]);
             _client->char_id = std::stoull(c["id"]);
             _client->account_id = std::stoull(c["account_id"]);
             _client->name = c["id"];
             //_client->id1 = std::stoull(c["id1"]);
             //_client->id2 = std::stoull(c["id2"]);
             //_client->id3 = std::stoull(c["id3"]);
-            _client->level = std::stoll(c["level"]);
-            _client->strength = std::stoll(c["strength"]);
-            _client->vitality = std::stoll(c["vitality"]);
-            _client->dexterity = std::stoll(c["dexterity"]);
-            _client->intelligence = std::stoll(c["intelligence"]);
-            _client->magic = std::stoll(c["magic"]);
-            _client->charisma = std::stoll(c["charisma"]);
+            _client->level = std::stoi(c["level"]);
+            _client->SetStr(std::stoi(c["strength"]));
+            _client->SetVit(std::stoi(c["vitality"]));
+            _client->SetDex(std::stoi(c["dexterity"]));
+            _client->SetInt(std::stoi(c["intelligence"]));
+            _client->SetMag(std::stoi(c["magic"]));
+            _client->SetChr(std::stoi(c["charisma"]));
             _client->experience = std::stoll(c["experience"]);
 
 
-            _client->m_cSex = std::stoll(c["gender"]);
-            _client->m_cSkin = std::stoll(c["skin"]);
-            _client->m_cHairStyle = std::stoll(c["hairstyle"]);
-            _client->m_cHairColor = std::stoll(c["haircolor"]);
-            _client->m_cUnderwear= std::stoll(c["underwear"]);
-            _client->m_iApprColor = std::stoll(c["apprcolor"]);
-            _client->m_sAppr1 = std::stoll(c["appr1"]);
-            _client->m_sAppr2 = std::stoll(c["appr2"]);
-            _client->m_sAppr3 = std::stoll(c["appr3"]);
-            _client->m_sAppr4 = std::stoll(c["appr4"]);
-            _client->head_appr = std::stoll(c["head_appr"]);
-            _client->body_appr = std::stoll(c["body_appr"]);
-            _client->arm_appr = std::stoll(c["arm_appr"]);
-            _client->leg_appr = std::stoll(c["leg_appr"]);
+            _client->gender = std::stoi(c["gender"]);
+            _client->colorSkin = std::stoi(c["skin"]);
+            _client->m_cHairStyle = std::stoi(c["hairstyle"]);
+            _client->colorHair = std::stoi(c["haircolor"]);
+            _client->colorUnderwear = std::stoi(c["underwear"]);
+            _client->m_iApprColor = std::stoi(c["apprcolor"]);
+            _client->m_sAppr1 = std::stoi(c["appr1"]);
+            _client->m_sAppr2 = std::stoi(c["appr2"]);
+            _client->m_sAppr3 = std::stoi(c["appr3"]);
+            _client->m_sAppr4 = std::stoi(c["appr4"]);
+            _client->head_appr = std::stoi(c["head_appr"]);
+            _client->body_appr = std::stoi(c["body_appr"]);
+            _client->arm_appr = std::stoi(c["arm_appr"]);
+            _client->leg_appr = std::stoi(c["leg_appr"]);
 
             _client->nation = c["nation"];
             _client->map_name = c["maploc"];
 
-            _client->m_sX = std::stoll(c["locx"]);
-            _client->m_sY = std::stoll(c["locy"]);
+            _client->x = std::stoi(c["locx"]);
+            _client->y = std::stoi(c["locy"]);
 
             _client->profile = c["profile"];
 
-            _client->admin_level = std::stoll(c["adminlevel"]);
-            _client->m_iContribution = std::stoll(c["contribution"]);
+            _client->admin_level = std::stoi(c["adminlevel"]);
+            _client->contribution = std::stoi(c["contribution"]);
             _client->m_iSpecialAbilityTime = std::stoll(c["leftspectime"]);
             _client->locked_map_name = c["lockmapname"];
-            _client->m_iLockedMapTime = std::stoll(c["lockmaptime"]);
+            _client->m_iLockedMapTime = std::stoi(c["lockmaptime"]);
             //_client->admin_level = std::stoll(c["blockdate"]); // check this and reject?
-            _client->m_iGuildGUID = std::stoll(c["guild_id"]);
-            _client->m_iFightzoneNumber = std::stoll(c["fightnum"]);
-            _client->m_iFightzoneDate = std::stoll(c["fightdate"]);
-            _client->m_iFightZoneTicketNumber = std::stoll(c["fightticket"]);
-//             _client->questnum = std::stoll(c["questnum"]);
-//             _client->questid = std::stoll(c["questid"]);
-//             _client->questcount = std::stoll(c["questcount"]);
-//             _client->questrewardtype = std::stoll(c["questrewardtype"]);
-//             _client->questrewardamount = std::stoll(c["questrewardamount"]);
-//             _client->questcompleted = std::stoll(c["questcompleted"]);
-            _client->eventid = std::stoll(c["eventid"]);
-            _client->m_iWarContribution = std::stoll(c["warcon"]);
-            _client->m_iCrusadeDuty = std::stoll(c["crusadejob"]);
+            //_client->m_iGuildGUID = std::stoll(c["guild_id"]);
+            _client->arenaNumber = std::stoi(c["fightnum"]);
+            _client->arenaReserveTime = std::stoi(c["fightdate"]);
+            _client->arenaTicketNumber = std::stoi(c["fightticket"]);
+            _client->m_iQuest = std::stoi(c["questnum"]);
+            _client->m_iQuestID = std::stoi(c["questid"]);
+            _client->m_iCurQuestCount = std::stoi(c["questcount"]);
+            _client->m_iQuestRewardType = std::stoi(c["questrewardtype"]);
+            _client->m_iQuestRewardAmount = std::stoi(c["questrewardamount"]);
+            _client->m_bIsQuestCompleted = c["questcompleted"] == "t";
+            _client->m_iSpecialEventID = std::stoi(c["eventid"]);
+            _client->crusadeContribution = std::stoi(c["warcon"]);
+            _client->m_iCrusadeDuty = std::stoi(c["crusadejob"]);
             _client->crusade_construction_point = std::stoll(c["crusadeconstructpoint"]);
             _client->m_dwCrusadeGUID = std::stoll(c["crusadeid"]);
             _client->reputation = std::stoll(c["reputation"]);
-            _client->m_iHP = std::stoll(c["hp"]);
-            _client->m_iMP = std::stoll(c["mp"]);
-            _client->m_iSP = std::stoll(c["sp"]);
-            _client->m_iEnemyKillCount = std::stoll(c["ek"]);
-            _client->m_iPKCount = std::stoll(c["pk"]);
+            _client->health = std::stoll(c["hp"]);
+            _client->mana = std::stoll(c["mp"]);
+            _client->stamina = std::stoll(c["sp"]);
+            _client->enemyKillCount = std::stoll(c["ek"]);
+            _client->playerKillCount = std::stoll(c["pk"]);
             _client->m_iRewardGold = std::stoll(c["rewardgold"]);
             _client->m_iDownSkillIndex = std::stoll(c["downskillid"]);
             _client->m_iHungerStatus = std::stoll(c["hunger"]);
-            _client->m_iSuperAttackLeft = std::stoll(c["leftsac"]);
+            _client->superAttack = std::stoll(c["leftsac"]);
             _client->m_iTimeLeft_ShutUp = std::stoll(c["leftshutuptime"]);
             _client->m_iTimeLeft_Rating = std::stoll(c["leftreptime"]);
             _client->m_iTimeLeft_ForceRecall = std::stoll(c["leftforcerecalltime"]);
-            _client->m_iTimeLeft_FirmStaminar = std::stoll(c["leftfirmstaminatime"]);
+            _client->m_iTimeLeft_FirmStamina = std::stoll(c["leftfirmstaminatime"]);
             _client->m_iDeadPenaltyTime = std::stoll(c["leftdeadpenaltytime"]);
-            _client->admin_level = std::stoll(c["magicmastery"]);
+            _client->admin_level = std::stoll(c["adminlevel"]);
             _client->m_iPartyID = std::stoll(c["party_id"]);
             _client->m_iGizonItemUpgradeLeft = std::stoll(c["itemupgradeleft"]);
             _client->total_ek = std::stoll(c["totalek"]);
             _client->total_pk = std::stoll(c["totalpk"]);
             _client->mmr = std::stoll(c["mmr"]);
             _client->altmmr = std::stoll(c["altmmr"]);
+            _client->m_iLuck = std::stoll(c["luck"]);
+            _client->gold = std::stoll(c["gold"]);
+            // _client->xcoins = std::stoll(c["xcoins"]); // comes from account data instead
+
+            std::string temp = c["magicmastery"];
+            for (int i = 0; i < temp.length(); ++i)
+            {
+                _client->magicMastery[i] = (temp[i] == '1') ? 1 : 0;
+            }
+
+            if (_client->gender == MALE) _client->set_type(1);
+            else if (_client->gender == FEMALE) _client->set_type(4);
+            _client->set_type(_client->get_type() + _client->colorSkin - 1);
+            _client->appr1 = (uint64_t(_client->m_cHairStyle) << 8) | (uint64_t(_client->colorHair) << 4) | uint64_t(_client->colorUnderwear);
+
+            //todo: load items here
+
+            _client->m_bIsInitComplete = true;
 
             server_.transfer_client(_client, world_name, _client->map_name);
             return;
@@ -265,7 +283,7 @@ void lserver::handle_enter_game(std::shared_ptr<client> _client, stream_read & s
 
     stream_write sw;
     sw.write_enum(log_rsp_message_id::log);
-    sw.write_enum(enter_game_msg::REJECT);
+    sw.write_int16((int16_t)enter_game_msg::REJECT);
     sw.write_string("Unable to enter game. Please contact support.");
     sw.write_int32(0); // block year
     sw.write_int32(0); // block month
@@ -310,7 +328,7 @@ void lserver::handle_create_new_character(std::shared_ptr<client> _client, strea
         skin_color > 3 || skin_color < 0
         ) {
         sw.write_enum(log_rsp_message_id::log);
-        sw.write_enum(log_res_msg::NEWCHARACTERFAILED);
+        sw.write_int16((int16_t)log_res_msg::NEWCHARACTERFAILED);
         return _client->write(sw);
     }
 
@@ -331,7 +349,7 @@ void lserver::handle_create_new_character(std::shared_ptr<client> _client, strea
         if (field.get<int>().value_or(0) > 10)
         {
             sw.write_enum(log_rsp_message_id::log);
-            sw.write_enum(log_res_msg::NEWCHARACTERFAILED);
+            sw.write_int16((int16_t)log_res_msg::NEWCHARACTERFAILED);
             return _client->write(sw);
         }
     }
@@ -346,7 +364,7 @@ void lserver::handle_create_new_character(std::shared_ptr<client> _client, strea
         if (field.get<int>().value_or(0) > 0)
         {
             sw.write_enum(log_rsp_message_id::log);
-            sw.write_enum(log_res_msg::ALREADYEXISTINGCHARACTER);
+            sw.write_int16((int16_t)log_res_msg::ALREADYEXISTINGCHARACTER);
             return _client->write(sw);
         }
     }
@@ -360,7 +378,7 @@ void lserver::handle_create_new_character(std::shared_ptr<client> _client, strea
         if (R.empty() || R.at(0).empty())
         {
             sw.write_enum(log_rsp_message_id::log);
-            sw.write_enum(log_res_msg::NEWCHARACTERFAILED);
+            sw.write_int16((int16_t)log_res_msg::NEWCHARACTERFAILED);
             return _client->write(sw);
         }
 
@@ -393,7 +411,7 @@ void lserver::handle_create_new_character(std::shared_ptr<client> _client, strea
     }
     fetch_character_list(_client);
     sw.write_enum(log_rsp_message_id::log);
-    sw.write_enum(log_res_msg::NEWCHARACTERCREATED);
+    sw.write_int16((int16_t)log_res_msg::NEWCHARACTERCREATED);
     sw.write_string(player_name, 10);
     build_character_list(_client, sw);
     _client->write(sw);
@@ -417,7 +435,7 @@ void lserver::handle_delete_character(std::shared_ptr<client> _client, stream_re
         {
             stream_write sw;
             sw.write_enum(log_rsp_message_id::log);
-            sw.write_enum(log_res_msg::REJECT);
+            sw.write_int16(MSGTYPE_REJECT);
             sw.write_string("Unable to delete character. Please contact support.");
             sw.write_int32(0); // block year
             sw.write_int32(0); // block month
@@ -448,7 +466,7 @@ void lserver::handle_delete_character(std::shared_ptr<client> _client, stream_re
 
     stream_write sw;
     sw.write_enum(log_rsp_message_id::log);
-    sw.write_enum(log_res_msg::REJECT);
+    sw.write_int16(MSGTYPE_REJECT);
     sw.write_string("Test string to write");
     sw.write_int32(0); // block year
     sw.write_int32(0); // block month
@@ -516,7 +534,7 @@ void lserver::send_login_success(std::shared_ptr<client> _client)
 {
     stream_write sw;
     sw.write_enum(log_rsp_message_id::log);
-    sw.write_enum(log_res_msg::CONFIRM);
+    sw.write_int16(MSGTYPE_CONFIRM);
     sw.write_uint16(server_.upper_version);
     sw.write_uint16(server_.lower_version);
     sw.write_uint16(server_.patch_version);

@@ -1,42 +1,40 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include "defines.hpp"
 
 namespace hbx
 {
 
-class CMagic
+class unit;
+
+class magic
 {
 public:
-    CMagic() = default;
-    ~CMagic() = default;
+    magic() = default;
+    ~magic() = default;
 
     //char m_cName[31];
     std::string name;
 
-    int16_t type = 0;
-    uint32_t delay_time = 0;
-    uint32_t last_time = 0;
-    int16_t value1 = 0;
-    int16_t value2 = 0;
-    int16_t value3 = 0;
-    int16_t value4 = 0;
-    int16_t value5 = 0;
-    int16_t value6 = 0;
-    int16_t value7 = 0;
-    int16_t value8 = 0;
-    int16_t value9 = 0;
-    int16_t value10 = 0;
-    int16_t value11 = 0;
-    int16_t value12 = 0;
-    int16_t int_limit = 0;
-    int32_t gold_cost = 0;
+    int16_t magicType = 0;
+    uint32_t delayTime = 0;
+    uint32_t lastTime = 0;
+    int16_t m_sIntLimit = 0;
+    int32_t goldCost = 0;
+    uint16_t manaCost = 0;
+    uint16_t m_sValue[9];
+    uint8_t m_hRange = 0;
+    uint8_t m_vRange = 0;
 
     int8_t category = 0;
     int32_t attribute = 0;
+    Element element = ELEMENT_NONE;
+    uint16_t num = 0;
+
+    void Effect_RecSP(unit * caster, unit * target, uint32_t dthrow, uint32_t droll, uint32_t dbonus);
 };
 
 }

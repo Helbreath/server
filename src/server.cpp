@@ -30,6 +30,7 @@ server::server(std::shared_ptr<asio::io_context> io_)
     , redis(*io_)
     , redis_async(*io_)
     , web_stats_timer(*io_)
+    , signals_(*io_)
 {
     std::ifstream config_file("config/config.json");
     config_file >> config;
@@ -113,6 +114,14 @@ server::server(std::shared_ptr<asio::io_context> io_)
         std::cerr << e.what() << '\n';
         return;
     }
+
+    // provided all registration for the specified signal is made through Asio.
+    signals_.add(SIGINT);
+    signals_.add(SIGTERM);
+#if defined(SIGQUIT)
+    signals_.add(SIGQUIT);
+#endif // defined(SIGQUIT)
+    signals_.async_wait(std::bind(&server::stop, this));
 }
 
 server::~server()
@@ -338,6 +347,11 @@ void server::run()
 void server::stop()
 {
     status_ = server_status::closing;
+    lserver_->status_ = server_status::closing;
+    for (auto & g : gservers_)
+    {
+        g->status_ = server_status::closing;
+    }
     cv.notify_all();
 }
 
@@ -374,6 +388,7 @@ void server::transfer_client(std::shared_ptr<client> _client, std::string server
         if (gs.server_name != server_name)
             continue;
 
+        _client->map_ = gs.get_map(map_name);
         _client->server_id = gs.id;
         gs.handle_new_client(_client);
     }
@@ -394,19 +409,19 @@ void server::close_client(std::shared_ptr<client> _client)
     _client->socket_ = nullptr;
 }
 
-void server::handle_message(const message_entry & msg, std::shared_ptr<client> _client)
+void server::handle_message(const message_entry & msg)
 {
-    skt_mode mode = _client->socket_mode();
+    skt_mode mode = msg.client_->socket_mode();
     if (mode == gameserver)
     {
-        gserver * gs = find_gserver(_client->server_id);
-        if (gs) gs->handle_message(msg, _client);
-        else log->error("No gserver attached to client gs:{} client id:{}", _client->server_id, _client->account_id);
+        gserver * gs = find_gserver(msg.client_->server_id);
+        if (gs) gs->handle_message(msg);
+        else log->error("No gserver attached to client gs:{} client id:{}", msg.client_->server_id, msg.client_->account_id);
     }
 
     if (mode == loginserver)
     {
-        lserver_->handle_message(msg, _client);
+        lserver_->handle_message(msg);
     }
 }
 

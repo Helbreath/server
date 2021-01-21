@@ -3,130 +3,93 @@
 
 #include <cstdint>
 #include <string>
+#include "defines.hpp"
 
-#define DEF_MAXITEMEQUIPPOS		15
-#define DEF_EQUIPPOS_NONE		0
-#define DEF_EQUIPPOS_HEAD		1
-#define DEF_EQUIPPOS_BODY		2
-#define DEF_EQUIPPOS_ARMS		3
-#define DEF_EQUIPPOS_PANTS		4
-#define DEF_EQUIPPOS_LEGGINGS	5
-#define DEF_EQUIPPOS_NECK		6
-#define DEF_EQUIPPOS_LHAND		7
-#define DEF_EQUIPPOS_RHAND		8
-#define DEF_EQUIPPOS_TWOHAND	9
-#define DEF_EQUIPPOS_RFINGER	10
-#define DEF_EQUIPPOS_LFINGER	11
-#define DEF_EQUIPPOS_BACK		12
-#define DEF_EQUIPPOS_FULLBODY	13
-
-#define DEF_ITEMTYPE_NOTUSED	-1
-#define DEF_ITEMTYPE_NONE		 0
-#define DEF_ITEMTYPE_EQUIP		 1
-#define DEF_ITEMTYPE_APPLY		 2
-#define DEF_ITEMTYPE_USE_DEPLETE 3       
-#define DEF_ITEMTYPE_INSTALL	 4
-#define DEF_ITEMTYPE_CONSUME	 5
-#define DEF_ITEMTYPE_ARROW		 6
-#define DEF_ITEMTYPE_EAT		 7
-#define DEF_ITEMTYPE_USE_SKILL   8
-#define DEF_ITEMTYPE_USE_PERM    9
-#define DEF_ITEMTYPE_USE_SKILL_ENABLEDIALOGBOX	10
-#define DEF_ITEMTYPE_USE_DEPLETE_DEST			11
-#define DEF_ITEMTYPE_MATERIAL					12
-
-
-#define DEF_ITEMEFFECTTYPE_NONE				0
-#define DEF_ITEMEFFECTTYPE_ATTACK			1
-#define DEF_ITEMEFFECTTYPE_DEFENSE			2
-#define DEF_ITEMEFFECTTYPE_ATTACK_ARROW		3
-#define DEF_ITEMEFFECTTYPE_HP   		    4
-#define DEF_ITEMEFFECTTYPE_MP   		    5
-#define DEF_ITEMEFFECTTYPE_SP   		    6
-#define DEF_ITEMEFFECTTYPE_HPSTOCK 		    7
-#define DEF_ITEMEFFECTTYPE_GET			    8
-#define DEF_ITEMEFFECTTYPE_STUDYSKILL		9
-#define DEF_ITEMEFFECTTYPE_SHOWLOCATION		10
-#define DEF_ITEMEFFECTTYPE_MAGIC			11
-#define DEF_ITEMEFFECTTYPE_CHANGEATTR		12
-#define DEF_ITEMEFFECTTYPE_ATTACK_MANASAVE	13
-#define DEF_ITEMEFFECTTYPE_ADDEFFECT	    14
-#define DEF_ITEMEFFECTTYPE_MAGICDAMAGESAVE	15 
-#define DEF_ITEMEFFECTTYPE_OCCUPYFLAG		16
-#define DEF_ITEMEFFECTTYPE_DYE				17
-#define DEF_ITEMEFFECTTYPE_STUDYMAGIC		18
-#define DEF_ITEMEFFECTTYPE_ATTACK_MAXHPDOWN	19
-#define DEF_ITEMEFFECTTYPE_ATTACK_DEFENSE	20
-#define DEF_ITEMEFFECTTYPE_MATERIAL_ATTR	21
-#define DEF_ITEMEFFECTTYPE_FIRMSTAMINAR		22
-#define DEF_ITEMEFFECTTYPE_LOTTERY			23
-
-#define DEF_ITEMEFFECTTYPE_ATTACK_SPECABLTY		24
-#define DEF_ITEMEFFECTTYPE_DEFENSE_SPECABLTY	25
-#define DEF_ITEMEFFECTTYPE_ALTERITEMDROP		26
-
-#define DEF_ITEMEFFECTTYPE_CONSTRUCTIONKIT		27
-#define DEF_ITEMEFFECTTYPE_WARM					28
-#define DEF_ITEMEFFECTTYPE_DEFENSE_ANTIMINE		29
-#define DEF_ITEMEFFECTTYPE_ITEMFARM				30
-
-#define DEF_ITET_UNIQUE_OWNER				1
-#define DEF_ITET_ID							2
-#define DEF_ITET_DATE						3
-
+namespace hbx
+{
 
 class item
 {
 public:
+    item(uint32_t count = 1);
+    item(uint64_t itemID, item ** itemconfig, uint32_t count = 1);
+    item(std::string itemName, item ** itemconfig, uint32_t count = 1);
+    ~item() = default;
 
-	item();
-	~item() = default;
+    void Init();
 
-	//char  m_cName[21];
-	std::string name;
+    static item * CreateItem();
 
-	int16_t id = 0;
-	int8_t  type;
-	int8_t  equip_pos;
+    uint32_t GetWeight(int count) const;
+    uint32_t GetWeight()			const { return GetWeight(m_dwCount); }
+    uint32_t GetBaseWeight()		const { return GetWeight(1); }
+    uint32_t GetManuCompletion()	const { return m_sSpecialEffectValue2 + 100; }
+    bool IsValid()		const { return (m_sIDnum != ITEM_INVALID); }
+    bool IsLogged() 	const;
+    bool IsManued()	const;
+    bool IsVortexed()	const { return m_sockets[0] == ITEM_VORTEXGEM; }
+    uint32_t GetMaxSockets() const;
+    bool AddSocket(item * gem);
+
+    bool InitItemAttr(const std::string pItemName, item ** itemconfig);
+    bool InitItemAttr(uint64_t iItemID, item ** itemconfig);
+    void InitStats(int iGenLevel);
+    void AdjustByStat();
+    std::string Dump() const;
+
+    uint16_t m_slot;
+    bool initialized;
+
+    std::string name;
+
+    uint64_t m_sIDnum;
+    int8_t m_cItemType;
+    int8_t m_cEquipPos;
+    int16_t m_sItemEffectType;
+    int16_t m_sItemEffectValue1, m_sItemEffectValue2, m_sItemEffectValue3;
+    int16_t m_sItemEffectValue4, m_sItemEffectValue5, m_sItemEffectValue6;
+    uint64_t uid;
+    int32_t m_wMaxLifeSpan;
+    int32_t m_wCurLifeSpan;
+    int16_t m_sSpecialEffect;
+    int16_t m_sSpecialEffectValue1;
+    int16_t m_sSpecialEffectValue2;
+
+    int16_t m_sSprite;
+    int16_t m_sSpriteFrame;
+
+    int8_t m_cApprValue;
+    int8_t m_cSpeed;
+
+    int32_t m_wPrice;
+    uint16_t m_wWeight;
+    int16_t m_sLevelLimit;
+    int8_t m_cGenderLimit;
+
+    int16_t m_sRelatedSkill;
+
+    int8_t m_cCategory;
+    bool m_bIsForSale;
+    bool m_isLogged;
+
+    uint32_t m_dwCount;
+    int16_t m_sTouchEffectType;
+    int16_t m_sTouchEffectValue1, m_sTouchEffectValue2, m_sTouchEffectValue3;
+    uint32_t m_cItemColor;
+    int16_t m_sItemSpecEffectValue1, m_sItemSpecEffectValue2, m_sItemSpecEffectValue3;
+
+    uint32_t m_dwAttribute;
+    uint16_t m_sockets[MAXITEMSOCKETS];
+
+    bool m_disabled;
+
+    int8_t equipped;
     uint16_t x;
     uint16_t y;
-	int16_t item_effect_type;
-	int16_t item_effect_value1 = 0;
-	int16_t item_effect_value2 = 0;
-	int16_t item_effect_value3 = 0;
-	int16_t item_effect_value4 = 0;
-	int16_t item_effect_value5 = 0;
-	int16_t item_effect_value6 = 0;
-	int32_t max_life_span = 0;
-    int32_t cur_life_span = 0;
-    int16_t special_effect = 0;
-	int16_t special_effect_value1 = 0;
-	int16_t special_effect_value2 = 0;
 
-	int16_t sprite = 0;
-	int16_t sprite_frame = 0;
-
-	int8_t  appr_value = 0;
-	int8_t  speed = 0;
-
-	uint32_t price= 0;
-	uint16_t weight = 0;
-	int16_t level_limit = 0;
-	int8_t  gender_limit = 0;
-
-	int16_t related_skill = 0;
-
-	int8_t category = 0;
-	bool  for_sale = false;
-
-	uint32_t count = 0;
-	int16_t touch_effect_type = 0;
-	int16_t touch_effect_value1 = 0;
-	int16_t touch_effect_value2 = 0;
-	int16_t touch_effect_value3 = 0;
-	uint32_t color = 0;
-	int16_t item_spec_effect_value1 = 0;
-	int16_t item_spec_effect_value2 = 0;
-	int16_t item_spec_effect_value3 = 0;
-	uint32_t attribute = 0;
+    //Zero stat control on items
+    void ControlStats(uint32_t & statType, uint32_t & statValue);
+    void ControlStats2(uint32_t & statType, uint32_t & statValue);
 };
+
+}

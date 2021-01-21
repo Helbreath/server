@@ -142,6 +142,7 @@ public:
         size = 100;
         data = new char[size];
         position = 0;
+        std::memset(data, 0, size);
     }
 
     uint64_t write_size()
@@ -381,17 +382,28 @@ public:
 class stream_read
 {
 public:
-    stream_read(char * input, std::size_t in)
-        : data(input), position(0), size(in) {
+    stream_read(char * input, std::size_t in, bool copy = false)
+        : data(input), position(0), size(in)
+    {
+        if (copy)
+        {
+            data = new char[in + 1];
+            std::memcpy(data, input, in);
+            data[in + 1] = 0;
+            owns = true;
+        }
         //size += 4;
     };
     ~stream_read()
     {
+        if (owns)
+            delete[] data;
     }
 
     char * data;
     std::size_t position;
     std::size_t size;
+    bool owns = false;
 
     uint16_t read_size()
     {

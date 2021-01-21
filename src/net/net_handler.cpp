@@ -72,7 +72,7 @@ void net_handler::handle_accept(const asio::error_code & e)
         clientsocket->address = address.to_string();
         server_->log->info("Client connected: {}:{}", clientsocket->address, endp.port());
 
-        std::shared_ptr<client> client_ = std::make_shared<client>();
+        std::shared_ptr<client> client_ = std::make_shared<client>(0);
         //client->lastpackettime = unixtime();
         client_->socket_ = clientsocket;
         clientsocket->client_ = client_.get();
@@ -98,7 +98,7 @@ void net_handler::stop(std::shared_ptr<socket> c)
 {
     c->stop();
     connections.erase(c);
-    server_->close_client(c->client_->shared_from_this());
+    server_->close_client(std::static_pointer_cast<client>(c->client_->shared_from_this()));
 }
 
 void net_handler::stop()
@@ -115,8 +115,8 @@ void net_handler::handle_request(const request & req)
 
     try
     {
-        message_entry msg{ req.data, req.size };
-        s.handle_message(msg, req.socket_->client_->shared_from_this());
+        message_entry msg{ req.data, req.size, std::static_pointer_cast<client>(req.socket_->client_->shared_from_this()) };
+        s.handle_message(msg);
     }
     catch (std::exception & e)
     {

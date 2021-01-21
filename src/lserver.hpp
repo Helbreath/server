@@ -23,7 +23,7 @@ public:
     ~lserver();
 
     server_status get_status() const noexcept { return status_; }
-    void handle_message(const message_entry & msg, std::shared_ptr<client> _client);
+    void handle_message(const message_entry & msg);
     void handle_login(std::shared_ptr<client> _client, stream_read & sr);
     void handle_enter_game(std::shared_ptr<client> _client, stream_read & sr);
     void handle_create_new_character(std::shared_ptr<client> _client, stream_read & sr);
