@@ -38,3 +38,5 @@ include/
 obj/
 log/
 x64/
+mapdata/
+ideas/
