@@ -172,7 +172,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <CppLanguageStandard>c++17</CppLanguageStandard>
-      <PreprocessorDefinitions>ASIO_HAS_STD_CHRONO;ASIO_NO_DEPRECATED;ASIO_STANDALONE;ASIO_HEADER_ONLY;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WEBSOCKETPP_CPP11_STL_;ASIO_HAS_STD_CHRONO;ASIO_STANDALONE;ASIO_HEADER_ONLY</PreprocessorDefinitions>
       <AdditionalOptions>-Wno-unknown-pragmas %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -183,7 +183,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>ASIO_HAS_STD_CHRONO;ASIO_NO_DEPRECATED;ASIO_STANDALONE;ASIO_HEADER_ONLY;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WEBSOCKETPP_CPP11_STL_;ASIO_HAS_STD_CHRONO;ASIO_STANDALONE;ASIO_HEADER_ONLY;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CppLanguageStandard>c++17</CppLanguageStandard>
       <AdditionalOptions>-Wno-unknown-pragmas %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>

@@ -20,6 +20,9 @@
 #include <asio/steady_timer.hpp>
 #include <asio/signal_set.hpp>
 
+#include <websocketpp/config/asio.hpp>
+#include <websocketpp/server.hpp>
+
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -39,6 +42,12 @@ namespace pqxx { class connection; }
 
 namespace hbx
 {
+
+using ws_server = websocketpp::server<websocketpp::config::asio_tls>;
+
+using connection_ptr = websocketpp::server<websocketpp::config::asio_tls>::connection_type::ptr;
+using message_ptr = websocketpp::config::asio::message_type::ptr;
+using context_ptr = std::shared_ptr<websocketpp::lib::asio::ssl::context>;
 
 class client;
 class lserver;
@@ -208,9 +217,10 @@ public:
     uint16_t lower_version;
     uint16_t patch_version;
 
-    asio::signal_set signals_;
 
 private:
+    void on_message(websocketpp::connection_hdl hdl, message_ptr msg);
+
     int64_t threadcount;
     std::unique_ptr<lserver> lserver_;
     std::set<std::unique_ptr<gserver>> gservers_;
@@ -220,10 +230,13 @@ private:
     redisclient::RedisSyncClient redis;
     redisclient::RedisAsyncClient redis_async;
     asio::steady_timer web_stats_timer;
+    asio::signal_set signals_;
     std::unordered_map<std::string, asio::ip::basic_resolver<asio::ip::tcp>::results_type> resolver_cache_;
     server_status status_ = server_status::uninitialized;
 
     json config;
+
+    ws_server ws;
 
 #ifdef NDEBUG
     bool is_production = true;

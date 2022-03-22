@@ -562,7 +562,7 @@ inline std::string makesafe(std::string in)
 
 inline char * strtolower(char * x)
 {
-    for (int i = 0; i < strlen(x); ++i)
+    for (std::size_t i = 0; i < strlen(x); ++i)
     {
         if (x[i] >= 65 && x[i] <= 90)
         {

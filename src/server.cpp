@@ -83,6 +83,77 @@ server::server(std::shared_ptr<asio::io_context> io_)
         throw std::runtime_error("Can't connect to redis.");
     }
 
+    using namespace websocketpp::log;
+
+    auto logsettings = alevel::all ^ alevel::frame_header ^ alevel::frame_payload ^ alevel::control;
+
+    ws.clear_access_channels(websocketpp::log::alevel::all);
+    ws.clear_error_channels(websocketpp::log::alevel::all);
+
+    ws.set_access_channels(logsettings);
+    ws.set_error_channels(logsettings);
+
+    ws.init_asio(io_.get());
+    ws.set_message_handler(std::bind(&server::on_message, this, std::placeholders::_1, std::placeholders::_2));
+    ws.set_open_handler([&](websocketpp::connection_hdl hdl)
+    {
+        websocketpp::server<websocketpp::config::asio_tls>::connection_ptr con = ws.get_con_from_hdl(hdl);
+        con->send("test");
+        log->info("WS Connection");
+    });
+
+//     ws.set_http_handler([&](websocketpp::connection_hdl hdl)
+//     {
+//         log->info("http");
+// 
+//         websocketpp::server<websocketpp::config::asio_tls>::connection_ptr con = ws.get_con_from_hdl(hdl);
+// 
+//         con->set_body("Hello World!");
+//         con->set_status(websocketpp::http::status_code::ok);
+//     });
+
+    ws.set_tls_init_handler([&](websocketpp::connection_hdl hdl)
+    {
+        context_ptr ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
+
+        ctx->set_options(asio::ssl::context::default_workarounds |
+                             asio::ssl::context::no_sslv2 |
+                             asio::ssl::context::no_sslv3 |
+                             asio::ssl::context::single_dh_use);
+
+        ctx->use_certificate_chain_file("config/server.crt");
+        ctx->use_private_key_file("config/server.key", asio::ssl::context::pem);
+
+        char dh[] = "-----BEGIN DH PARAMETERS-----\n"
+            "MIICCAKCAgEArOGgxAq72jKvDwwU4PqVTpEUAJqFboyaXUu/E9p7dE1BLfgpG59o\n"
+            "xYPI3iS18aXnZL+v7J8kDsLj0tbAh0H8VC0GesgUSOprv8AlwErrk6H1PGNQEIhR\n"
+            "v7RLq2TXp4hJMyMjuQ+m7oKNCZ910Igxa185qTN7cNs6WCiFVEgXVki5Lb4F+Jn4\n"
+            "9Q3BvofDuDCUX3xOEGgBQemfnlaEtaJyd2zz7JCGMZ4AY0lPXMktxrY6MGEcFema\n"
+            "PU3SxRdlIdBfqLn2+tE0smPRuNf3zAJrbp9SsPevwuxRbrPd+z86SpAvbBB93tAB\n"
+            "1J8L1+dy2DvdR7+MAJX+IxSToF6j0Kk1I8vugCV2Sn7p6BNrjAw3OUP24pWBi1I/\n"
+            "6otETlb2OhLvcy2D/KUxYP56XLu4SqSEI1EnPSYfNUto870Ze0c94gLaIKrpVi5B\n"
+            "TLKN+Lkt5bO2GONSKdBhCKpisxHAZr0dYizEDE1kLhTC9xrDQUEoOC32ZXY8HH2e\n"
+            "7kX+/uPDm21OwmY0Qput4AHhe5aeMgrX//A3mHHMhlwzzDI+4x74lELxt4hsOSme\n"
+            "bw7N6vl1s4ECHrL/hPnlubW/g2T0WrMFJVHiToPMN9x0Cl6h79PTyYZIVLSzxkLq\n"
+            "oOs10FJt0IBvSDSCpaLTKIUCwLHPzqfSoeaenKl0wrRvuwyqdPu2qdsCAQI=\n"
+            "-----END DH PARAMETERS-----\n";
+
+        std::string dhstr = dh;
+        asio::const_buffer dh_buff(dhstr.c_str(), dhstr.length());
+        ctx->use_tmp_dh(dh_buff);
+
+
+        std::string ciphers;
+        ciphers = "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK";
+
+        if (SSL_CTX_set_cipher_list(ctx->native_handle(), ciphers.c_str()) != 1) {
+            std::cout << "Error setting cipher list" << std::endl;
+        }
+
+        return ctx;
+    });
+    ws.listen(8443);
+    ws.start_accept();
 
     try
     {
@@ -132,6 +203,13 @@ server::~server()
         io_context_->stop();
     for (auto & t : threads)
         t.join();
+}
+
+void server::on_message(websocketpp::connection_hdl hdl, message_ptr msg)
+{
+    std::cout << msg->get_payload() << '\n';
+    websocketpp::server<websocketpp::config::asio_tls>::connection_ptr con = ws.get_con_from_hdl(hdl);
+    con->send("something back");
 }
 
 std::string server::execute(request_params && params)
@@ -295,6 +373,7 @@ void server::run()
 {
     nh = std::make_unique<net_handler>(io_context_, this);
     status_ = server_status::online;
+    ws.run();
 
 //     request_params rp;
 //     rp.method = Get;
@@ -352,6 +431,7 @@ void server::stop()
     {
         g->status_ = server_status::closing;
     }
+    io_context_->stop();
     cv.notify_all();
 }
 

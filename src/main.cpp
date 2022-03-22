@@ -36,8 +36,8 @@ int main()
     hbxserver->start_gservers();
     hbxserver->set_status(hbx::server_status::online);
     hbxserver->run();
-    std::mutex m;
-    std::unique_lock<std::mutex> l(m);
-    hbxserver->cv.wait(l);
+//     std::mutex m;
+//     std::unique_lock<std::mutex> l(m);
+//     hbxserver->cv.wait(l);
     return 0;
 }
