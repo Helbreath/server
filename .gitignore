@@ -40,3 +40,4 @@ log/
 x64/
 mapdata/
 ideas/
+vcpkg_installed/

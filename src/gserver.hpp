@@ -37,8 +37,6 @@ class delay_event;
 class item;
 class unit;
 
-using namespace nlohmann;
-
 using n_client = std::optional<std::shared_ptr<client>>;
 
 class gserver
@@ -70,7 +68,7 @@ public:
     std::mutex cl_m;
     std::vector<std::shared_ptr<client>> clients;
     std::vector<std::unique_ptr<map>> maps;
-    json config;
+    nlohmann::json config;
 
     std::map<string, int16_t> moveLocationX;
     std::map<string, int16_t> moveLocationY;

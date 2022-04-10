@@ -13,7 +13,7 @@
 #include <chrono>
 #include <thread>
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <nlohmann/json.hpp>
 
 namespace hbx
@@ -818,8 +818,6 @@ bool map::bDecodeMapConfig()
 {
     std::string mapfile = fmt::format("mapdata/{}.json", name);
 
-    using namespace nlohmann;
-    
     json obj;
    
     std::ifstream config_file(mapfile);

@@ -20,8 +20,7 @@
 #include <asio/steady_timer.hpp>
 #include <asio/signal_set.hpp>
 
-#include <websocketpp/config/asio.hpp>
-#include <websocketpp/server.hpp>
+#include <ixwebsocket/IXWebSocketCloseConstants.h>
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
@@ -33,21 +32,23 @@
 #include <mutex>
 #include <random>
 #include <condition_variable>
-#include "async++.hpp"
 
 #include "redisclient/redissyncclient.h"
 #include "redisclient/redisasyncclient.h"
 
 namespace pqxx { class connection; }
 
+namespace ix
+{
+class WebSocketServer;
+class WebSocket;
+class ConnectionState;
+struct WebSocketMessage;
+using WebSocketMessagePtr = std::unique_ptr<WebSocketMessage>;
+};
+
 namespace hbx
 {
-
-using ws_server = websocketpp::server<websocketpp::config::asio_tls>;
-
-using connection_ptr = websocketpp::server<websocketpp::config::asio_tls>::connection_type::ptr;
-using message_ptr = websocketpp::config::asio::message_type::ptr;
-using context_ptr = std::shared_ptr<websocketpp::lib::asio::ssl::context>;
 
 class client;
 class lserver;
@@ -76,7 +77,6 @@ struct request_params
 
 using asio_exec = asio::executor_work_guard<asio::io_context::executor_type>;
 using work_ptr = std::unique_ptr<asio_exec>;
-using namespace nlohmann;
 
 class server
 {
@@ -219,7 +219,7 @@ public:
 
 
 private:
-    void on_message(websocketpp::connection_hdl hdl, message_ptr msg);
+    void on_message(std::shared_ptr<ix::ConnectionState> connectionState, ix::WebSocket & webSocket, const ix::WebSocketMessagePtr & msg);
 
     int64_t threadcount;
     std::unique_ptr<lserver> lserver_;
@@ -234,15 +234,17 @@ private:
     std::unordered_map<std::string, asio::ip::basic_resolver<asio::ip::tcp>::results_type> resolver_cache_;
     server_status status_ = server_status::uninitialized;
 
-    json config;
+    nlohmann::json config;
 
-    ws_server ws;
+    std::unique_ptr<ix::WebSocketServer> ws;
 
 #ifdef NDEBUG
     bool is_production = true;
 #else
     bool is_production = false;
 #endif
+
+    friend lserver;
 };
 
 }

@@ -146,9 +146,6 @@
     <ClInclude Include="src\action_id.h">
       <Filter>headers</Filter>
     </ClInclude>
-    <ClInclude Include="src\async++.hpp">
-      <Filter>headers</Filter>
-    </ClInclude>
     <ClInclude Include="src\build_item.hpp">
       <Filter>headers</Filter>
     </ClInclude>
@@ -242,5 +239,11 @@
     <ClInclude Include="src\lserver.hpp">
       <Filter>headers</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="LICENSE" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="vcpkg.json" />
   </ItemGroup>
 </Project>

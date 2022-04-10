@@ -90,13 +90,25 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
         _client->disconnect();
     }
 
+#if defined(HELBREATHX)
     request_params rp;
     rp.method = Get;
     rp.host = "helbreathx.net";
-    rp.body = json({ { "email", username }, { "pass", password }, { "key", "06c2a11ba3375c31ad674df2ce512eda6fcb6cd9c7e6cec429486bb81493f0eff2b691d7e97fa1878f7fc425d5d46f3f09c4456d53c035fa953b388505853c8f" } }).dump();
+    rp.body = nlohmann::json({ { "email", username }, { "pass", password }, { "key", server_.config["web-login-key"].get<std::string>() }}).dump();
     rp.path = "/serverlogin.php";
 
     std::string str = server_.execute(std::forward<request_params>(rp));
+#else
+    // todo - do sql login (and hash password)
+    {
+        work W{ *server_.pg };
+        result R{ W.exec_params("SELECT * FROM accounts WHERE username = $1 AND password = $2", username, password) };
+
+        for (auto row : R)
+            for (auto column : row)
+                res[column.name()] = column.c_str();
+    }
+#endif
 
     if (str.empty() || str.length() > 10)
     {
@@ -128,8 +140,12 @@ void lserver::handle_login(std::shared_ptr<client> _client, stream_read & sr)
 
     {
         work W{ *server_.pg };
+#if defined(HELBREATHX)
         result R{ W.exec_params("SELECT * FROM accounts WHERE forum_member_id = $1", str.c_str()) };
-
+#else
+        // todo
+        result R{ W.exec_params("SELECT * FROM accounts WHERE forum_member_id = $1", str.c_str()) };
+#endif
 
         for (auto row : R)
             for (auto column : row)
@@ -375,7 +391,7 @@ void lserver::handle_create_new_character(std::shared_ptr<client> _client, strea
             values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) returning id;",
             _client->account_id, player_name, strength, vitality, dexterity, intelligence, magic, charisma, appr1, gender, skin_color, hair_style, hair_color, underwear_color, HP, MP, SP) };
 
-        if (R.empty() || R.at(0).empty())
+        if (R.empty())
         {
             sw.write_enum(log_rsp_message_id::log);
             sw.write_int16((int16_t)log_res_msg::NEWCHARACTERFAILED);
@@ -431,7 +447,7 @@ void lserver::handle_delete_character(std::shared_ptr<client> _client, stream_re
         work W{ *server_.pg };
         result R{ W.exec_params("select count(*) from characters where account_id = $1 and name = $2", account_id, player_name) };
 
-        if (R.empty() || R.at(0).empty())
+        if (R.empty())
         {
             stream_write sw;
             sw.write_enum(log_rsp_message_id::log);

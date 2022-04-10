@@ -1,5 +1,6 @@
 
 #include <cstdio>
+#include <ixwebsocket/IXNetSystem.h>
 #include "server.hpp"
 
 using namespace std::chrono_literals;
@@ -22,12 +23,14 @@ void sigfunc(int sig_no)
 
 int main()
 {
-#ifndef _WIN32
+#ifndef WIN32
     struct sigaction sa = { 0 };
     sa.sa_handler = &sigfunc;
     sigaction(SIGHUP, &sa, 0);
     sigaction(SIGUSR1, &sa, 0);
     sigaction(SIGUSR2, &sa, 0);
+#else
+    ix::initNetSystem();
 #endif
 
     io_context_ = std::make_shared<asio::io_context>();
@@ -39,5 +42,8 @@ int main()
 //     std::mutex m;
 //     std::unique_lock<std::mutex> l(m);
 //     hbxserver->cv.wait(l);
+#if defined(WIN32)
+    ix::uninitNetSystem();
+#endif
     return 0;
 }
