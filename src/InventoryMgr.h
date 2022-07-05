@@ -27,7 +27,7 @@ public:
 	uint16_t CurrentItems;
 	uint16_t MaxItems;
 
-	shared_ptr<Item> GetItem(uint32_t itemid);
+	std::shared_ptr<Item> GetItem(uint32_t itemid);
 
 
 };

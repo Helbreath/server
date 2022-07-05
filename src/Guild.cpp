@@ -19,7 +19,7 @@ bool Guild::Save()
 	return false;
 }
 
-bool Guild::PromoteUser(const shared_ptr<Client> & client, string target)
+bool Guild::PromoteUser(const std::shared_ptr<Client> & client, std::string target)
 {
 	if (!CanPromote(client))
 		return false;
@@ -69,14 +69,14 @@ bool Guild::PromoteUser(const shared_ptr<Client> & client, string target)
 	return false;
 }
 
-bool Guild::DemoteUser(const shared_ptr<Client> & client, string character)
+bool Guild::DemoteUser(const std::shared_ptr<Client> & client, std::string character)
 {
 	if (!CanPromote(client))
 		return false;
 	return false;
 }
 
-bool Guild::AddUser(const shared_ptr<Client> & client)
+bool Guild::AddUser(const std::shared_ptr<Client> & client)
 {
 	//user already in a guild - should never trigger here on live
 	if (client->guild != nullptr)
@@ -107,7 +107,7 @@ bool Guild::AddUser(const shared_ptr<Client> & client)
 	return true;
 }
 
-void Guild::SendChatMessage(string & message, uint8_t order)
+void Guild::SendChatMessage(std::string & message, uint8_t order)
 {
 	for (auto member : memberlist)
 	{
@@ -118,7 +118,7 @@ void Guild::SendChatMessage(string & message, uint8_t order)
 	}
 }
 
-Guild::stGuildMember * Guild::GetMember(string name)
+Guild::stGuildMember * Guild::GetMember(std::string name)
 {
 	for (auto member : memberlist)
 	{
@@ -131,57 +131,57 @@ Guild::stGuildMember * Guild::GetMember(string name)
 }
 
 //TODO: perhaps make this 'easier' in the future? inline functions should suffice for now
-inline bool Guild::CanInvite(const shared_ptr<Client> & client)
+inline bool Guild::CanInvite(const std::shared_ptr<Client> & client)
 {
-	for (auto permission : permissionlist)
+	for (auto & permission : permissionlist)
 		if ((permission.rank == client->guildRank) && (permission.canInvite))
 			return true;
 	return false;
 }
 
-inline bool Guild::CanKick(const shared_ptr<Client> & client)
+inline bool Guild::CanKick(const std::shared_ptr<Client> & client)
 {
-	for (auto permission : permissionlist)
+	for (auto & permission : permissionlist)
 		if ((permission.rank == client->guildRank) && (permission.canKick))
 			return true;
 	return false;
 }
 
-inline bool Guild::CanChangeMotd(const shared_ptr<Client> & client)
+inline bool Guild::CanChangeMotd(const std::shared_ptr<Client> & client)
 {
-	for (auto permission : permissionlist)
+	for (auto & permission : permissionlist)
 		if ((permission.rank == client->guildRank) && (permission.canChangeMotd))
 			return true;
 	return false;
 }
 
-inline bool Guild::CanSetTeleport(const shared_ptr<Client> & client)
+inline bool Guild::CanSetTeleport(const std::shared_ptr<Client> & client)
 {
-	for (auto permission : permissionlist)
+	for (auto & permission : permissionlist)
 		if ((permission.rank == client->guildRank) && (permission.canSetTeleport))
 			return true;
 	return false;
 }
 
-inline bool Guild::CanSummon(const shared_ptr<Client> & client)
+inline bool Guild::CanSummon(const std::shared_ptr<Client> & client)
 {
-	for (auto permission : permissionlist)
+	for (auto & permission : permissionlist)
 		if ((permission.rank == client->guildRank) && (permission.canSummon))
 			return true;
 	return false;
 }
 
-inline bool Guild::CanPromote(const shared_ptr<Client> & client)
+inline bool Guild::CanPromote(const std::shared_ptr<Client> & client)
 {
-	for (auto permission : permissionlist)
+	for (auto & permission : permissionlist)
 		if ((permission.rank == client->guildRank) && (permission.canPromote))
 			return true;
 	return false;
 }
 
-inline bool Guild::CanDemote(const shared_ptr<Client> & client)
+inline bool Guild::CanDemote(const std::shared_ptr<Client> & client)
 {
-	for (auto permission : permissionlist)
+	for (auto & permission : permissionlist)
 		if ((permission.rank == client->guildRank) && (permission.canDemote))
 			return true;
 	return false;

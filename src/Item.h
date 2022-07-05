@@ -1,21 +1,20 @@
-// Item.h: interface for the CItem class.
 //
-//////////////////////////////////////////////////////////////////////
+// Copyright (c) Sharon Fox (sharon at sharonfox dot dev)
+//
+// Distributed under the MIT License. (See accompanying file LICENSE)
+//
 
-#if !defined(AFX_ITEM_H__211A1360_91B9_11D2_B143_00001C7030A6__INCLUDED_)
-#define AFX_ITEM_H__211A1360_91B9_11D2_B143_00001C7030A6__INCLUDED_
+#pragma once
 
 #include "common.h"
 #include "Items.h"
 #include <list>
 
-#if _MSC_VER >= 1000
-#pragma once
-#endif // _MSC_VER >= 1000
+#define ARGB(a,r,g,b) ((uint32_t)(((uint8_t)(r)|((uint16_t)((uint8_t)(g))<<8))|(((uint32_t)(uint8_t)(b))<<16)|(((uint32_t)(uint8_t)(a))<<24)))
+#define RGBA(r,g,b,a) ARGB(a,r,g,b)
 
-#define ARGB(a,r,g,b)          ((uint32_t)(((uint8_t)(r)|((uint16_t)((uint8_t)(g))<<8))|(((uint32_t)(uint8_t)(b))<<16)|(((uint32_t)(uint8_t)(a))<<24)))
-
-enum ItemStat{
+enum ItemStat
+{
 	ITEMSTAT_NONE,
 	ITEMSTAT_CRITICAL,
 	ITEMSTAT_POISONING,
@@ -33,7 +32,8 @@ enum ItemStat{
 	ITEMSTAT_FLAWLESSANCIENT // Flawless Ancient
 };
 
-enum ItemStat2{
+enum ItemStat2
+{
 	ITEMSTAT2_NONE,
 	ITEMSTAT2_PSNRES,
 	ITEMSTAT2_HITPROB,
@@ -49,8 +49,9 @@ enum ItemStat2{
 	ITEMSTAT2_GOLD
 };
 
-const struct ItemStats2{
-	string desc;
+const struct ItemStats2
+{
+	std::string desc;
 	uint32_t mult;
 } itemStats2[] = {
 	{"",0},
@@ -151,12 +152,14 @@ enum ItemTypes
 #define ITEMEFFECTTYPE_ADDREP			56  // Rep Pots xRisenx
 //#define ITEMEFFECTTYPE_ADDBALLPOINTS	57	// Ball Points xRisenx
 
-enum WandEffectTypes{
+enum WandEffectTypes
+{
 	WET_NONE,
 	WET_ADDMAGICDMGPCT
 };
 
-enum SocketGems : int8_t{
+enum SocketGems : int8_t
+{
 	SG_NONE = (int8_t)ITEM_NONE,
 	SG_REJUGEM7 = 1,
 	SG_REJUGEM14,
@@ -232,15 +235,14 @@ public:
 	uint8_t GetMaxSockets() const;
 	bool AddSocket(Item * gem);
 
-	bool InitItemAttr(const string pItemName, Item ** itemconfig);
+	bool InitItemAttr(const std::string pItemName, Item ** itemconfig);
 	bool InitItemAttr(uint64_t iItemID, Item ** itemconfig);
 	void InitStats(int iGenLevel);
 	void AdjustByStat();
-	string Dump() const;
 
 	uint16_t m_slot;
 
-	string name;
+	std::string name;
 
 	uint64_t m_sIDnum;
 	char  m_cItemType;
@@ -288,19 +290,18 @@ public:
 	uint16_t y;
 };
 
-typedef std::list<Item*> ItemList;
-typedef std::list<Item*>::iterator ItemListIter;
-typedef std::list<Item*>::const_iterator ItemListCIter;
+using ItemList = std::list<Item*>;
+using ItemListIter = std::list<Item*>::iterator;
+using ItemListCIter = std::list<Item*>::const_iterator;
 
+// todo - redesign this possibly? i forget the purpose of this from 8 years ago
 class ItemWrap
 {
 public:
-	ItemWrap() { _item = 0; }
-	~ItemWrap() { if (_item) delete _item; _item = 0; }
+	ItemWrap() { _item = nullptr; }
+	~ItemWrap() { if (_item) delete _item; _item = nullptr; }
 	Item * _item;
 	void SetItem(Item * item) { _item = item; }
-	void ClearItem() { _item = 0; }
-	void DeleteItem() { if (_item) delete _item; _item = 0; }
+	void ClearItem() { _item = nullptr; }
+	void DeleteItem() { if (_item) delete _item; _item = nullptr; }
 };
-
-#endif // !defined(AFX_ITEM_H__211A1360_91B9_11D2_B143_00001C7030A6__INCLUDED_)

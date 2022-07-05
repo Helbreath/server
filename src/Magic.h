@@ -96,7 +96,7 @@ public:
 
 	uint16_t num;
 
-	string name;
+	std::string name;
 
 	uint16_t magicType;
 	uint64_t delayTime, lastTime;

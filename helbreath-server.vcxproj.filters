@@ -13,14 +13,17 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="filewatcher">
+      <UniqueIdentifier>{466df658-9302-4af7-beda-4c499130367e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bin">
+      <UniqueIdentifier>{31b598f0-b121-4daa-837e-5c97222643da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="login-server">
+      <UniqueIdentifier>{17e9f009-f681-4e0a-8ead-6893f31d51e0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\connection.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\funcs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -40,9 +43,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\request.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\request_handler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\streams.h">
@@ -70,9 +70,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Server.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Gate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Party.h">
@@ -111,18 +108,24 @@
     <ClInclude Include="src\Guild.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\XLogger.h">
+    <ClInclude Include="src\ChatHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\ChatHandler.h">
+    <ClInclude Include="src\core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utility.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\filewatcher.h">
+      <Filter>filewatcher</Filter>
+    </ClInclude>
+    <ClInclude Include="src\connection_state_hb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Client.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\connection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\funcs.cpp">
@@ -137,9 +140,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\request_handler.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Unit.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -150,9 +150,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Server.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Gate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Party.cpp">
@@ -188,11 +185,32 @@
     <ClCompile Include="src\Guild.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\XLogger.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ChatHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\login-server.cpp">
+      <Filter>login-server</Filter>
+    </ClCompile>
+    <ClCompile Include="src\hbx-check-login.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\check-login.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\binary_messages.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\messages.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="vcpkg.json" />
+    <None Include="bin\config.json">
+      <Filter>bin</Filter>
+    </None>
   </ItemGroup>
 </Project>

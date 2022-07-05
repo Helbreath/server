@@ -35,8 +35,14 @@
 lib/
 include/
 *.ilk
-bin/Debug/
-bin/Release/
+/bin
 xtreme-server
 *.lua
 
+/vcpkg_installed/x64-windows
+/x64
+/src/hbx-check-login.cpp
+*.cbp
+*.depend
+*.layout
+/.vs

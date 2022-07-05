@@ -30,7 +30,8 @@
 #define MAXDYNAMICGATES		10
 #define MAXHELDENIANTOWER	200
 
-enum ApocMobGenType{
+enum ApocMobGenType
+{
 	AMGT_NONE,
 	AMGT_OPENGATE,
 	AMGT_SPAWNBOSS
@@ -42,18 +43,17 @@ class Tile;
 class Client;
 class GServer;
 class TeleportLoc;
+class core;
 
 class Map  
 {
 public:
-
-
 	void run();
 
-	thread * actionthread;
-	thread * timerthread;
+	std::thread * actionthread;
+	std::thread * timerthread;
 	Server::MsgQueue actionpipe;
-	mutex mutaction;
+	std::mutex mutaction;
 	bool TimerThreadRunning;
 
 	void TimerThread();
@@ -63,14 +63,14 @@ public:
 	
 	void NpcProcess();
 
-	void RemoveFromTarget(shared_ptr<Unit> target, int iCode = 0);
-	void NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16_t damage);
-	void NpcBehavior_Flee(shared_ptr<Npc> npc);
-	void NpcBehavior_Dead(shared_ptr<Npc> npc);
-	void NpcDeadItemGenerator(shared_ptr<Unit> attacker, boost::shared_ptr<Npc> npc);
+	void RemoveFromTarget(std::shared_ptr<Unit> target, int iCode = 0);
+	void NpcKilledHandler(std::shared_ptr<Unit> attacker, std::shared_ptr<Npc> npc, int16_t damage);
+	void NpcBehavior_Flee(std::shared_ptr<Npc> npc);
+	void NpcBehavior_Dead(std::shared_ptr<Npc> npc);
+	void NpcDeadItemGenerator(std::shared_ptr<Unit> attacker, std::shared_ptr<Npc> npc);
 
-	shared_ptr<Npc> CreateNpc(string & pNpcName, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
-	void DeleteNpc(shared_ptr<Npc> npc);
+	std::shared_ptr<Npc> CreateNpc(std::string & pNpcName, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode = false, bool bIsSummoned = false, bool bFirmBerserk = false, bool bIsMaster = false, int iGuildGUID = 0);
+	void DeleteNpc(std::shared_ptr<Npc> npc);
 
 	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError);
 	char cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map, char cTurn, int * pError, short * DOType);
@@ -78,11 +78,11 @@ public:
 	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
 	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3);
 	void DelayEventProcessor();
-	bool bGetEmptyPosition(short & pX, short & pY, boost::shared_ptr<Unit> client);
+	bool bGetEmptyPosition(short & pX, short & pY, std::shared_ptr<Unit> client);
 
-	shared_ptr<Npc> GetNpc(uint64_t ObjectID);
+	std::shared_ptr<Npc> GetNpc(uint64_t ObjectID);
 
-	std::list<shared_ptr<Npc>> npclist;
+	std::list<std::shared_ptr<Npc>> npclist;
 	uint64_t npchandle;
 
 	struct
@@ -94,8 +94,8 @@ public:
 		bool bEmpty;
 	} m_stGroundNpcItem[MAXGROUNDITEMS];
 
-	std::list<shared_ptr<DelayEvent>> DelayEventList;
-	mutex delayMutex;
+	std::list<std::shared_ptr<DelayEvent>> DelayEventList;
+	std::mutex delayMutex;
 
 
 
@@ -119,30 +119,30 @@ public:
 	bool bGetDynamicObject(short sX, short sY, short * pType, uint64_t * pRegisterTime, int * pIndex = 0);
 	void SetDynamicObject(uint16_t wID, short sType, short sX, short sY, uint64_t dwRegisterTime);
 	bool bGetIsTeleport(short dX, short dY);
-	bool bSearchTeleportDest(int sX, int sY, string & pMapName, uint16_t * pDx, uint16_t * pDy, uint8_t * pDir);
-	bool bInit(string pName);
+	bool bSearchTeleportDest(int sX, int sY, std::string & pMapName, uint16_t * pDx, uint16_t * pDy, uint8_t * pDir);
+	bool bInit(std::string pName);
 	bool bIsValidLoc(short sX, short sY);
 	Item * pGetItem(short sX, short sY, short * pRemainItemSprite, short * pRemainItemSpriteFrame, uint32_t * pRemainItemColor);
 	bool bSetItem(short sX, short sY, Item * pItem);
 	void ClearDeadOwner(short sX, short sY);
 	void ClearOwner(short sX, short sY);
 	bool bGetMoveable(short dX, short dY, short * pDOtype = 0, Item * pTopItem = 0); 
-	shared_ptr<Unit> GetOwner(short sX, short sY);
-	void SetOwner(shared_ptr<Unit> sOwner, short sX, short sY);
-	shared_ptr<Unit> GetDeadOwner(short sX, short sY);
-	void SetDeadOwner(shared_ptr<Unit> sOwner, short sX, short sY);
-	std::list<shared_ptr<Unit>>GetOwners(short x1, short x2, short y1, short y2);
+	std::shared_ptr<Unit> GetOwner(short sX, short sY);
+	void SetOwner(std::shared_ptr<Unit> sOwner, short sX, short sY);
+	std::shared_ptr<Unit> GetDeadOwner(short sX, short sY);
+	void SetDeadOwner(std::shared_ptr<Unit> sOwner, short sX, short sY);
+	std::list<std::shared_ptr<Unit>>GetOwners(short x1, short x2, short y1, short y2);
 	void IncPlayerActivity(Client * player);
 	bool bDecodeMapConfig();
-	bool GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation);
+	bool GetInitialPoint(int16_t *pX, int16_t *pY, std::string & pPlayerLocation);
 	Tile * GetTile(int16_t x, int16_t y);
 
-	Map(GServer * pGame);
+	Map(core * core_);
 	~Map();
 
 	GServer * gserver;
-	string name;
-	string factionName;
+	std::string name;
+	std::string factionName;
 	short sizeX, sizeY, tileDataSize;
 	std::vector<TeleportLoc *> teleportLocationList;
 
@@ -187,7 +187,7 @@ public:
 
 	char    dynamicGateType;
 	int16_t dynamicGateCoordRectX1, dynamicGateCoordRectY1, dynamicGateCoordRectX2, dynamicGateCoordRectY2;
-	string  dynamicGateCoordDestMap;
+	std::string  dynamicGateCoordDestMap;
 	int16_t dynamicGateCoordTgtX, dynamicGateCoordTgtY;
 
 
@@ -313,7 +313,7 @@ public:
 	std::vector<crusadestructure> m_stCrusadeStructureInfo;
 
 	struct itemeventlist {
-		string cItemName;
+		std::string cItemName;
 		int iAmount;
 		int iTotalNum;				
 		int iMonth;
@@ -335,5 +335,6 @@ public:
 private:
 	Tile * _tile;
 	bool _bDecodeMapDataFileContents();
+    core * core_;
 };
 

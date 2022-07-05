@@ -1,5 +1,4 @@
-#ifndef	NETMESSAGES_H
-#define NETMESSAGES_H
+
 #pragma	once
 
 //TODO: better way to pull this all off?
@@ -12,8 +11,9 @@
 //TODO: better question, why are these used. something like SSL would provide better hiding of packets. go big or go home.
 // HB started with XOR "encryption" and it was broken instantly. either do something good, or just don't bother complicating it all
 // only makes it harder for devs to come in and change things but doesn't affect how hard it is to break the system
-#define UPPER_VERSION 1
-#define LOWER_VERSION 31
+#define UPPER_VERSION 0
+#define LOWER_VERSION 0
+#define PATCH_VERSION 1
 enum NetMessagesModifiers
 {
 	VERSIONPLUSMODIFIER =	LOWER_VERSION % 5,
@@ -726,5 +726,3 @@ enum
 	PINGMAP_PARTY = 1,
 	PINGMAP_GUILD = 1 << 1
 };
-
-#endif

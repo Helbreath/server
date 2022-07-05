@@ -2,43 +2,17 @@
 
 
 #include "funcs.h"
-#include "connection.h"
 #include "common.h"
-#include "XLogger.h"
-
-#include <lua5.2/lua.hpp>
-#include <lua5.2/lauxlib.h>
+#include <thread>
+#include <mutex>
+#include <spdlog/spdlog.h>
+#include <nlohmann/json.hpp>
 
 #ifndef WIN32
 #include <mysql/mysql.h>
 #endif
 
-#include <boost/asio.hpp>
-
 #include "TeleportLoc.h"
-
-#include "Poco/Data/SQLite/Connector.h"
-#include "Poco/Data/MySQL/Connector.h"
-#include "Poco/Data/MySQL/MySQLException.h"
-#include "Poco/Data/SessionPool.h"
-#include "Poco/Data/RecordSet.h"
-#include "Poco/Exception.h"
-
-#include "Poco/Logger.h"
-#include "Poco/PatternFormatter.h"
-#include "Poco/FormattingChannel.h"
-#include "Poco/ConsoleChannel.h"
-#include "Poco/FileChannel.h"
-#include "Poco/Message.h"
-
-using Poco::PatternFormatter;
-using Poco::FormattingChannel;
-using Poco::ConsoleChannel;
-using Poco::FileChannel;
-using Poco::Message;
-using Poco::Data::RecordSet;
-using namespace Poco::Data::Keywords;
-
 
 class Map;
 class BuildItem;
@@ -61,37 +35,25 @@ class Potion;
 class Mineral;
 class Ini;
 
-using namespace Poco::Data;
-
 class Server
 {
 public:
-	Server();
+	Server(std::shared_ptr<spdlog::logger> log);
 	~Server(void);
 
-	string configfile;
-
-	//temporary solution
-	void PutLogFileList(char * str);
-	void PutLogList(char * str);
+	std::string configfile;
 
 	virtual void run();
 	virtual void handle_stop();
 
 	// MySQL
-	string sqlhost, sqluser, sqlpass, bindaddress, bindport;
-	string sqldb;
+	std::string sqlhost, sqluser, sqlpass, bindaddress, bindport;
+	std::string sqldb;
 
 	uint32_t serverstatus;
 
-	// MySQL connection pools
-	SessionPool * sqlpool;
-
-	// Lua Handle
-	lua_State *L;
-
 	// Initialize Server
-	virtual bool Init();
+	virtual bool init() = 0;
 
 	// Max players allowed connected
 	uint32_t maxplayers;
@@ -101,13 +63,11 @@ public:
 	uint32_t currentconnections;
 
 	// Whether the timer thread is running or not
-	bool TimerThreadRunning;
+	bool timer_thread_running;
 
-	thread timerthread;
+	std::thread timerthread;
 
-	bool ConnectSQL();
-
-	virtual void DeleteClient(shared_ptr<Client> client, bool save = true, bool deleteobj = false);
+	virtual void DeleteClient(std::shared_ptr<Client> client, bool save = true, bool deleteobj = false);
 
 
 	//TODO: dynamic List or static array?
@@ -121,21 +81,21 @@ public:
 	// 
 	// or. use map<>
 	// another way to further decrease access time would be to keep a clientlist in the map class for actions that affect only clients local to the same map
-	std::list<shared_ptr<Client>> clientlist;
+	std::list<std::shared_ptr<Client>> clientlist;
 
 	struct MsgQueueEntry
 	{
-		shared_ptr<Client> client;
+		std::shared_ptr<Client> client;
 		char * data;
 		uint32_t size;
 	};
-	typedef std::list<shared_ptr<MsgQueueEntry>> MsgQueue;
+	using MsgQueue = std::list<std::shared_ptr<MsgQueueEntry>>;
 	MsgQueue socketpipe;
-	mutex mutsocket;
-	void PutMsgQueue(shared_ptr<Client> client, MsgQueue & q, char * data, uint32_t size);
-	void PutMsgQueue(shared_ptr<MsgQueueEntry>, MsgQueue & q);
-	shared_ptr<MsgQueueEntry> GetMsgQueue(MsgQueue & q);
+	std::mutex mutsocket;
+	void PutMsgQueue(std::shared_ptr<Client> client, MsgQueue & q, char * data, uint32_t size);
+	void PutMsgQueue(std::shared_ptr<MsgQueueEntry>, MsgQueue & q);
+	std::shared_ptr<MsgQueueEntry> GetMsgQueue(MsgQueue & q);
 
-	XLogger * logger;
+    std::shared_ptr<spdlog::logger> log;
 };
 

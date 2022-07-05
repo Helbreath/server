@@ -1,12 +1,9 @@
-#ifndef UNIT_H
-#define UNIT_H
+
 #pragma once
 
 #include "Magic.h"
 #include "common.h"
-#include <boost/noncopyable.hpp>
-#include <boost/thread/shared_mutex.hpp>
-#include <boost/thread/mutex.hpp>
+#include "Map.h"
 
 class Client;
 class Npc;
@@ -44,8 +41,8 @@ public:
 	bool IsAres()		const	{ return (side == ARESDEN) ? true : false; }
 	bool IsElv()		const	{ return (side == ELVINE) ? true : false; }
 
-	Client * GetPlayer() { return reinterpret_cast<Client*>(this); }
-	Npc * GetNpc() { return reinterpret_cast<Npc*>(this); }
+	Client * GetPlayer();
+	Npc * GetNpc();
 
 	void SetOwnerType(int8_t type) { _ownerType = type; }
 	void SetType(int8_t type) { _type = type; }
@@ -76,13 +73,13 @@ public:
 	Side side;
 	uint32_t status;
 	bool _dead;
-	shared_ptr<Unit> killer;
+	std::shared_ptr<Unit> killer;
 	int8_t direction;
 
 	int32_t  _poisonLevel;
 	uint64_t _poisonTime;
 
-	string name;
+	std::string name;
 
 	int8_t  magicEffectStatus[MAXMAGICEFFECTS];
 
@@ -100,4 +97,3 @@ private:
 	int8_t _typeOriginal;//original model type
 	int8_t _ownerType;//whether is player or npc
 };
-#endif

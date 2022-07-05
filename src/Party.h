@@ -29,9 +29,9 @@ public:
 private:
 	void _RemovePlayer(Client * player);
 
-	std::map< Guild*, std::list<shared_ptr<Client>> > _gldHuntmasters;
-	std::map< Guild*, std::list<shared_ptr<Client>> > _gldRaidmasters;
+	std::map< Guild*, std::list<std::shared_ptr<Client>> > _gldHuntmasters;
+	std::map< Guild*, std::list<std::shared_ptr<Client>> > _gldRaidmasters;
 
-	std::list<shared_ptr<Client>> _players;
+	std::list<std::shared_ptr<Client>> _players;
 	uint32_t _id;
 };

@@ -210,7 +210,7 @@ public:
 class FileRead
 {
 public:
-	FileRead(char * input, uint32_t in)
+	FileRead(const char * input, uint32_t in)
 		: position(0)
 		, data(input)
 		, size(in)
@@ -220,7 +220,7 @@ public:
 	{
 	}
 
-	char * data;
+	const char * data;
 	uint64_t position;
 	uint64_t size;
 
@@ -299,7 +299,7 @@ public:
 class StreamRead
 {
 public:
-	StreamRead(char * input, uint32_t in)
+	StreamRead(const char * input, uint32_t in)
 		: position(0)
 		, data(input)
 		, size(in)
@@ -310,7 +310,7 @@ public:
 	{
 	}
 
-	char * data;
+	const char * data;
 	uint64_t position;
 	uint64_t size;
 

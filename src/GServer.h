@@ -2,15 +2,13 @@
 
 
 #include "Server.h"
-#include "Gate.h"
 #include "Party.h"
 #include "streams.h"
 #include "DelayEvent.h"
-#include "XLogger.h"
 #include "Guild.h"
-#include "Poco/JSON/Json.h"
-#include "Poco/JSON/Parser.h"
-#include "Poco/Dynamic/Var.h"
+#include <ixwebsocket/IXHttpServer.h>
+#include <shared_mutex>
+#include <spdlog/spdlog.h>
 
 #pragma region wtfdefines
 
@@ -203,322 +201,322 @@
 
 #define DEF_SOCKETTHREADS 2
 #pragma endregion
-
-class Map;
-class ChatHandler;
-
-class GServer : public Server
-{
-public:
-	GServer(string servername);
-	~GServer();
-
-	// Initialize Server
-	bool Init(string config);
-
-	void run();
-	void handle_stop();
-
-	std::thread * chatthread;
-	std::thread * runthread;
-	std::thread * timerthread;
-
-	XLogger * logger;
-
-	string worldname;
-
-	ChatHandler * chathandler;
-
-#pragma region sort these
-	void ChatThread();
-	void SocketThread();
-	void TimerThread();
-
-	void DeleteClient(shared_ptr<Client> client, bool save = true, bool deleteobj = false);
-	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3);
-	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
-	void DelayEventProcessor();
-
-	bool LoadCharacterData(shared_ptr<Client> client);
-	void InitPlayerData(shared_ptr<Client> client);
-	void ClientCommonHandler(shared_ptr<Client> client, shared_ptr<MsgQueueEntry> msg);
-	void ClientMotionHandler(shared_ptr<Client> client, shared_ptr<MsgQueueEntry> msg);
-	int iClientMotion_Stop_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir);
-	int iClientMotion_GetItem_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir);
-	int iClientMotion_Attack_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint16_t dX, uint16_t dY, int16_t wType, uint8_t cDir, uint64_t wTargetObjectID, bool bResponse = true, bool bIsDash = false);
-	int iClientMotion_Move_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir, bool bIsRun);
-	int iClientMotion_Magic_Handler(shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir);
-	void SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t sV1, uint32_t sV2, uint32_t sV3);
-	//void SendEventToNearClient_TypeA(shared_ptr<Npc> npc, uint16_t msgid, int16_t sV1, int16_t sV2, int16_t sV3);
-	void SendEventToNearClient_TypeB(uint32_t msgid, uint16_t msgtype, Map * mapIndex, uint16_t sX, uint16_t sY, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, uint32_t sV4 = 0);
-	void SendObjectMotionRejectMsg(Client * client);
-	bool _bAddClientItemList(shared_ptr<Client> client, Item * pItem, int * pDelReq);
-	void RequestFullObjectData(shared_ptr<Client> client, Unit * target);
-	bool _bGetIsPlayerHostile(Client * player, Client * target);
-	bool WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, uint16_t ix, uint16_t iy);
-	void AddGroundItem(Item * pItem, uint16_t x, uint16_t y, Map * mapIndex, uint64_t dwTime);
-	Map * GetMap(string name);
-	uint8_t iSetSide(Client * client);
-	void RequestHuntmode(Client * client);
-	void RequestRestartHandler(shared_ptr<Client> player);
-	void SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint64_t sV1 = 0, uint64_t sV2 = 0, uint64_t sV3 = 0, string pString = "", 
-		uint64_t sV4 = 0, uint64_t sV5 = 0, uint64_t sV6 = 0, uint64_t sV7 = 0, uint64_t sV8 = 0, 
-		uint64_t sV9 = 0, string pString2 = "");
-	uint64_t iGetLevelExp(uint16_t iLevel);
-	Item * _iGetArrowItemIndex(Client * client);
-	int _iCalcMaxLoad(shared_ptr<Client> client);
-	int iCalcTotalWeight(shared_ptr<Client> client);
-	int SetItemCount(shared_ptr<Client> client, string pItemName, uint32_t dwCount);
-	int SetItemCount(shared_ptr<Client> client, int32_t iItemID, uint32_t dwCount);
-	void WriteItemData(StreamWrite & sw, Item * pItem) const;
-	void SendItemNotifyMsg(shared_ptr<Client> client, uint16_t msgtype, Item *pItem, int iV1);
-	void DropItemHandler(shared_ptr<Client> client, short sItemIndex, int iAmount, string pItemName, bool bByPlayer);
-	void ItemDepleteHandler(shared_ptr<Client> client, Item * pItem, bool bIsUseItemResult, bool bIsLog = true, bool notify = true);
-	void RequestTeleportHandler(Client * client, char teleportType, string cMapName = "", int dX = -1, int dY = -1);
-	int iGetMapLocationSide(string MapName);
-	
-	void PlayerMapEntry(shared_ptr<Client> client, bool setRecallTime);
-	void ToggleCombatModeHandler(shared_ptr<Client> client);
-	void RequestTitleHandler(Client * client, StreamRead & sr);
-	bool bCheckClientAttackFrequency(Client * client);
-	bool bCheckClientMagicFrequency(Client * client);
-	bool bCheckClientMoveFrequency(Client * client, bool running);
-	void _CheckAttackType(Client * client, int16_t & spType);
-	void ClearSkillUsingStatus(Client * client);
-
-	int getPlayerNum(Map * pMap, short dX, short dY, char cRadius);
-	void CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue);
-	int32_t CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack = false, bool bIsDash = false);
-	int32_t CalculateUseSkillItemEffect(Client * player, int16_t skillvalue, int skillnum, Map * map, int32_t x, int32_t y);
-	void EnduStrippingDamage(Unit * target, Unit * attacker, int item, int higherStripEndu, bool shield = false);
-	void Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, Element element = ELEMENT_NONE, Magic * spell = nullptr);
-	void Effect_HpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
-	void Effect_SpDown_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
-	void Effect_SpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
-	void Effect_Damage_Spot_DamageMove(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, Element element = ELEMENT_NONE, Magic * spell = nullptr);
-	void PlayerMagicHandler(shared_ptr<Client> client, uint16_t dX, uint16_t dY, int16_t sType, bool bItemEffect = false, int32_t iV1 = 0);
-
-	int _iCalcSkillSSNpoint(int iLevel);
-
-	void _CheckMiningAction(Client * client, int dX, int dY);
-	void GetExp(Client * client, uint64_t iExp, bool bIsAttackerOwn = false);
-
-	int iAddDynamicObjectList(Unit * owner, short sType, Map * pmap, short sX, short sY, uint32_t dwLastTime, int iV1);
-	void CheckDynamicObjectList();
-	int _iGetWeaponSkillType(Client * client);
-	int16_t iGetComboAttackBonus(int16_t iSkill, int16_t iComboCount);
-
-	bool bAnalyzeCriminalAction(Client * client, short dX, short dY, bool bIsCheck = false);
-
-	shared_ptr<Client> GetClient(uint64_t ObjectID);
-	Npc * GetNpcByName(string name);
-	Item * GetItemByName(string name);
-
-	void ParseChat(Client * client, string message);
-
-#pragma endregion
-
-	std::list<shared_ptr<DelayEvent>> DelayEventList;
-	mutex delayMutex;
-
-
-	MsgQueue chatpipe;
-	mutex mutchat;
-	shared_mutex mutobjectlist;
-
-	//TODO: guilds - load all the guilds from the db and keep them in memory
-	//Give guilds more purpose than just another chat channel in game
-
-	std::list<Guild*> guildlist;
-
-
-	//need a config array for variables moving forward, temporary solution for like a day (/cough week)
-	uint16_t lockedMapTimeDefault;
-	uint16_t farmRestartLimit;//level limit where players can no longer respawn in the farm
-
-	string servername;
-	uint64_t  m_iLimitedUserExp, m_iLevelExp51;
-
-	unordered_map<string, uint8_t> m_mapNameList;
-
-	int             m_iTotalMaps;
-	bool			m_dropsInitiated;
-	bool			m_bIsGameStarted;
-	Item   * m_pItemConfigList[MAXITEMTYPES];
-	Npc    * m_npcConfigList[MAXNPCTYPES];
-	int	     m_npcDropData[MAXNPCTYPES][MAXITEMTYPES];
-	Magic  * m_pMagicConfigList[MAXMAGICTYPE];
-	Skill  * m_pSkillConfigList[MAXSKILLTYPE];
-	Quest  * m_pQuestConfigList[MAXQUESTTYPE];
-	Crafting * m_pCraftingConfigList[MAXCRAFTING];
-
-	Teleport * m_pTeleportConfigList[MAXTELEPORTLIST];
-
-	int   m_iTotalClients, m_iMaxClients, m_iTotalGameServerClients, m_iTotalGameServerMaxClients;
-
-	bool  m_bOnExitProcess;
-	uint64_t m_dwExitProcessTime;
-
-	uint64_t m_dwWeatherTime, m_dwGameTime1, m_dwGameTime2, m_dwGameTime3, m_dwGameTime4, m_dwGameTime5, m_dwGameTime6, m_dwFishTime;
-
-	char  m_cDayOrNight;
- 	int   m_iSkillSSNpoint[102];
-
-	int   m_iTotalNoticeMsg, m_iPrevSendNoticeMsg;
-	uint64_t m_dwNoticeTime, m_dwSpecialEventTime, m_startTime;
-	bool  m_bIsSpecialEventTime;
-	char  m_cSpecialEventType;
-
-	uint64_t   m_iLevelExpTable[300];
- 	Fish * m_pFish[MAXFISHS];
-	Potion * m_pPortionConfigList[MAXPOTIONTYPES];
-
-	bool  m_bIsServerShutdowned;
-	char  m_cShutDownCode;
-	Mineral * m_pMineral[MAXMINERALS];
-
-	int m_iMiddlelandMapIndex;
-	int m_iAresdenMapIndex;
-	int m_iElvineMapIndex;
-	Side m_astoriaBasePos[3];
-	Side m_eventWinner[ET_MAX];
-	Ini * m_eventsIni;
-
-	bool	m_bIsApocalypseMode;
-	bool	m_bIsApocalypseGateOpen;
-
-	bool	m_bHeldenianMode;
-	uint32_t	m_dwHeldenianGUID;
-	int	m_iHeldenianType1Winner, m_iHeldenianType2Winner;
-	int	m_iHeldenianType;
-	int	m_iLastHeldenianType;
-	int m_iHeldenianAresdenDead, m_iHeldenianElvineDead, m_iHeldenianAresdenKill, m_iHeldenianElvineKill, m_iHeldenianAresdenFlags, m_iHeldenianElvineFlags,
-		m_iHeldenianAresdenLeftTower, m_iHeldenianElvineLeftTower;
-	int	m_iBtFieldMapIndex;
-	int	m_iRampartMapIndex;
-	int	m_iGodHMapIndex;
-
-	int	 m_iMaxGMGMana;
-	int m_iAresdenOccupyTiles;
-	int m_iElvineOccupyTiles;
-	int m_iCurMsgs, m_iMaxMsgs;
-
-
-	int iDMGCount; // New monster event xRisenx
-
-
-	uint64_t m_dwCanFightzoneReserveTime ;
-
-	int  m_iFightZoneReserve[MAXFIGHTZONE] ;
-	uint64_t m_donateEventHolder;
-	uint32_t m_donateEventPot;
-
-	struct {
-		uint64_t iFunds;
-		uint64_t iCrimes;
-		uint64_t iWins;
-	} m_stCityStatus[MAXSIDES];
-
-	int	  m_iStrategicStatus;
-
-	BuildItem * m_pBuildItemList[MAXBUILDITEMS];
-	Item * m_pDupItemIDList[MAXDUPITEMID];
-
-	char * m_pNoticementData;
-	uint32_t  m_dwNoticementDataSize;
-
-	uint32_t  m_dwMapSectorInfoTime;
-	int    m_iMapSectorInfoUpdateCount;
-
-
-
-	bool   m_bIsCrusadeMode;
-	struct {
-		string cMapName;
-		char cType;
-		int  dX, dY;
-	} m_stCrusadeStructures[MAXCRUSADESTRUCTURES];
-
-
-	// 2 variables? hmm
-	int m_iCollectedMana[MAXSIDES];
-	int m_mana[MAXSIDES];
-	// int m_iAresdenMana, m_iElvineMana;
-
-	TeleportLoc m_pGuildTeleportLoc[MAXGUILDS];
-	//
-
-	int8_t GSID;
-
-	struct {
-		int iCrashedStructureNum;
-		int iStructureDamageAmount;
-		int iCasualties;
-	} m_stMeteorStrikeResult;
-
-	struct {
-		char cType;
-		char cSide;
-		short sX, sY;
-	} m_stMiddleCrusadeStructureInfo[MAXCRUSADESTRUCTURES];
-	int m_iTotalMiddleCrusadeStructures;
-
-		int m_iClientShortCut[MAXCLIENTS+1];
-
-	int m_iNpcConstructionPoint[MAXNPCTYPES];
-	uint64_t m_dwCrusadeGUID;
-	int   m_iCrusadeWinnerSide;
-
-	int   m_iPlayerMaxLevel;
-
-	int   m_iWorldMaxUser;
-
-	short m_sForceRecallTime;
-	short m_sSlateSuccessRate;
-
-	int   m_iFinalShutdownCount;
-
-	uint32_t  m_schedulesCnt;
-
-	/*enum EventStatus{
-		ES_ANNOUNCED_ONCE,
-		ES_ANNOUNCED_TWICE,
-		ES_ANNOUNCED_THRICE,
-		ES_STARTED,
-		ES_ENDED
-	};
-	struct {
-		int iDay;
-		int iHour;
-		int iMinute;
-		EventStatus evStatus;
-		EventType evType;
-		bool operator==(SYSTEMTIME sysTime)
-		{
-			return (iDay == sysTime.wDayOfWeek &&
-				iHour == sysTime.wHour &&
-				iMinute == sysTime.wMinute)
-				? true : false;
-		}
-	} m_schedules[MAXSCHEDULE];*/
-
-	Item * m_pGold;
-
-	std::vector<Map*> maplist;
-
-	//XSocket * m_webSocket;
-	char m_websiteAddr[61];
-	char m_websiteScriptAddr[61];
-	int m_websitePort;
-
-	bool	m_bReceivedItemList;
-
-	bool m_SoccerMode;
-	int m_SoccerAresdenGoals, m_SoccerElvineGoals, m_SoccerWinner;
-
-	bool m_bNpcHunt;
-
-	bool bDeleteMineral(int iIndex);
-
-};
-
+// 
+// class Map;
+// class ChatHandler;
+// 
+// class GServer : public Server
+// {
+// public:
+// 	GServer(std::shared_ptr<spdlog::logger> log, std::vector<std::string> maps);
+// 	~GServer();
+// 
+// 	// Initialize Server
+// 	bool init();
+// 
+// 	void run();
+// 	void handle_stop();
+// 
+// 	std::thread * chatthread;
+// 	std::thread * runthread;
+// 	std::thread * timerthread;
+// 
+//     std::shared_ptr<spdlog::logger> log;
+// 
+// 	std::string worldname;
+// 
+// 	ChatHandler * chathandler;
+// 
+// #pragma region sort these
+// 	void ChatThread();
+// 	void SocketThread();
+// 	void TimerThread();
+// 
+// 	void DeleteClient(std::shared_ptr<Client> client, bool save = true, bool deleteobj = false);
+// 	bool RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, Map * pmap, int dX, int dY, int iV1, int iV2, int iV3);
+// 	void RemoveFromDelayEventList(Unit * unit, int32_t iEffectType);
+// 	void DelayEventProcessor();
+// 
+// 	bool LoadCharacterData(std::shared_ptr<Client> client);
+// 	void InitPlayerData(std::shared_ptr<Client> client);
+// 	void ClientCommonHandler(std::shared_ptr<Client> client, std::shared_ptr<MsgQueueEntry> msg);
+// 	void ClientMotionHandler(std::shared_ptr<Client> client, std::shared_ptr<MsgQueueEntry> msg);
+// 	int iClientMotion_Stop_Handler(std::shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir);
+// 	int iClientMotion_GetItem_Handler(std::shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir);
+// 	int iClientMotion_Attack_Handler(std::shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint16_t dX, uint16_t dY, int16_t wType, uint8_t cDir, uint64_t wTargetObjectID, bool bResponse = true, bool bIsDash = false);
+// 	int iClientMotion_Move_Handler(std::shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir, bool bIsRun);
+// 	int iClientMotion_Magic_Handler(std::shared_ptr<Client> client, uint16_t sX, uint16_t sY, uint8_t cDir);
+// 	void SendEventToNearClient_TypeA(Unit * owner, uint32_t msgid, uint32_t sV1, uint32_t sV2, uint32_t sV3);
+// 	//void SendEventToNearClient_TypeA(std::shared_ptr<Npc> npc, uint16_t msgid, int16_t sV1, int16_t sV2, int16_t sV3);
+// 	void SendEventToNearClient_TypeB(uint32_t msgid, uint16_t msgtype, Map * mapIndex, uint16_t sX, uint16_t sY, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, uint32_t sV4 = 0);
+// 	void SendObjectMotionRejectMsg(Client * client);
+// 	bool _bAddClientItemList(std::shared_ptr<Client> client, Item * pItem, int * pDelReq);
+// 	void RequestFullObjectData(std::shared_ptr<Client> client, Unit * target);
+// 	bool _bGetIsPlayerHostile(Client * player, Client * target);
+// 	bool WriteTileData(StreamWrite & sw, Client * player, Tile * srcTile, uint16_t ix, uint16_t iy);
+// 	void AddGroundItem(Item * pItem, uint16_t x, uint16_t y, Map * mapIndex, uint64_t dwTime);
+// 	Map * GetMap(std::string name);
+// 	uint8_t iSetSide(Client * client);
+// 	void RequestHuntmode(Client * client);
+// 	void RequestRestartHandler(std::shared_ptr<Client> player);
+// 	void SendNotifyMsg(Client * from, Client * to, uint16_t wMsgType, uint64_t sV1 = 0, uint64_t sV2 = 0, uint64_t sV3 = 0, std::string pString = "",
+// 		uint64_t sV4 = 0, uint64_t sV5 = 0, uint64_t sV6 = 0, uint64_t sV7 = 0, uint64_t sV8 = 0, 
+// 		uint64_t sV9 = 0, std::string pString2 = "");
+// 	uint64_t iGetLevelExp(uint16_t iLevel);
+// 	Item * _iGetArrowItemIndex(Client * client);
+// 	int _iCalcMaxLoad(std::shared_ptr<Client> client);
+// 	int iCalcTotalWeight(std::shared_ptr<Client> client);
+// 	int SetItemCount(std::shared_ptr<Client> client, std::string pItemName, uint32_t dwCount);
+// 	int SetItemCount(std::shared_ptr<Client> client, int32_t iItemID, uint32_t dwCount);
+// 	void WriteItemData(StreamWrite & sw, Item * pItem) const;
+// 	void SendItemNotifyMsg(std::shared_ptr<Client> client, uint16_t msgtype, Item *pItem, int iV1);
+// 	void DropItemHandler(std::shared_ptr<Client> client, short sItemIndex, int iAmount, std::string pItemName, bool bByPlayer);
+// 	void ItemDepleteHandler(std::shared_ptr<Client> client, Item * pItem, bool bIsUseItemResult, bool bIsLog = true, bool notify = true);
+// 	void RequestTeleportHandler(Client * client, char teleportType, std::string cMapName = "", int dX = -1, int dY = -1);
+// 	int iGetMapLocationSide(std::string MapName);
+// 	
+// 	void PlayerMapEntry(std::shared_ptr<Client> client, bool setRecallTime);
+// 	void ToggleCombatModeHandler(std::shared_ptr<Client> client);
+// 	void RequestTitleHandler(Client * client, StreamRead & sr);
+// 	bool bCheckClientAttackFrequency(Client * client);
+// 	bool bCheckClientMagicFrequency(Client * client);
+// 	bool bCheckClientMoveFrequency(Client * client, bool running);
+// 	void _CheckAttackType(Client * client, int16_t & spType);
+// 	void ClearSkillUsingStatus(Client * client);
+// 
+// 	int getPlayerNum(Map * pMap, short dX, short dY, char cRadius);
+// 	void CalculateSSN_ItemIndex(Client * client, Item * Weapon, int iValue);
+// 	int32_t CalculateAttackEffect(Unit * target, Unit * attacker, int tdX, int tdY, int iAttackMode, bool bNearAttack = false, bool bIsDash = false);
+// 	int32_t CalculateUseSkillItemEffect(Client * player, int16_t skillvalue, int skillnum, Map * map, int32_t x, int32_t y);
+// 	void EnduStrippingDamage(Unit * target, Unit * attacker, int item, int higherStripEndu, bool shield = false);
+// 	void Effect_Damage_Spot(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, Element element = ELEMENT_NONE, Magic * spell = nullptr);
+// 	void Effect_HpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
+// 	void Effect_SpDown_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
+// 	void Effect_SpUp_Spot(Unit* caster, Unit* target, short sV1, short sV2, short sV3);
+// 	void Effect_Damage_Spot_DamageMove(Unit * attacker, Unit * target, short sV1, short sV2, short sV3, bool exp, Element element = ELEMENT_NONE, Magic * spell = nullptr);
+// 	void PlayerMagicHandler(std::shared_ptr<Client> client, uint16_t dX, uint16_t dY, int16_t sType, bool bItemEffect = false, int32_t iV1 = 0);
+// 
+// 	int _iCalcSkillSSNpoint(int iLevel);
+// 
+// 	void _CheckMiningAction(Client * client, int dX, int dY);
+// 	void GetExp(Client * client, uint64_t iExp, bool bIsAttackerOwn = false);
+// 
+// 	int iAddDynamicObjectList(Unit * owner, short sType, Map * pmap, short sX, short sY, uint32_t dwLastTime, int iV1);
+// 	void CheckDynamicObjectList();
+// 	int _iGetWeaponSkillType(Client * client);
+// 	int16_t iGetComboAttackBonus(int16_t iSkill, int16_t iComboCount);
+// 
+// 	bool bAnalyzeCriminalAction(Client * client, short dX, short dY, bool bIsCheck = false);
+// 
+// 	std::shared_ptr<Client> GetClient(uint64_t ObjectID);
+// 	Npc * GetNpcByName(std::string name);
+// 	Item * GetItemByName(std::string name);
+// 
+// 	void ParseChat(Client * client, std::string message);
+// 
+// #pragma endregion
+// 
+// 	std::list<std::shared_ptr<DelayEvent>> DelayEventList;
+// 	std::mutex delayMutex;
+// 
+// 
+// 	MsgQueue chatpipe;
+// 	std::mutex mutchat;
+// 	std::shared_mutex mutobjectlist;
+// 
+// 	//TODO: guilds - load all the guilds from the db and keep them in memory
+// 	//Give guilds more purpose than just another chat channel in game
+// 
+// 	std::list<Guild*> guildlist;
+// 
+// 
+// 	//need a config array for variables moving forward, temporary solution for like a day (/cough week)
+// 	uint16_t lockedMapTimeDefault;
+// 	uint16_t farmRestartLimit;//level limit where players can no longer respawn in the farm
+// 
+// 	std::string servername;
+// 	uint64_t  m_iLimitedUserExp, m_iLevelExp51;
+// 
+// 	std::unordered_map<std::string, uint8_t> m_mapNameList;
+// 
+// 	int             m_iTotalMaps;
+// 	bool			m_dropsInitiated;
+// 	bool			m_bIsGameStarted;
+// 	Item   * m_pItemConfigList[MAXITEMTYPES];
+// 	Npc    * m_npcConfigList[MAXNPCTYPES];
+// 	int	     m_npcDropData[MAXNPCTYPES][MAXITEMTYPES];
+// 	Magic  * m_pMagicConfigList[MAXMAGICTYPE];
+// 	Skill  * m_pSkillConfigList[MAXSKILLTYPE];
+// 	Quest  * m_pQuestConfigList[MAXQUESTTYPE];
+// 	Crafting * m_pCraftingConfigList[MAXCRAFTING];
+// 
+// 	Teleport * m_pTeleportConfigList[MAXTELEPORTLIST];
+// 
+// 	int   m_iTotalClients, m_iMaxClients, m_iTotalGameServerClients, m_iTotalGameServerMaxClients;
+// 
+// 	bool  m_bOnExitProcess;
+// 	uint64_t m_dwExitProcessTime;
+// 
+// 	uint64_t m_dwWeatherTime, m_dwGameTime1, m_dwGameTime2, m_dwGameTime3, m_dwGameTime4, m_dwGameTime5, m_dwGameTime6, m_dwFishTime;
+// 
+// 	char  m_cDayOrNight;
+//  	int   m_iSkillSSNpoint[102];
+// 
+// 	int   m_iTotalNoticeMsg, m_iPrevSendNoticeMsg;
+// 	uint64_t m_dwNoticeTime, m_dwSpecialEventTime, m_startTime;
+// 	bool  m_bIsSpecialEventTime;
+// 	char  m_cSpecialEventType;
+// 
+// 	uint64_t   m_iLevelExpTable[300];
+//  	Fish * m_pFish[MAXFISHS];
+// 	Potion * m_pPortionConfigList[MAXPOTIONTYPES];
+// 
+// 	bool  m_bIsServerShutdowned;
+// 	char  m_cShutDownCode;
+// 	Mineral * m_pMineral[MAXMINERALS];
+// 
+// 	int m_iMiddlelandMapIndex;
+// 	int m_iAresdenMapIndex;
+// 	int m_iElvineMapIndex;
+// 	Side m_astoriaBasePos[3];
+// 	Side m_eventWinner[ET_MAX];
+// 	Ini * m_eventsIni;
+// 
+// 	bool	m_bIsApocalypseMode;
+// 	bool	m_bIsApocalypseGateOpen;
+// 
+// 	bool	m_bHeldenianMode;
+// 	uint32_t	m_dwHeldenianGUID;
+// 	int	m_iHeldenianType1Winner, m_iHeldenianType2Winner;
+// 	int	m_iHeldenianType;
+// 	int	m_iLastHeldenianType;
+// 	int m_iHeldenianAresdenDead, m_iHeldenianElvineDead, m_iHeldenianAresdenKill, m_iHeldenianElvineKill, m_iHeldenianAresdenFlags, m_iHeldenianElvineFlags,
+// 		m_iHeldenianAresdenLeftTower, m_iHeldenianElvineLeftTower;
+// 	int	m_iBtFieldMapIndex;
+// 	int	m_iRampartMapIndex;
+// 	int	m_iGodHMapIndex;
+// 
+// 	int	 m_iMaxGMGMana;
+// 	int m_iAresdenOccupyTiles;
+// 	int m_iElvineOccupyTiles;
+// 	int m_iCurMsgs, m_iMaxMsgs;
+// 
+// 
+// 	int iDMGCount; // New monster event xRisenx
+// 
+// 
+// 	uint64_t m_dwCanFightzoneReserveTime ;
+// 
+// 	int  m_iFightZoneReserve[MAXFIGHTZONE] ;
+// 	uint64_t m_donateEventHolder;
+// 	uint32_t m_donateEventPot;
+// 
+// 	struct {
+// 		uint64_t iFunds;
+// 		uint64_t iCrimes;
+// 		uint64_t iWins;
+// 	} m_stCityStatus[MAXSIDES];
+// 
+// 	int	  m_iStrategicStatus;
+// 
+// 	BuildItem * m_pBuildItemList[MAXBUILDITEMS];
+// 	Item * m_pDupItemIDList[MAXDUPITEMID];
+// 
+// 	char * m_pNoticementData;
+// 	uint32_t  m_dwNoticementDataSize;
+// 
+// 	uint32_t  m_dwMapSectorInfoTime;
+// 	int    m_iMapSectorInfoUpdateCount;
+// 
+// 
+// 
+// 	bool   m_bIsCrusadeMode;
+// 	struct {
+// 		std::string cMapName;
+// 		char cType;
+// 		int  dX, dY;
+// 	} m_stCrusadeStructures[MAXCRUSADESTRUCTURES];
+// 
+// 
+// 	// 2 variables? hmm
+// 	int m_iCollectedMana[MAXSIDES];
+// 	int m_mana[MAXSIDES];
+// 	// int m_iAresdenMana, m_iElvineMana;
+// 
+// 	TeleportLoc m_pGuildTeleportLoc[MAXGUILDS];
+// 	//
+// 
+// 	int8_t GSID;
+// 
+// 	struct {
+// 		int iCrashedStructureNum;
+// 		int iStructureDamageAmount;
+// 		int iCasualties;
+// 	} m_stMeteorStrikeResult;
+// 
+// 	struct {
+// 		char cType;
+// 		char cSide;
+// 		short sX, sY;
+// 	} m_stMiddleCrusadeStructureInfo[MAXCRUSADESTRUCTURES];
+// 	int m_iTotalMiddleCrusadeStructures;
+// 
+// 		int m_iClientShortCut[MAXCLIENTS+1];
+// 
+// 	int m_iNpcConstructionPoint[MAXNPCTYPES];
+// 	uint64_t m_dwCrusadeGUID;
+// 	int   m_iCrusadeWinnerSide;
+// 
+// 	int   m_iPlayerMaxLevel;
+// 
+// 	int   m_iWorldMaxUser;
+// 
+// 	short m_sForceRecallTime;
+// 	short m_sSlateSuccessRate;
+// 
+// 	int   m_iFinalShutdownCount;
+// 
+// 	uint32_t  m_schedulesCnt;
+// 
+// 	/*enum EventStatus{
+// 		ES_ANNOUNCED_ONCE,
+// 		ES_ANNOUNCED_TWICE,
+// 		ES_ANNOUNCED_THRICE,
+// 		ES_STARTED,
+// 		ES_ENDED
+// 	};
+// 	struct {
+// 		int iDay;
+// 		int iHour;
+// 		int iMinute;
+// 		EventStatus evStatus;
+// 		EventType evType;
+// 		bool operator==(SYSTEMTIME sysTime)
+// 		{
+// 			return (iDay == sysTime.wDayOfWeek &&
+// 				iHour == sysTime.wHour &&
+// 				iMinute == sysTime.wMinute)
+// 				? true : false;
+// 		}
+// 	} m_schedules[MAXSCHEDULE];*/
+// 
+// 	Item * m_pGold;
+// 
+// 	std::vector<Map*> maplist;
+// 
+// 	//XSocket * m_webSocket;
+// 	char m_websiteAddr[61];
+// 	char m_websiteScriptAddr[61];
+// 	int m_websitePort;
+// 
+// 	bool	m_bReceivedItemList;
+// 
+// 	bool m_SoccerMode;
+// 	int m_SoccerAresdenGoals, m_SoccerElvineGoals, m_SoccerWinner;
+// 
+// 	bool m_bNpcHunt;
+// 
+// 	bool bDeleteMineral(int iIndex);
+// 
+// };
+// 

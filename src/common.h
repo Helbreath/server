@@ -16,7 +16,7 @@
 #include <sstream>
 #include <memory>
 #include <memory.h>
-#include <time.h>
+#include <ctime>
 #include <string>
 #include <list>
 #include <vector>
@@ -24,40 +24,12 @@
 #include <map>
 #include <unordered_map>
 #include <queue>
-#include <stdint.h>
-#include <stdarg.h>
+#include <cstdint>
+#include <cstdarg>
 #include <algorithm>
-#include <stdio.h>
-#include <boost/thread.hpp>
-#include <boost/noncopyable.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/shared_mutex.hpp>
-#include <boost/thread/shared_lock_guard.hpp>
-#include <boost/algorithm/string.hpp>
-
+#include <cstdio>
 
 #include "maps.h"
-
-using boost::shared_ptr;
-using boost::mutex;
-using boost::shared_mutex;
-using boost::unique_lock;
-using boost::shared_lock;
-using boost::shared_lock_guard;
-using boost::lock;
-using boost::lock_guard;
-using boost::defer_lock;
-using boost::mutex;
-using boost::upgrade_to_unique_lock;
-using boost::upgrade_lock;
-using boost::weak_ptr;
-using boost::thread;
-using std::string;
-using std::vector;
-using std::unordered_map;
-using std::queue;
-using std::stringstream;
-using std::exception;
 
 #define DEFAULTBAGSIZE	20
 #define DEFAULTEXTRABAGSIZE	5
@@ -84,11 +56,11 @@ enum Side
 	HOSTILE
 };
 
-static string sideName[MAXSIDES] = { "Traveller", "Aresden", "Elvine" };
-static string sideMap[MAXSIDES] = { "default", "aresden", "elvine" };
-static string sideMapJail[MAXSIDES] = { "default", "arejail", "elvjail" };
-static string sideMapFarm[MAXSIDES] = { "default", "arefarm", "elvfarm" };
-static string sideMapRes[MAXSIDES] = { "default", "resurr1", "resurr2" };
+static std::string sideName[MAXSIDES] = { "Traveler", "Aresden", "Elvine" };
+static std::string sideMap[MAXSIDES] = { "default", "aresden", "elvine" };
+static std::string sideMapJail[MAXSIDES] = { "default", "arejail", "elvjail" };
+static std::string sideMapFarm[MAXSIDES] = { "default", "arefarm", "elvfarm" };
+static std::string sideMapRes[MAXSIDES] = { "default", "resurr1", "resurr2" };
 
 #define ITEMS_PER_TILE	3
 #define MAXGROUNDITEMS	5000
@@ -122,7 +94,7 @@ enum GuildUpgrades{
 };
 
 const struct GuildUpgrade{
-	string name;
+	std::string name;
 	GuildUpgrades type;
 	uint8_t maxLvl;
 	uint32_t costGold[5];
@@ -554,8 +526,6 @@ extern void SetBit(uint32_t &var, uint8_t index, bool val);
 
 #ifdef WIN32
 
-#define _CRT_SECURE_NO_WARNINGS
-
 #ifndef VA_COPY
 # ifdef HAVE_VA_COPY
 #  define VA_COPY(dest, src) va_copy(dest, src)
@@ -583,53 +553,3 @@ extern void __debugbreak();
 #define sprintf_s snprintf
 #define strcpy_s(a,b,c) strcpy(a,c)
 #endif
-
-#ifdef WIN32
-#define DBL "%Lf"
-#define DBL2 "Lf"
-#define XI64 "%I64d"
-#else
-#define DBL "%f"
-#define DBL2 "f"
-#define XI64 "%lld"
-#endif
-
-#ifdef WIN32
-#define SLEEP(a) Sleep(a)
-#else
-#define SLEEP(a) { struct timespec req={0}; req.tv_sec = 0; req.tv_nsec = 1000000 * a; nanosleep(&req,0); }
-#endif
-
-
-#define SQLCATCH(a)	catch (Poco::Data::MySQL::ConnectionException& e)\
-{\
-	logger->error(Poco::format("ConnectionException: %s", e.displayText() ));\
-	a; \
-}\
-catch (Poco::Data::MySQL::StatementException& e)\
-{\
-	logger->error(Poco::format("StatementException: %s", e.displayText() ));\
-	a; \
-}\
-catch (Poco::Data::MySQL::MySQLException& e)\
-{\
-	logger->error(Poco::format("MySQLException: %s", e.displayText() ));\
-	a; \
-}\
-catch (Poco::InvalidArgumentException& e)\
-{\
-	logger->error(Poco::format("InvalidArgumentException: %s", e.displayText() ));\
-	a; \
-}\
-catch (Poco::NotFoundException&e)\
-{\
-	logger->error(Poco::format("NotFoundException: %s", e.displayText() ));\
-	a; \
-}\
-catch (Poco::Exception& e)\
-{\
-	logger->fatal(Poco::format("Uncaught Exception: %s", e.displayText()));\
-	a; \
-}
-
-

@@ -26,7 +26,7 @@ Inventory::~Inventory()
 uint16_t Inventory::ItemCount()
 {
 	uint16_t t = 0;
-	for (shared_ptr<Item> item : Items)
+	for (std::shared_ptr<Item> item : Items)
 	{
 		if (item != nullptr)
 			t++;
@@ -34,7 +34,7 @@ uint16_t Inventory::ItemCount()
 	return t;
 }
 
-shared_ptr<Item> Inventory::GetItem(uint16_t slot)
+std::shared_ptr<Item> Inventory::GetItem(uint16_t slot)
 {
 	if (slot > MaxItems)
 		return nullptr;
@@ -44,12 +44,12 @@ shared_ptr<Item> Inventory::GetItem(uint16_t slot)
 	return Items[slot];
 }
 
-shared_ptr<Item> Inventory::RemoveItem(uint16_t slot)
+std::shared_ptr<Item> Inventory::RemoveItem(uint16_t slot)
 {
 	if ((slot > MaxItems) || (Items[slot] == nullptr))
 		return nullptr;
 
-	shared_ptr<Item> titem = Items[slot];
+	std::shared_ptr<Item> titem = Items[slot];
 
 	Items[slot].reset();
 
@@ -58,7 +58,7 @@ shared_ptr<Item> Inventory::RemoveItem(uint16_t slot)
 	return titem;
 }
 
-bool Inventory::AddItem(shared_ptr<Item> item)
+bool Inventory::AddItem(std::shared_ptr<Item> item)
 {
 	uint16_t itemcount = ItemCount();
 	if ((itemcount >= MaxItems) || (item == nullptr))

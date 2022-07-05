@@ -21,8 +21,8 @@
 #define BEHAVIOR_FLEE			3
 #define BEHAVIOR_DEAD			4
 
-
-enum NPCType{
+enum NPCType
+{
 	NPC_INVALID = -1,
 	NPC_SLIME = 10,
 	NPC_RABBIT = 55,
@@ -168,7 +168,7 @@ enum NPCType{
 
 
 
-class Npc : public Unit, public boost::enable_shared_from_this<Npc>, public boost::noncopyable
+class Npc : public Unit, std::enable_shared_from_this<Npc>
 {
 public:
 
@@ -179,7 +179,7 @@ public:
 	void Behave();
 	bool behavior_searchMaster();
 
-	void behavior_death(shared_ptr<Unit> attacker, int16_t dmg);
+	void behavior_death(std::shared_ptr<Unit> attacker, int16_t dmg);
 	void behavior_move();
 	void behavior_attack();
 	void behavior_stop();
@@ -192,18 +192,18 @@ public:
 	uint8_t	GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError, short * DOType);
 	uint8_t GetNextMoveDir(short sX, short sY, short dstX, short dstY, Map* pMap, char cTurn, int * pError);
 	//Unit * TargetSearch(uint8_t dX, uint8_t dY, uint8_t Radius);
-	shared_ptr<Unit> TargetSearch();
+	std::shared_ptr<Unit> TargetSearch();
 	int getDangerValue(short dX, short dY);
 	void magicHandler(Unit * unit, short dX, short dY, short magicType);
 	int GetGenLevel();
 
-	void Cast(shared_ptr<Unit> target, short spell);
+	void Cast(std::shared_ptr<Unit> target, short spell);
 	void Cast(short x, short y, short spell);
 
-	bool Follow(shared_ptr<Unit> master);
-	void ReleaseFollowMode(shared_ptr<Unit> owner);
-	void RemoveFromTarget(shared_ptr<Unit> target, int iCode = 0);
-	void SetTarget(shared_ptr<Unit> target, bool isperm = true);
+	bool Follow(std::shared_ptr<Unit> master);
+	void ReleaseFollowMode(std::shared_ptr<Unit> owner);
+	void RemoveFromTarget(std::shared_ptr<Unit> target, int iCode = 0);
+	void SetTarget(std::shared_ptr<Unit> target, bool isperm = true);
 
 	virtual void RegenHP();
 	virtual void RegenMP();
@@ -257,12 +257,12 @@ public:
 	short m_sBehaviorTurnCount;
 	char  m_cTargetSearchRange;
 
-	shared_ptr<Unit> follow;
+	std::shared_ptr<Unit> follow;
 	bool  summoned;            
 	uint64_t timeSummoned;
 	char  targetType;
 	char  followOwnerType;
-	shared_ptr<Unit> target;
+	std::shared_ptr<Unit> target;
 	uint8_t  m_cCurWaypoint;
 	uint8_t  m_cTotalWaypoint;
 

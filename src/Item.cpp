@@ -1,16 +1,10 @@
-// Item.cpp: implementation of the CItem class.
 //
-//////////////////////////////////////////////////////////////////////
+// Copyright (c) Sharon Fox (sharon at sharonfox dot dev)
+//
+// Distributed under the MIT License. (See accompanying file LICENSE)
+//
 
 #include "Item.h"
-
-//extern class Item ** g_itemConfigList;
-//extern HashMap<uint64_t, uint8_t> g_socketMap;
-
-
-//////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
 
 Item::Item(uint32_t count) : count(count)
 {
@@ -151,9 +145,9 @@ bool Item::InitItemAttr(uint64_t itemID, Item ** itemconfig)
 	return false;
 }
 
-bool Item::InitItemAttr(const string pItemName, Item ** itemconfig)
+bool Item::InitItemAttr(const std::string pItemName, Item ** itemconfig)
 {
-	string cTmpName = pItemName;
+	std::string cTmpName = pItemName;
 
 	for(int i = 0; i < MAXITEMTYPES; i++) 
 	{

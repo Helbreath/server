@@ -1,3 +1,9 @@
+//
+// Copyright (c) Sharon Fox (sharon at sharonfox dot dev)
+//
+// Distributed under the MIT License. (See accompanying file LICENSE)
+//
+
 #include "Client.h"
 #include "netmessages.h"
 #include "GServer.h"
@@ -52,19 +58,16 @@ Client::Client()
 	currentstatus = 1;
 
 	socknum = 0;
-	disconnecttime = 0;
-	lastpackettime = 0;
+	disconnecttime = std::chrono::steady_clock::now();
+	lastpackettime = std::chrono::steady_clock::now();
 
 	m_bActive = true;
 
 	for (int i = 0; i < DEFAULTBAGSIZE; ++i)
-	{
 		itemList.push_back(new ItemWrap);
-	}
+
 	for (int i = 0; i < DEFAULTBANKSIZE; ++i)
-	{
 		itemListBank.push_back(new ItemWrap);
-	}
 
 	//handle of 0 assumed. 0 = invalid and is not usable for an object in game - this value would be set when obtaining character data from the db assuming login is successful
 	handle = 0;
@@ -77,7 +80,7 @@ Client::Client()
 	faction = "NONE";
 	guildRank = GUILDRANK_NONE;
 	guildGUID = -1;
-	guild = 0;
+	guild = nullptr;
 	guildSummonsTime = 0;
 
 	m_bIsInitComplete = false;
@@ -235,7 +238,8 @@ Client::Client()
 	exchangePlayer = 0;
 	exchangeCount = 0;
 	
-	for(i = 0; i < 4; i++){
+	for (i = 0; i < 4; i++)
+	{
 		m_exchangeItems[i].itemAmount = 0;
 		m_exchangeItems[i].itemIndex  = -1;		
 	}	
@@ -293,7 +297,8 @@ Client::Client()
 	crusadeDuty  = 0;
 	crusadeGUID = 0;
 
-	for (i = 0; i < MAXCRUSADESTRUCTURES; i++) {
+	for (i = 0; i < MAXCRUSADESTRUCTURES; i++)
+	{
 		crusadeStructureInfo[i]._type = 0;
 		crusadeStructureInfo[i]._side = 0;
 		crusadeStructureInfo[i].x = 0;
@@ -309,7 +314,7 @@ Client::Client()
 
 	arenaDeadTime = 0;
 
-	_party = 0;
+	_party = nullptr;
 	_partyStatus = PS_NOTINPARTY;
 
 	m_iReqJoinPartyClientH = 0;
@@ -320,10 +325,10 @@ Client::Client()
 	m_hasPrecasted = false;
 	m_timeHackTurn = 0;
 	m_timeHack = 0; 
-	for(int i=0; i < SPEEDCHECKTURNS; i++)
+	for (int i=0; i < SPEEDCHECKTURNS; i++)
 		m_moveTime[i] = 540; 
 	m_moveTurn = 0;
-	for(int i=0; i < SPEEDCHECKTURNS; i++)
+	for (int i=0; i < SPEEDCHECKTURNS; i++)
 		m_runTime[i] = 300; 
 	m_runTurn = 0; 
 
@@ -635,7 +640,7 @@ void Client::ValidateSkills(bool logInvalidSkills)
 // 
 // 	if(logInvalidSkills && (invalidSkills > 0))
 // 	{
-// 		gserver->logger->information(Poco::format("PC(%s) A skill was too high, reduced by (%?d) points", (string)m_cCharName, invalidSkills));
+// 		gserver->log->info(fmt::format("PC(%s) A skill was too high, reduced by (%?d) points", (string)m_cCharName, invalidSkills));
 // 	}
 }
 
@@ -744,266 +749,266 @@ void Client::AddHP(int64_t hp)
 
 void Client::KilledHandler(Unit * attacker, int32_t sDamage)
 {
-	string attackername;
-#ifdef EKMessage
-	//char EKMessage1[100], EKMessage2[100], EKMessage3[100], EKMessage4[100], EKMessage5[100], EKMessage6[100];
-	int KilledEK, RangeEK;
-#endif
-	short sAttackerWeapon;
-	bool  bIsSAattacked = false;
-
-	if (m_bIsInitComplete == false) return;
-	if (_dead == true) return;
-
-	if (map->name.find("fight") != -1)
-	{
-		arenaDeadTime = unixtime();
-		gserver->logger->information(Poco::format("Fightzone Dead Time: %?d", arenaDeadTime));
-	}
-
-	_dead = true;
-	health = 0;
-
-// 	if (m_isExchangeMode == true) {
-// 		iExH = m_exchangeH;
-// 		gserver->_ClearExchangeStatus(iExH);
-// 		gserver->_ClearExchangeStatus(m_handle);
-// 	}
-
-	map->RemoveFromTarget(shared_from_this());
-
-	if (attacker)
-		attackername = attacker->name;
-
-	Notify(nullptr, NOTIFY_HP, 0, 0, 0);
-	Notify(nullptr, NOTIFY_KILLED, 0, 0, 0, attackername);
-	if (attacker && attacker->IsPlayer())
-		sAttackerWeapon = ((static_cast<Client*>(attacker)->m_sAppr2 & 0x0FF0) >> 4);
-	else sAttackerWeapon = 1;
-	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DYING, sDamage, sAttackerWeapon, 0);
-	map->ClearOwner(x, y);
-	map->SetDeadOwner(shared_from_this(), x, y);
-
-// 	int itemInd;
-// 	if(gserver->m_astoria.get() && gserver->m_astoria->IsCapture() && (itemInd = HasItem(ITEM_RELIC)))
+// 	string attackername;
+// #ifdef EKMessage
+// 	//char EKMessage1[100], EKMessage2[100], EKMessage3[100], EKMessage4[100], EKMessage5[100], EKMessage6[100];
+// 	int KilledEK, RangeEK;
+// #endif
+// 	short sAttackerWeapon;
+// 	bool  bIsSAattacked = false;
+// 
+// 	if (m_bIsInitComplete == false) return;
+// 	if (_dead == true) return;
+// 
+// 	if (map->name.find("fight") != -1)
 // 	{
-// 		gserver->DropItemHandler(m_handle, itemInd, 1, m_pItemList[itemInd]->m_cName, false);
+// 		arenaDeadTime = unixtime();
+// 		gserver->log->info(fmt::format("Fightzone Dead Time: %?d", arenaDeadTime));
 // 	}
-
-	if (map->type == MAPTYPE_NOPENALTY_NOREWARD) return;
-	// Monster kill event xRisenx
-	/*if (cAttackerType == OWNERTYPE_PLAYER)
-    {    if (g_clientList[iAttackerH] != NULL)
-        {    if (g_game->m_bNpcHunt)
-            {    g_game->NpcHuntPointsAdder(iAttackerH);
-    }    }    }*/
-	// Monster kill event xRisenx
-	if (!attacker)
-		return;
-	if (attacker->IsPlayer() || attacker->OwnerType() == OWNERTYPE_PLAYER_INDIRECT)
-	{
-		if (attacker->OwnerType() == OWNERTYPE_PLAYER_INDIRECT)
-		{
-			//gserver->_bPKLog(PKLOG_BYOTHER,(int) -1,m_handle,NULL) ;
-			// m_iExp -= dice(1, 50);
-			// if (m_iExp < 0) m_iExp = 0;
-
-			// Notify(NULL, NOTIFY_EXP, NULL, NULL, NULL, NULL);
-		}
-
-		switch (static_cast<Client*>(attacker)->m_iSpecialAbilityType)
-		{
-			case 1:
-			case 2:
-			case 3:
-			case 4:
-			case 5:
-				bIsSAattacked = true;
-				break;
-		}
-
-		if (attacker == this) return;
-		if (IsNeutral())
-		{
-			if (playerKillCount == 0)
-			{
-
-			//	g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
-				//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
-			}
-			else
-			{
-				//gserver->PK_KillRewardHandler(iAttackerH, m_handle);
-			}
-		} 
-		else
-		{
-			if (static_cast<Client*>(attacker)->IsNeutral())
-			{
-				if (playerKillCount == 0)
-				{
-					//	g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
-					//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
-				}
-				else {
-					//g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
-				}
-			}
-			else {
-// 				if(gserver->m_astoria.get())
-// 					gserver->m_astoria->PlayerKill(g_clientList[iAttackerH], this);
-// 				
-// 				if (gserver->m_bHeldenianMode && g_mapList[m_cMapIndex]->m_bIsHeldenianMap) 
-// 					gserver->HeldenianPlayerKill(g_clientList[iAttackerH], this);
-
-				if (side == static_cast<Client*>(attacker)->side)
-				{
-					if (playerKillCount == 0)
-					{
-						static_cast<Client*>(attacker)->ApplyPKPenalty(this);
-					}
-					else
-					{
-						//gserver->PK_KillRewardHandler(iAttackerH, m_handle);
-					}
-				}
-				else
-				{
-					//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
-				}
-			}
-		}
-
-		if (playerKillCount == 0)
-		{
-			// Innocent
-			if (static_cast<Client*>(attacker)->IsNeutral())
-			{
-			}
-			else
-			{
-				if (side == static_cast<Client*>(attacker)->side)
-				{
-				}
-				else
-				{
-					ApplyCombatKilledPenalty(2, bIsSAattacked);
-				}
-			}
-		}
-		else if ((playerKillCount >= 1) && (playerKillCount <= 3))
-		{
-			// Criminal 
-			ApplyCombatKilledPenalty(3, bIsSAattacked,true);
-		}
-		else if ((playerKillCount >= 4) && (playerKillCount <= 11))
-		{
-			// Murderer 
-			ApplyCombatKilledPenalty(6, bIsSAattacked,true);
-		}
-		else if (playerKillCount >= 12) {
-			// Slaughterer 
-			ApplyCombatKilledPenalty(12, bIsSAattacked,true);
-		}
-	}
-	else if (attacker->IsNPC()) {
-
-		//gserver->_bPKLog(PKLOG_BYNPC,(int) -1,m_handle, attacker->name) ;
-
-		if (playerKillCount == 0) {
-			// Innocent
-			ApplyCombatKilledPenalty(1, bIsSAattacked,true);
-		}
-		else if ((playerKillCount >= 1) && (playerKillCount <= 3))
-		{
-			// Criminal 
-			ApplyCombatKilledPenalty(3, bIsSAattacked , true);
-		}
-		else if ((playerKillCount >= 4) && (playerKillCount <= 11))
-		{
-			// Murderer 
-			ApplyCombatKilledPenalty(6, bIsSAattacked , true);
-		}
-		else if (playerKillCount >= 12) {
-			// Slaughterer 
-			ApplyCombatKilledPenalty(12, bIsSAattacked , true);
-		}
-
-		if (static_cast<Npc*>(attacker)->guildGUID != 0)
-		{
-
-			if (static_cast<Npc*>(attacker)->side != side)
-			{
-				for (auto c : gserver->clientlist)
-				{
-					if ((c->guildGUID == static_cast<Npc*>(attacker)->guildGUID) && (c->crusadeDuty == 0))
-					{
-						c->crusadePoint += (level / 2);
-						if (c->crusadePoint > MAXCONSTRUCTIONPOINT)
-							c->crusadePoint = MAXCONSTRUCTIONPOINT;
-						gserver->logger->information(Poco::format("Enemy Player Killed by Npc! Construction +%?d", (level / 2)));
-						gserver->SendNotifyMsg(nullptr, c.get(), NOTIFY_CONSTRUCTIONPOINT, c->crusadePoint, c->crusadeContribution, 0);
-					}
-				}
-			}
-		}
-	}
-#ifdef EKMessage
-	for (KilledEK = 1; KilledEK < MAXCLIENTS; KilledEK++)
-	{
-		if ((gserver->m_pClientList[KilledEK] != NULL))
-		{
-			ZeroMemory(g_cTxt, sizeof(g_cTxt));
-			RangeEK = rand()%6;
-			switch(RangeEK)
-			{
-			case 0:
-				wsprintf(g_cTxt, "[%s] laid [%s] to rest!", cAttackerName, name);
-				break;
-			case 1:
-				wsprintf(g_cTxt, "[%s] smashed [%s] face into the ground!", cAttackerName, name);
-				break;
-			case 2:
-				wsprintf(g_cTxt, "[%s] was no match for [%s]!", name, cAttackerName);
-				break;
-			case 3:
-				wsprintf(g_cTxt, "[%s] says LAG LAG!! but gets PWNED by [%s]!", name, cAttackerName);
-				break;
-			case 4:
-				wsprintf(g_cTxt, "[%s] sent [%s] off to pie heaven!", cAttackerName, name);
-				break;
-			case 5:
-				wsprintf(g_cTxt, "[%s] got beat by [%s\'s] ugly stick!", name, cAttackerName);
-				break;
-			}
-			gserver->SendNotifyMsg(NULL, KilledEK, NOTIFY_NOTICEMSG, NULL, NULL, NULL, g_cTxt);
-			wsprintf(g_cTxt, "[EK] %s killed %s.", cAttackerName, name);
-			gserver->logger->information(Poco::format("[EK] %s killed %s.", (string)cAttackerName, (string)name));
-		}
-	}
-#endif
-	// Gladiator Arena xRisenx
-	//if (strcmp(g_game->m_pMapList[g_game->m_pClientList[g_game->iClientH]->m_cMapIndex]->m_cName, g_game->cArenaMap) == 0)
-// 	if (strcmp(g_mapList[m_cMapIndex]->m_cName, g_game->cArenaMap) == 0)
-// {
-//   m_iArenaDeaths++;
-//   m_iArenaKills = 0; // reset dead guy's kill count
-//   //g_game->RequestArenaStatus(iClientH, true);
-//   g_game->RequestArenaStatus(true);
-//   g_game->m_pClientList[iAttackerH]->m_iArenaKills++;
 // 
-//     if(g_game->m_pClientList[iAttackerH]->m_iArenaKills % 25 == 0)
-//     {
-//          //m_pClientList[i]->m_iGladiatorCount += 1;
-// 		 g_clientList[i]->m_iGladiatorCount += 1;
-//        //CheckTitleLevelUp(i, "Gladiator", m_pClientList[i]->m_iGladiatorCount);
-// 		  //g_game->increaseTitlePoints(iClientH, TITLE_INDEX_GLADIATOR, m_iGladiatorCount);
-// 		 g_game->increaseTitlePoints(TITLE_INDEX_GLADIATOR, m_iGladiatorCount, true);
-//     }
+// 	_dead = true;
+// 	health = 0;
 // 
-//   g_game->RequestArenaStatus(iAttackerH, true);
-// }
-	// Gladiator Arena xRisenx
+// // 	if (m_isExchangeMode == true) {
+// // 		iExH = m_exchangeH;
+// // 		gserver->_ClearExchangeStatus(iExH);
+// // 		gserver->_ClearExchangeStatus(m_handle);
+// // 	}
+// 
+// 	map->RemoveFromTarget(shared_from_this());
+// 
+// 	if (attacker)
+// 		attackername = attacker->name;
+// 
+// 	Notify(nullptr, NOTIFY_HP, 0, 0, 0);
+// 	Notify(nullptr, NOTIFY_KILLED, 0, 0, 0, attackername);
+// 	if (attacker && attacker->IsPlayer())
+// 		sAttackerWeapon = ((static_cast<Client*>(attacker)->m_sAppr2 & 0x0FF0) >> 4);
+// 	else sAttackerWeapon = 1;
+// 	gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_DYING, sDamage, sAttackerWeapon, 0);
+// 	map->ClearOwner(x, y);
+// 	map->SetDeadOwner(shared_from_this(), x, y);
+// 
+// // 	int itemInd;
+// // 	if(gserver->m_astoria.get() && gserver->m_astoria->IsCapture() && (itemInd = HasItem(ITEM_RELIC)))
+// // 	{
+// // 		gserver->DropItemHandler(m_handle, itemInd, 1, m_pItemList[itemInd]->m_cName, false);
+// // 	}
+// 
+// 	if (map->type == MAPTYPE_NOPENALTY_NOREWARD) return;
+// 	// Monster kill event xRisenx
+// 	/*if (cAttackerType == OWNERTYPE_PLAYER)
+//     {    if (g_clientList[iAttackerH] != NULL)
+//         {    if (g_game->m_bNpcHunt)
+//             {    g_game->NpcHuntPointsAdder(iAttackerH);
+//     }    }    }*/
+// 	// Monster kill event xRisenx
+// 	if (!attacker)
+// 		return;
+// 	if (attacker->IsPlayer() || attacker->OwnerType() == OWNERTYPE_PLAYER_INDIRECT)
+// 	{
+// 		if (attacker->OwnerType() == OWNERTYPE_PLAYER_INDIRECT)
+// 		{
+// 			//gserver->_bPKLog(PKLOG_BYOTHER,(int) -1,m_handle,NULL) ;
+// 			// m_iExp -= dice(1, 50);
+// 			// if (m_iExp < 0) m_iExp = 0;
+// 
+// 			// Notify(NULL, NOTIFY_EXP, NULL, NULL, NULL, NULL);
+// 		}
+// 
+// 		switch (static_cast<Client*>(attacker)->m_iSpecialAbilityType)
+// 		{
+// 			case 1:
+// 			case 2:
+// 			case 3:
+// 			case 4:
+// 			case 5:
+// 				bIsSAattacked = true;
+// 				break;
+// 		}
+// 
+// 		if (attacker == this) return;
+// 		if (IsNeutral())
+// 		{
+// 			if (playerKillCount == 0)
+// 			{
+// 
+// 			//	g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
+// 				//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
+// 			}
+// 			else
+// 			{
+// 				//gserver->PK_KillRewardHandler(iAttackerH, m_handle);
+// 			}
+// 		} 
+// 		else
+// 		{
+// 			if (static_cast<Client*>(attacker)->IsNeutral())
+// 			{
+// 				if (playerKillCount == 0)
+// 				{
+// 					//	g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
+// 					//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
+// 				}
+// 				else {
+// 					//g_clientList[iAttackerH]->ApplyPKPenalty(m_handle);
+// 				}
+// 			}
+// 			else {
+// // 				if(gserver->m_astoria.get())
+// // 					gserver->m_astoria->PlayerKill(g_clientList[iAttackerH], this);
+// // 				
+// // 				if (gserver->m_bHeldenianMode && g_mapList[m_cMapIndex]->m_bIsHeldenianMap) 
+// // 					gserver->HeldenianPlayerKill(g_clientList[iAttackerH], this);
+// 
+// 				if (side == static_cast<Client*>(attacker)->side)
+// 				{
+// 					if (playerKillCount == 0)
+// 					{
+// 						static_cast<Client*>(attacker)->ApplyPKPenalty(this);
+// 					}
+// 					else
+// 					{
+// 						//gserver->PK_KillRewardHandler(iAttackerH, m_handle);
+// 					}
+// 				}
+// 				else
+// 				{
+// 					//gserver->EnemyKillRewardHandler(iAttackerH, m_handle);
+// 				}
+// 			}
+// 		}
+// 
+// 		if (playerKillCount == 0)
+// 		{
+// 			// Innocent
+// 			if (static_cast<Client*>(attacker)->IsNeutral())
+// 			{
+// 			}
+// 			else
+// 			{
+// 				if (side == static_cast<Client*>(attacker)->side)
+// 				{
+// 				}
+// 				else
+// 				{
+// 					ApplyCombatKilledPenalty(2, bIsSAattacked);
+// 				}
+// 			}
+// 		}
+// 		else if ((playerKillCount >= 1) && (playerKillCount <= 3))
+// 		{
+// 			// Criminal 
+// 			ApplyCombatKilledPenalty(3, bIsSAattacked,true);
+// 		}
+// 		else if ((playerKillCount >= 4) && (playerKillCount <= 11))
+// 		{
+// 			// Murderer 
+// 			ApplyCombatKilledPenalty(6, bIsSAattacked,true);
+// 		}
+// 		else if (playerKillCount >= 12) {
+// 			// Slaughterer 
+// 			ApplyCombatKilledPenalty(12, bIsSAattacked,true);
+// 		}
+// 	}
+// 	else if (attacker->IsNPC()) {
+// 
+// 		//gserver->_bPKLog(PKLOG_BYNPC,(int) -1,m_handle, attacker->name) ;
+// 
+// 		if (playerKillCount == 0) {
+// 			// Innocent
+// 			ApplyCombatKilledPenalty(1, bIsSAattacked,true);
+// 		}
+// 		else if ((playerKillCount >= 1) && (playerKillCount <= 3))
+// 		{
+// 			// Criminal 
+// 			ApplyCombatKilledPenalty(3, bIsSAattacked , true);
+// 		}
+// 		else if ((playerKillCount >= 4) && (playerKillCount <= 11))
+// 		{
+// 			// Murderer 
+// 			ApplyCombatKilledPenalty(6, bIsSAattacked , true);
+// 		}
+// 		else if (playerKillCount >= 12) {
+// 			// Slaughterer 
+// 			ApplyCombatKilledPenalty(12, bIsSAattacked , true);
+// 		}
+// 
+// 		if (static_cast<Npc*>(attacker)->guildGUID != 0)
+// 		{
+// 
+// 			if (static_cast<Npc*>(attacker)->side != side)
+// 			{
+// 				for (auto c : gserver->clientlist)
+// 				{
+// 					if ((c->guildGUID == static_cast<Npc*>(attacker)->guildGUID) && (c->crusadeDuty == 0))
+// 					{
+// 						c->crusadePoint += (level / 2);
+// 						if (c->crusadePoint > MAXCONSTRUCTIONPOINT)
+// 							c->crusadePoint = MAXCONSTRUCTIONPOINT;
+// 						gserver->log->info(fmt::format("Enemy Player Killed by Npc! Construction +%?d", (level / 2)));
+// 						gserver->SendNotifyMsg(nullptr, c.get(), NOTIFY_CONSTRUCTIONPOINT, c->crusadePoint, c->crusadeContribution, 0);
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// #ifdef EKMessage
+// 	for (KilledEK = 1; KilledEK < MAXCLIENTS; KilledEK++)
+// 	{
+// 		if ((gserver->m_pClientList[KilledEK] != NULL))
+// 		{
+// 			ZeroMemory(g_cTxt, sizeof(g_cTxt));
+// 			RangeEK = rand()%6;
+// 			switch(RangeEK)
+// 			{
+// 			case 0:
+// 				wsprintf(g_cTxt, "[%s] laid [%s] to rest!", cAttackerName, name);
+// 				break;
+// 			case 1:
+// 				wsprintf(g_cTxt, "[%s] smashed [%s] face into the ground!", cAttackerName, name);
+// 				break;
+// 			case 2:
+// 				wsprintf(g_cTxt, "[%s] was no match for [%s]!", name, cAttackerName);
+// 				break;
+// 			case 3:
+// 				wsprintf(g_cTxt, "[%s] says LAG LAG!! but gets PWNED by [%s]!", name, cAttackerName);
+// 				break;
+// 			case 4:
+// 				wsprintf(g_cTxt, "[%s] sent [%s] off to pie heaven!", cAttackerName, name);
+// 				break;
+// 			case 5:
+// 				wsprintf(g_cTxt, "[%s] got beat by [%s\'s] ugly stick!", name, cAttackerName);
+// 				break;
+// 			}
+// 			gserver->SendNotifyMsg(NULL, KilledEK, NOTIFY_NOTICEMSG, NULL, NULL, NULL, g_cTxt);
+// 			wsprintf(g_cTxt, "[EK] %s killed %s.", cAttackerName, name);
+// 			gserver->log->info(fmt::format("[EK] %s killed %s.", (string)cAttackerName, (string)name));
+// 		}
+// 	}
+// #endif
+// 	// Gladiator Arena xRisenx
+// 	//if (strcmp(g_game->m_pMapList[g_game->m_pClientList[g_game->iClientH]->m_cMapIndex]->m_cName, g_game->cArenaMap) == 0)
+// // 	if (strcmp(g_mapList[m_cMapIndex]->m_cName, g_game->cArenaMap) == 0)
+// // {
+// //   m_iArenaDeaths++;
+// //   m_iArenaKills = 0; // reset dead guy's kill count
+// //   //g_game->RequestArenaStatus(iClientH, true);
+// //   g_game->RequestArenaStatus(true);
+// //   g_game->m_pClientList[iAttackerH]->m_iArenaKills++;
+// // 
+// //     if(g_game->m_pClientList[iAttackerH]->m_iArenaKills % 25 == 0)
+// //     {
+// //          //m_pClientList[i]->m_iGladiatorCount += 1;
+// // 		 g_clientList[i]->m_iGladiatorCount += 1;
+// //        //CheckTitleLevelUp(i, "Gladiator", m_pClientList[i]->m_iGladiatorCount);
+// // 		  //g_game->increaseTitlePoints(iClientH, TITLE_INDEX_GLADIATOR, m_iGladiatorCount);
+// // 		 g_game->increaseTitlePoints(TITLE_INDEX_GLADIATOR, m_iGladiatorCount, true);
+// //     }
+// // 
+// //   g_game->RequestArenaStatus(iAttackerH, true);
+// // }
+// 	// Gladiator Arena xRisenx
 }
 
 void Client::ApplyCombatKilledPenalty(char cPenaltyLevel, bool bIsSAattacked, bool bItemDrop)
@@ -1099,7 +1104,7 @@ void Client::PenaltyItemDrop(int iTotal, bool bIsSAattacked , bool bItemDrop)
 // 			}
 // 			else {
 // 				// testcode
-// 				gserver->logger->information("Alter Drop Item Index Error1", __FILE__, __LINE__);
+// 				gserver->log->info("Alter Drop Item Index Error1", __FILE__, __LINE__);
 // 				for (i = 0; i < MAXITEMS; i++) 
 // 				{
 // 					if(m_pItemList[i] && m_pItemList[i]->m_sItemEffectType == ITEMEFFECTTYPE_ALTERITEMDROP)
@@ -1205,23 +1210,23 @@ void Client::ApplyPKPenalty(Client * player)
 #endif*/
 		lockedMapName = sideMap[side];
 		lockedMapTime = 60*3;
-		gserver->RequestTeleportHandler(this, 2, lockedMapName, -1, -1);//TODO: Shouldn't they be sent to jail instead? Did we do away with jail now?
+// 		gserver->RequestTeleportHandler(this, 2, lockedMapName, -1, -1);//TODO: Shouldn't they be sent to jail instead? Did we do away with jail now?
 	}
 }
 
 bool Client::IsInFoeMap()
 {
-	switch(side)
-	{
-	case ARESDEN:
-		if (map->factionName == sideMap[ELVINE])
-			return true;
-		break;
-	case ELVINE:
-		if (map->factionName == sideMap[ARESDEN])
-			return true;
-		break;
-	}
+// 	switch(side)
+// 	{
+// 	case ARESDEN:
+// 		if (map->factionName == sideMap[ELVINE])
+// 			return true;
+// 		break;
+// 	case ELVINE:
+// 		if (map->factionName == sideMap[ARESDEN])
+// 			return true;
+// 		break;
+// 	}
 
 	return false;
 }
@@ -1270,7 +1275,7 @@ void Client::DecPKCount()
 		if (playerKillCount == 0)
 		{	
 			SetStatusFlag(STATUS_PK, false);
-			gserver->SendEventToNearClient_TypeA(this, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, 0, 0);
+// 			gserver->SendEventToNearClient_TypeA(this, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, 0, 0);
 		}
 
 	}
@@ -1282,22 +1287,30 @@ void Client::IncPKCount()
 	SetStatusFlag(STATUS_PK, true);
 
 	Notify(0, NOTIFY_PKPENALTY, 0, 0, 0, 0);
-	gserver->SendEventToNearClient_TypeA(this, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, 0, 0);
+// 	gserver->SendEventToNearClient_TypeA(this, OWNERTYPE_PLAYER, MSGID_MOTION_NULL, 0, 0);
 }
+
+// todo - improve this heavily
 void Client::SWrite(StreamWrite & sw)
 {
-	if (socket == nullptr)
+	if (connection_state.expired() == true)
 		return;
-	outgoingqueue.push_back(new StreamWrite(sw));
-	//socket->write(sw);
 
+	auto connection = connection_state.lock();
+    if (connection == nullptr)
+        return;
+	//outgoingqueue.push_back(new StreamWrite(sw));
+    connection_state_hb * conn_state = dynamic_cast<connection_state_hb *>(connection.get());
+	ix::IXWebSocketSendData data{ sw.data, sw.position };
+	auto ws = conn_state->websocket.lock();
+	if (ws) ws->sendBinary(data);
 }
 
 void Client::Notify(Client * from, uint16_t wMsgType, uint32_t sV1, uint32_t sV2, uint32_t sV3, string pString, 
 	uint32_t sV4, uint32_t sV5, uint32_t sV6, uint32_t sV7, uint32_t sV8, uint32_t sV9, string pString2)
 {
-	gserver->SendNotifyMsg(from, this, wMsgType, sV1, sV2, sV3, pString,
- 		sV4, sV5, sV6, sV7, sV8, sV9, pString2);
+// 	gserver->SendNotifyMsg(from, this, wMsgType, sV1, sV2, sV3, pString,
+//  		sV4, sV5, sV6, sV7, sV8, sV9, pString2);
 }
 
 void Client::NotifyGuildInfo(bool memberList)
@@ -1340,11 +1353,11 @@ void Client::NotifyGuildsmanStatus(Client * player, bool online)
 
 void Client::NotifyGuildSummons(Client * player)
 {
-	StreamWrite sw;
-	sw.WriteInt(MSGID_REQGUILDSUMMONS);
-	sw.WriteString(player->map->name);
-
-	SWrite(sw);
+// 	StreamWrite sw;
+// 	sw.WriteInt(MSGID_REQGUILDSUMMONS);
+// 	sw.WriteString(player->map->name);
+// 
+// 	SWrite(sw);
 }
 
 void Client::UpdateWeight()
@@ -1406,7 +1419,7 @@ void Client::SetItemCount(uint64_t id, uint32_t val, bool notify)
 		if(itemList[i]->_item && itemList[i]->_item->m_sIDnum == id) 
 		{
 			if(val == 0) {
-				gserver->ItemDepleteHandler(shared_from_this(), itemList[i]->_item, false);
+// 				gserver->ItemDepleteHandler(shared_from_this(), itemList[i]->_item, false);
 			}
 			else {
 				itemList[i]->_item->count = val;
@@ -1686,21 +1699,21 @@ int8_t Client::SetCurrency(int8_t id, int64_t amount)
 
 void Client::LockMap(string mapName, uint32_t time)
 {
-	//Perhaps give error value some time? Or largely irrelevant due to not really mattering in the long haul
-	bool test = false;
-	for (auto map : gserver->maplist)
-	{
-		if (map->name == mapName)
-		{
-			test = true;
-			break;
-		}
-	}
-	if (!test)
-		return;
-
-	this->lockedMapName = mapName;
-	this->lockedMapTime = time;
+// 	//Perhaps give error value some time? Or largely irrelevant due to not really mattering in the long haul
+// 	bool test = false;
+// 	for (auto map : gserver->maplist)
+// 	{
+// 		if (map->name == mapName)
+// 		{
+// 			test = true;
+// 			break;
+// 		}
+// 	}
+// 	if (!test)
+// 		return;
+// 
+// 	this->lockedMapName = mapName;
+// 	this->lockedMapTime = time;
 }
 
 void Client::CalculateSSN_SkillIndex(short sSkillIndex, int iValue)
@@ -1753,7 +1766,7 @@ void Client::CalculateSSN_SkillIndex(short sSkillIndex, int iValue)
 	iOldSSN = m_iSkillSSN[sSkillIndex];
 	m_iSkillSSN[sSkillIndex] += iValue;
 
-	iSSNpoint = gserver->m_iSkillSSNpoint[m_cSkillMastery[sSkillIndex] + 1];
+// 	iSSNpoint = gserver->m_iSkillSSNpoint[m_cSkillMastery[sSkillIndex] + 1];
 
 	if ((m_cSkillMastery[sSkillIndex] < 100) &&
 		(m_iSkillSSN[sSkillIndex] > iSSNpoint)) {
@@ -1845,7 +1858,7 @@ void Client::CalculateSSN_SkillIndex(short sSkillIndex, int iValue)
 		if (m_iSkillSSN[sSkillIndex] == 0) {
 			CheckTotalSkillMasteryPoints(sSkillIndex);
 
-			gserver->SendNotifyMsg(nullptr, this, NOTIFY_SKILL, sSkillIndex, m_cSkillMastery[sSkillIndex], 0);
+// 			gserver->SendNotifyMsg(nullptr, this, NOTIFY_SKILL, sSkillIndex, m_cSkillMastery[sSkillIndex], 0);
 		}
 	}
 }

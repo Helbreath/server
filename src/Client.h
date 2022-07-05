@@ -1,22 +1,27 @@
+//
+// Copyright (c) Sharon Fox (sharon at sharonfox dot dev)
+//
+// Distributed under the MIT License. (See accompanying file LICENSE)
+//
 
 #pragma once
 
 #include "common.h"
 #include "funcs.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include "Unit.h"
 #include "Item.h"
 #include "Magic.h"
-#include "connection.h"
 #include "InventoryMgr.h"
 #include <list>
+#include "connection_state_hb.h"
+#include "streams.h"
 
 class Guild;
 class Party;
 
 #define CLIENTSOCKETBLOCKLIMIT	15
-
 
 enum PartyStatus
 {
@@ -25,7 +30,8 @@ enum PartyStatus
 	PS_INPARTY
 };
 
-enum Sex{
+enum Sex
+{
 	NONE,
 	MALE,
 	FEMALE
@@ -62,7 +68,7 @@ enum skillIndexes
 	SKILL_POISONRES			// 23
 };
 
-class Client : public Unit, public boost::enable_shared_from_this<Client>, public boost::noncopyable
+class Client : public Unit, std::enable_shared_from_this<Client>
 {
 public:
 	Client();
@@ -73,17 +79,39 @@ public:
 
 	std::list<StreamWrite*> outgoingqueue;
 
-	string address;
+	std::string address;
+
+	std::weak_ptr<ix::ConnectionState> connection_state;
+
+	connection_state_hb * get_connection_state()
+	{
+		auto connstate = connection_state.lock();
+		if (!connstate) return nullptr;
+        return dynamic_cast<connection_state_hb *>(connstate.get());
+	}
+
+	ix::WebSocket * get_websocket()
+	{
+		auto connstate = get_connection_state();
+		if (!connstate) return nullptr;
+		auto ws = connstate->websocket.lock();
+		if (!ws) return nullptr;
+		return ws.get();
+	}
 
 	//This WILL cause memory leaks if this is not unlinked on socket close
-	connection_ptr socket;//will force the smart_ptr to remain until client object is deleted - clear early? or leave until object destruction?
+	//connection_ptr socket;//will force the smart_ptr to remain until client object is deleted - clear early? or leave until object destruction?
 	//boost::weak_ptr<connection> socket;//keeps the client object from keeping the socket object open, but the socket object can keep the client object
 	uint64_t socknum;
 
 	GServer * gserver;
+	
+	// prevent multiple logins if already succeeded
+	bool logged_in = false;
 
-	uint64_t disconnecttime;
-	uint64_t lastpackettime;
+	bool disconnected = false;
+	std::chrono::time_point<std::chrono::steady_clock> disconnecttime;
+	std::chrono::time_point<std::chrono::steady_clock> lastpackettime;
 
 	bool CheckNearbyFlags();
 	bool IsHeldWinner() const;
@@ -101,7 +129,7 @@ public:
 	void ApplyElo(Client * foe);
 
 	//Lock player to a specific map for specific seconds
-	void LockMap(string mapName, uint32_t time);
+	void LockMap(std::string mapName, uint32_t time);
 
 #pragma region Stat getters/setters
 	int32_t GetMaxHP() const;
@@ -150,7 +178,7 @@ public:
 	void DecPKCount();
 	void IncPKCount();
 
-	float GetDropFactor() const;
+	float GetDropFactor() const override;
 
 	bool IsGM()				const { return (m_iAdminUserLevel == 0)			? false : true; }
 	bool IsInvincible()	const { return (m_GMFlags & GMFLAG_INVINCIBLE)	? true : false; }
@@ -170,16 +198,16 @@ public:
 
 	void SWrite(StreamWrite & sw);
 
-	void Notify(Client * from, uint16_t wMsgType, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, string pString = "",
+	void Notify(Client * from, uint16_t wMsgType, uint32_t sV1 = 0, uint32_t sV2 = 0, uint32_t sV3 = 0, std::string pString = "",
 		uint32_t sV4 = 0, uint32_t sV5 = 0, uint32_t sV6 = 0, uint32_t sV7 = 0, uint32_t sV8 = 0, uint32_t sV9 = 0,
-		string pString2 = "");
+		std::string pString2 = "");
 	void NotifyGuildInfo(bool memberList = false);
 	void NotifyGuildsmanStatus(Client * player, bool online = true);
 	void NotifyGuildSummons(Client * player);
 
 	int32_t GetWeight()	const { return m_iCurWeightLoad; }
 	void UpdateWeight();
-	uint32_t HasItem(string name);
+	uint32_t HasItem(std::string name);
 	uint32_t HasItem(uint64_t id);
 	uint32_t GetItemCount(uint64_t id);
 	void SetItemCount(uint64_t id, uint32_t val, bool notify = true);
@@ -228,14 +256,15 @@ public:
 
 	bool m_bActive;//??
 
-	string account;
-	string password;
+	std::string account;
+	std::string password;
+	int64_t account_id = -1;
 
 	bool  m_bIsInitComplete;
 	bool  m_bIsMsgSendAvailable;//??
 	bool  m_bIsCheckingWhisperPlayer;//??
 
-	string  mapName;
+	std::string  mapName;
 
 
 
@@ -247,7 +276,7 @@ public:
 	
 
 
-	string  faction;
+	std::string  faction;
 
 
 
@@ -359,16 +388,16 @@ public:
 
 
 
-	weak_ptr<Client> whisperTarget;
-	string  whisperTargetName;
-	string  profile;
+	std::weak_ptr<Client> whisperTarget;
+	std::string  whisperTargetName;
+	std::string  profile;
 
 	int32_t   m_iHungerStatus;
 
 	int32_t   m_iPenaltyBlockYear, m_iPenaltyBlockMonth, m_iPenaltyBlockDay; 
 
 	int32_t iReturnID, iNumPoints, iRank, iTitleIndex, iNextRankPoints;
-	string ActiveTitle;
+	std::string ActiveTitle;
 	int8_t TitleType;
 
 	std::list<int16_t> TitleList;
@@ -429,7 +458,7 @@ public:
 	bool HasPartyRaidBonus() const;
 	bool HasPartyHuntBonus() const;
 	int32_t m_iReqJoinPartyClientH;
-	string m_cReqJoinPartyName;
+	std::string m_cReqJoinPartyName;
 	int32_t   m_partyCoordSteps;
 	uint32_t m_pinguid;//??
 
@@ -442,7 +471,7 @@ public:
 
 	struct {
 		int8_t  itemIndex; 
-		string itemName;
+		std::string itemName;
 		int32_t   itemAmount;		
 	} m_exchangeItems[4];
 	
@@ -520,14 +549,14 @@ public:
 	uint64_t m_dwInitCCTimeRcv;
 	uint64_t m_dwInitCCTime;
 
-	string  lockedMapName;
+	std::string  lockedMapName;
 	uint64_t lockedMapTime;
 	uint64_t deadPenaltyTime;
 
 
 	int32_t m_iCSIsendPoint;//unused?
 
-	string m_cSendingMapName;//unused?
+	std::string m_cSendingMapName;//unused?
 	bool m_bIsSendingMapStatus;//unused?
 
 
@@ -536,7 +565,7 @@ public:
 	int32_t crusadeDuty;
 	uint64_t crusadeGUID;
 	int32_t crusadePoint;//points for construction
-	string crusadeMap;//construction map (should always be middleland, but option to change)
+	std::string crusadeMap;//construction map (should always be middleland, but option to change)
 	int32_t crusadeX, crusadeY;//construction locations for crusade
 	struct {
 		char _type;

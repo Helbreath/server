@@ -2,8 +2,8 @@
 #pragma once
 
 #include "funcs.h"
-#include "connection.h"
 #include "common.h"
+#include "Unit.h"
 
 
 class Item;
@@ -22,8 +22,8 @@ public:
 
 	uint8_t  m_cOwnerType;		// OT_PLAYER / OT_NPC
 	uint8_t  m_cDeadOwnerType;	
-	boost::shared_ptr<Unit> owner;
-	boost::shared_ptr<Unit> deadowner;
+	std::shared_ptr<Unit> owner;
+	std::shared_ptr<Unit> deadowner;
 
 	std::vector<Item *> m_pItem;
 

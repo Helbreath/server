@@ -10,8 +10,7 @@
 //#include "OccupyFlag.h"
 //#include "StrategicPoint.h"
 #include "TeleportLoc.h"
-#include <lua5.2/lua.hpp>
-#include <lua5.2/lauxlib.h>
+#include "core.h"
 
 #pragma region movedirection
 //#ifndef 800x600
@@ -215,7 +214,8 @@ char _tmp_cEmptyPosX[] = { 0, 1, 1, 0, -1, -1, -1, 0, 1, 2, 2, 2, 2, 1, 0, -1, -
 char _tmp_cEmptyPosY[] = { 0, 0, 1, 1, 1, 0, -1, -1, -1, -1, 0, 1, 2, 2, 2, 2, 2, 1, 0, -1, -2, -2, -2, -2, -2 };
 #pragma endregion
 
-Map::Map(GServer * pGame)
+Map::Map(core * core_)
+	: core_(core_)
 {
 	npchandle = 0x100000000;//base handle value of 4,294,967,296 to 'guarantee' uniqueness between clients and npcs
 
@@ -242,7 +242,7 @@ Map::Map(GServer * pGame)
 	//m_sInitialPointY = 0;
 
 	fixedDay = false;
-	fixedSnow = false ; 
+	fixedSnow = false; 
 
 	totalFishPoints = 0;
 	fishMax = 0;
@@ -256,8 +256,6 @@ Map::Map(GServer * pGame)
 
 	weather = WEATHER_SUNNY;
 	type          = MAPTYPE_NORMAL;
-
-	gserver = pGame;
 
 	levelLimitLower = 0;
 	levelLimitUpper = 0; 
@@ -315,8 +313,8 @@ Map::~Map()
 void Map::run()
 {
 	TimerThreadRunning = true;
-	actionthread = new thread(std::bind(std::mem_fun(&Map::SocketThread), this));
-	timerthread = new thread(std::bind(std::mem_fun(&Map::TimerThread), this));
+	actionthread = new std::thread(std::bind(&Map::SocketThread, this));
+	timerthread = new std::thread(std::bind(&Map::TimerThread, this));
 }
 
 void Map::SocketThread()
@@ -329,14 +327,14 @@ void Map::SocketThread()
 	_tzset();
 #endif
 
-	shared_ptr<Server::MsgQueueEntry> msg;
+	std::shared_ptr<Server::MsgQueueEntry> msg;
 
-	while (gserver->serverstatus == SERVERSTATUS_ONLINE)
+	while (core_->get_server_state() == server_status::running)
 	{
 		if (actionpipe.size() > 0)
 		{
 			{
-				lock_guard<mutex> lock(mutaction);
+				std::lock_guard<std::mutex> lock(mutaction);
 				msg = gserver->GetMsgQueue(actionpipe);
 			}
 			if (!msg)
@@ -345,12 +343,12 @@ void Map::SocketThread()
 			StreamRead sr = StreamRead(msg->data, msg->size);
 			StreamWrite sw = StreamWrite();
 
-			shared_ptr<Client> client = msg->client;
+			std::shared_ptr<Client> client = msg->client;
 
 			uint32_t msgid = sr.ReadInt();
 			uint32_t cmd = sr.ReadShort();
 
-			//logger->error(Poco::format("Packet received from client - 0x%.4X - 0x%.2X", msgid, cmd));
+			//log->error(fmt::format("Packet received from client - 0x%.4X - 0x%.2X", msgid, cmd));
 
 			if (msgid == MSGIDTYPE_MOTION)
 			{
@@ -366,7 +364,7 @@ void Map::SocketThread()
 				catch (int test)
 				{
 					//-193 data length error
-					gserver->logger->error(Poco::format("Error: %?d", test));
+					gserver->log->error(fmt::format("Error: %?d", test));
 				}
 			}
 			else switch (msgid)
@@ -393,7 +391,7 @@ void Map::SocketThread()
 				break;
 
 			default:
-				gserver->logger->error(Poco::format("Unknown packet received from client - 0x%.4X", msgid));
+				gserver->log->error(fmt::format("Unknown packet received from client - 0x%.4X", msgid));
 				//DeleteClient(msg->client, false, true);
 				break;
 			}
@@ -401,142 +399,134 @@ void Map::SocketThread()
 			delete[] msg->data;
 		}
 
-#ifdef WIN32
-		Sleep(1);
-#else
-		nanosleep(&req, 0);
-#endif
 	}
-	gserver->logger->information("ActionThread() complete.");
-#ifndef WIN32
-	mysql_thread_end();
-#endif
+	core_->log->info("Message thread for [{}] terminated", name);
 }
 
 void Map::TimerThread()
 {
-#ifndef WIN32
-	struct timespec req = { 0 };
-	req.tv_sec = 0;
-	req.tv_nsec = 1000000L;//1ms
-#else
-	_tzset();
-#endif
-
-	TimerThreadRunning = true;
-
-	uint64_t t1htimer;
-	uint64_t t30mintimer;
-	uint64_t t6mintimer;
-	uint64_t t5mintimer;
-	uint64_t t3mintimer;
-	uint64_t t1mintimer;
-	uint64_t t30sectimer;
-	uint64_t t5sectimer;
-	uint64_t t1sectimer;
-	uint64_t t100msectimer;
-	uint64_t ltime;
-
-	t1htimer = t30mintimer = t6mintimer = t5mintimer = t3mintimer = t1mintimer = t30sectimer = t5sectimer = t1sectimer = t100msectimer = unixtime();
-
-	while (gserver->serverstatus == SERVERSTATUS_ONLINE)
-	{
-		try
-		{
-			ltime = ltime = unixtime();
-
-			if (t100msectimer < ltime)
-			{
-				NpcProcess();
-				DelayEventProcessor();
-
-				t100msectimer += 100;
-			}
-			if (t1sectimer < ltime)
-			{
-				t1sectimer += 1000;
-			}
-			if (t5sectimer < ltime)
-			{
-				//test code - keep this until beta?
-
-				//regenerates stamina at a drastically increased rate
-				{
-					shared_lock_guard<shared_mutex> lock(Gate::GetSingleton().mutclientlist);
-					for (shared_ptr<Client> client : gserver->clientlist)
-					{
-						client->stamina = client->GetStr() + 17;
-						gserver->SendNotifyMsg(0, client.get(), NOTIFY_SP);
-					}
-				}
-
-				//check connections for recent data (ghost sockets)
-				// 				for (shared_ptr<Client> client : clientlist)
-				// 				{
-				// 					if (client->disconnecttime == 0 && client->lastpackettime + 30000 < ltime)
-				// 					{
-				// 						//socket idle for 30 seconds (should never happen unless disconnected)
-				// 						poco_information(*logger, Poco::format("Client Timeout! <%s>", client->socket->address));
-				// 						gate->stop(client->socket);
-				// 						//when to delete client object...... ?
-				// 						//force a ~10 second delay on object deletion to prevent logout hacking/plug pulling/etc? or destroy instantly?
-				// 					}
-				// 				}
-				t5sectimer += 5000;
-			}
-			if (t30sectimer < ltime)
-			{
-				t30sectimer += 30000;
-			}
-			if (t1mintimer < ltime)
-			{
-				t1mintimer += 60000;
-			}
-			if (t3mintimer < ltime)
-			{
-				t3mintimer += 180000;
-			}
-			if (t6mintimer < ltime)
-			{
-				t6mintimer += 360000;
-			}
-			if (t1htimer < ltime)
-			{
-
-				t1htimer += 3600000;
-			}
-#ifdef WIN32
-			Sleep(1);
-#else
-			nanosleep(&req, 0);
-#endif
-		}
-		catch (Poco::Data::MySQL::MySQLException * e)
-		{
-			gserver->logger->critical(Poco::format("TimerThread() SQL Exception: %s", e->displayText()));
-		}
-		catch (boost::system::system_error & e)
-		{
-			gserver->logger->fatal(Poco::format("Map::TimerThread() boost::Exception: %s", e.what()));
-		}
-		catch (std::exception & e)
-		{
-			gserver->logger->fatal(Poco::format("Map::TimerThread() std::Exception: %s", e.what()));
-		}
-		catch (...)
-		{
-			gserver->logger->fatal("Unspecified Map::TimerThread() Exception.");
-		}
-	}
-	TimerThreadRunning = false;
-	gserver->logger->information("TimerThread() complete.");
-
-#ifndef WIN32
-	mysql_thread_end();
-#endif
+// #ifndef WIN32
+// 	struct timespec req = { 0 };
+// 	req.tv_sec = 0;
+// 	req.tv_nsec = 1000000L;//1ms
+// #else
+// 	_tzset();
+// #endif
+// 
+// 	TimerThreadRunning = true;
+// 
+// 	uint64_t t1htimer;
+// 	uint64_t t30mintimer;
+// 	uint64_t t6mintimer;
+// 	uint64_t t5mintimer;
+// 	uint64_t t3mintimer;
+// 	uint64_t t1mintimer;
+// 	uint64_t t30sectimer;
+// 	uint64_t t5sectimer;
+// 	uint64_t t1sectimer;
+// 	uint64_t t100msectimer;
+// 	uint64_t ltime;
+// 
+// 	t1htimer = t30mintimer = t6mintimer = t5mintimer = t3mintimer = t1mintimer = t30sectimer = t5sectimer = t1sectimer = t100msectimer = unixtime();
+// 
+// 	while (core_->get_server_state() == server_status::running)
+// 	{
+// 		try
+// 		{
+// 			ltime = ltime = unixtime();
+// 
+// 			if (t100msectimer < ltime)
+// 			{
+// 				NpcProcess();
+// 				DelayEventProcessor();
+// 
+// 				t100msectimer += 100;
+// 			}
+// 			if (t1sectimer < ltime)
+// 			{
+// 				t1sectimer += 1000;
+// 			}
+// 			if (t5sectimer < ltime)
+// 			{
+// 				//test code - keep this until beta?
+// 
+// 				//regenerates stamina at a drastically increased rate
+// 				{
+// 					//std::shared_lock_guard<std::shared_mutex> lock(Gate::GetSingleton().mutclientlist);
+// 					for (std::shared_ptr<Client> client : gserver->clientlist)
+// 					{
+// 						client->stamina = client->GetStr() + 17;
+// 						gserver->SendNotifyMsg(0, client.get(), NOTIFY_SP);
+// 					}
+// 				}
+// 
+// 				//check connections for recent data (ghost sockets)
+// 				// 				for (std::shared_ptr<Client> client : clientlist)
+// 				// 				{
+// 				// 					if (client->disconnecttime == 0 && client->lastpackettime + 30000 < ltime)
+// 				// 					{
+// 				// 						//socket idle for 30 seconds (should never happen unless disconnected)
+// 				// 						poco_information(*log, fmt::format("Client Timeout! <%s>", client->socket->address));
+// 				// 						gate->stop(client->socket);
+// 				// 						//when to delete client object...... ?
+// 				// 						//force a ~10 second delay on object deletion to prevent logout hacking/plug pulling/etc? or destroy instantly?
+// 				// 					}
+// 				// 				}
+// 				t5sectimer += 5000;
+// 			}
+// 			if (t30sectimer < ltime)
+// 			{
+// 				t30sectimer += 30000;
+// 			}
+// 			if (t1mintimer < ltime)
+// 			{
+// 				t1mintimer += 60000;
+// 			}
+// 			if (t3mintimer < ltime)
+// 			{
+// 				t3mintimer += 180000;
+// 			}
+// 			if (t6mintimer < ltime)
+// 			{
+// 				t6mintimer += 360000;
+// 			}
+// 			if (t1htimer < ltime)
+// 			{
+// 
+// 				t1htimer += 3600000;
+// 			}
+// #ifdef WIN32
+// 			Sleep(1);
+// #else
+// 			nanosleep(&req, 0);
+// #endif
+// 		}
+// // 		catch (Poco::Data::MySQL::MySQLException * e)
+// // 		{
+// // 			gserver->log->critical(fmt::format("TimerThread() SQL Exception: %s", e->displayText()));
+// // 		}
+// // 		catch (boost::system::system_error & e)
+// // 		{
+// // 			gserver->log->critical(fmt::format("Map::TimerThread() boost::Exception: %s", e.what()));
+// // 		}
+// 		catch (std::exception & e)
+// 		{
+// 			gserver->log->critical(fmt::format("Map::TimerThread() std::Exception: %s", e.what()));
+// 		}
+// 		catch (...)
+// 		{
+// 			gserver->log->critical("Unspecified Map::TimerThread() Exception.");
+// 		}
+// 	}
+// 	TimerThreadRunning = false;
+// 	gserver->log->info("TimerThread() complete.");
+// 
+// #ifndef WIN32
+// 	mysql_thread_end();
+// #endif
 }
 
-void Map::SetOwner(boost::shared_ptr<Unit> sOwner, short sX, short sY)
+void Map::SetOwner(std::shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
@@ -548,7 +538,7 @@ void Map::SetOwner(boost::shared_ptr<Unit> sOwner, short sX, short sY)
 }
 
 
-void Map::SetDeadOwner(boost::shared_ptr<Unit> sOwner, short sX, short sY)
+void Map::SetDeadOwner(std::shared_ptr<Unit> sOwner, short sX, short sY)
 {
 	Tile * pTile;
 
@@ -559,7 +549,7 @@ void Map::SetDeadOwner(boost::shared_ptr<Unit> sOwner, short sX, short sY)
 	pTile->m_cDeadOwnerType = sOwner->IsPlayer()?OWNERTYPE_PLAYER:OWNERTYPE_NPC;
 }
 
-boost::shared_ptr<Unit> Map::GetOwner(short sX, short sY)
+std::shared_ptr<Unit> Map::GetOwner(short sX, short sY)
 {
 	Tile * pTile;
 
@@ -572,7 +562,7 @@ boost::shared_ptr<Unit> Map::GetOwner(short sX, short sY)
 
 }
 
-boost::shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
+std::shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
 {
 	Tile * pTile;
 
@@ -585,12 +575,12 @@ boost::shared_ptr<Unit> Map::GetDeadOwner(short sX, short sY)
 
 }
 
-std::list<boost::shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2)
+std::list<std::shared_ptr<Unit>>Map::GetOwners(short x1, short x2, short y1, short y2)
 {
 	class Tile * pTile;
 	//TODO: this. shoot whoever wrote it and rewrite it before an alpha test
 	//return 0;
-	std::list<boost::shared_ptr<Unit>> owners;
+	std::list<std::shared_ptr<Unit>> owners;
  
  	if(x1 < 0)
  		x1 = 0;
@@ -810,318 +800,315 @@ bool Map::bInit(string pName)
 	return true;
 }
 
-extern void stack_dump(lua_State *stack);
-
-
 bool Map::bDecodeMapConfig()
 {
-	string mapfile = "mapdata/";
-	mapfile += name + ".lua";
-
-	lua_State * L = gserver->L;
-	try
-	{
-		if (luaL_dofile(L, mapfile.c_str()) != 0)
-		{
-			gserver->logger->fatal(Poco::format("%s", (string)lua_tostring(L,-1)));
-			return false;
-		}
-		lua_getglobal(L, "mapdata");
-
-		if(lua_istable(L,-1))
-		{
-			lua_pushnil(L);
-			while (lua_next(L, -2))
-			{
-				string option = (char*)lua_tostring(L, -2);
-				if (option == "teleportloc")
-				{
-					if(lua_istable(L,-1))
-					{
-						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-						for (uint8_t i = 1; i <= tableSize; ++i)
-						{
-							lua_pushinteger(L, i);
-							lua_gettable(L, -2);
-
-							lua_pushinteger(L, 1);
-							lua_gettable(L, -2);
-							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 2);
-							lua_gettable(L, -2);
-							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 3);
-							lua_gettable(L, -2);
-							string dest = (char*)lua_tostring(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 4);
-							lua_gettable(L, -2);
-							uint16_t dX = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 5);
-							lua_gettable(L, -2);
-							uint16_t dY = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 6);
-							lua_gettable(L, -2);
-							uint8_t dir = (uint8_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-
-							TeleportLoc * loc = new TeleportLoc();
-							loc->m_sSrcX = sX;
-							loc->m_sSrcY = sY;
-							loc->m_sDestX = dX;
-							loc->m_sDestY = dY;
-							loc->m_cDir = dir;
-							loc->m_cDestMapName = dest;
-
-							teleportLocationList.push_back(loc);
-
-							lua_pop(L, 1);
-						}
-					}
-				}
-				else if (option == "waypoint")
-				{
-					if(lua_istable(L,-1))
-					{
-						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-						for (uint8_t i = 1; i <= tableSize; ++i)
-						{
-							lua_pushinteger(L, i);
-							lua_gettable(L, -2);
-
-							lua_pushinteger(L, 1);
-							lua_gettable(L, -2);
-							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 2);
-							lua_gettable(L, -2);
-							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-
-							waypointList.push_back(point(sX, sY));
-
-							lua_pop(L, 1);
-						}
-					}
-				}
-				else if (option == "npc")
-				{
-
-				}
-				else if (option == "randommobgenerator")
-				{
-					lua_pushinteger(L, 1);
-					lua_gettable(L, -2);
-					uint16_t gen = (uint16_t)lua_tointeger(L, -1);
-					lua_pop(L, 1);
-					lua_pushinteger(L, 2);
-					lua_gettable(L, -2);
-					uint16_t level = (uint16_t)lua_tointeger(L, -1);
-					lua_pop(L, 1);
-
-					flags.randomMobGenerator = (gen>0) ? true : false;
-					mobGenLevel = level;
-				}
-				else if (option == "maximumobject")
-				{
-					maximumObject = (uint16_t)lua_tointeger(L, -1);
-				}
-				else if (option == "npcavoidrect")
-				{
-
-				}
-				else if (option == "spotmobgenerator")
-				{
-
-				}
-				else if (option == "name")
-				{
-					this->factionName = (char*)lua_tostring(L, -1);;
-				}
-				else if (option == "initialpoint")
-				{
-					if(lua_istable(L,-1))
-					{
-						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-						for (uint8_t i = 1; i <= tableSize; ++i)
-						{
-							lua_pushinteger(L, i);
-							lua_gettable(L, -2);
-
-							lua_pushinteger(L, 1);
-							lua_gettable(L, -2);
-							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 2);
-							lua_gettable(L, -2);
-							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-
-							initialPointList.push_back(point(sX, sY));
-
-							lua_pop(L, 1);
-						}
-					}
-				}
-				else if (option == "noattackarea")
-				{
-					if(lua_istable(L,-1))
-					{
-						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
-						for (uint8_t i = 1; i <= tableSize; ++i)
-						{
-							lua_pushinteger(L, i);
-							lua_gettable(L, -2);
-
-							lua_pushinteger(L, 1);
-							lua_gettable(L, -2);
-							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 2);
-							lua_gettable(L, -2);
-							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 3);
-							lua_gettable(L, -2);
-							uint16_t dX = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-							lua_pushinteger(L, 4);
-							lua_gettable(L, -2);
-							uint16_t dY = (uint16_t)lua_tointeger(L, -1);
-							lua_pop(L, 1);
-
-							safeZoneList.push_back(rect(sX, sY, dX, dY));
-
-							lua_pop(L, 1);
-						}
-					}
-				}
-				else if (option == "fixeddayornightmode")
-				{
-
-				}
-				else if (option == "fishpoint")
-				{
-
-				}
-				else if (option == "maxfish")
-				{
-					fishMax = (uint32_t)lua_tointeger(L, -1);
-				}
-				else if (option == "type")
-				{
-
-				}
-				else if (option == "levellimit")
-				{
-					levelLimitLower = (uint16_t)lua_tointeger(L, -1);
-				}
-				else if (option == "mineralgenerator")
-				{
-
-				}
-				else if (option == "mineralpoint")
-				{
-
-				}
-				else if (option == "maxmineral")
-				{
-					mineralMax = (uint16_t)lua_tointeger(L, -1);
-				}
-				else if (option == "upperlevellimit")
-				{
-					levelLimitUpper = (uint16_t)lua_tointeger(L, -1);
-				}
-				else if (option == "strategicpoint")
-				{
-
-				}
-				else if (option == "energyspherecreationpoint")
-				{
-
-				}
-				else if (option == "energyspheregoalpoint")
-				{
-
-				}
-				else if (option == "strikepoint")
-				{
-
-				}
-				else if (option == "mobeventamount")
-				{
-
-				}
-				else if (option == "ApocalypseMobGenType")
-				{
-
-				}
-				else if (option == "ApocalypseBossMob")
-				{
-
-				}
-				else if (option == "DynamicGateType")
-				{
-
-				}
-				else if (option == "DynamicGateCoord")
-				{
-
-				}
-				else if (option == "ApocalypseMap")
-				{
-
-				}
-				else if (option == "HeldenianMap")
-				{
-
-				}
-				else if (option == "HeldenianTower")
-				{
-
-				}
-				else if (option == "HeldenianModeMap")
-				{
-
-				}
-				else if (option == "HeldenianWinningZone")
-				{
-
-				}
-				else if (option == "HeldenianGateDoor")
-				{
-
-				}
-				else if (option == "chatzone")
-				{
-
-				}
-				else if (option == "itemevent")
-				{
-
-				}
-
-				lua_pop(L, 1);
-			}
-		}
-		lua_pop(L, 1);
-
-		return true;
-	}
-	catch (std::exception& e)
-	{
-		gserver->logger->fatal(Poco::format("bDecodeMapConfig() Exception: %s", (string)e.what()));
-		return false;
-	}
-	catch(...)
-	{
-		gserver->logger->fatal("Unspecified bDecodeMapConfig() Exception.");
-		return false;
-	}
+// 	string mapfile = "mapdata/";
+// 	mapfile += name + ".lua";
+// 
+// 	lua_State * L = gserver->L;
+// 	try
+// 	{
+// 		if (luaL_dofile(L, mapfile.c_str()) != 0)
+// 		{
+// 			gserver->log->critical(fmt::format("%s", (string)lua_tostring(L,-1)));
+// 			return false;
+// 		}
+// 		lua_getglobal(L, "mapdata");
+// 
+// 		if(lua_istable(L,-1))
+// 		{
+// 			lua_pushnil(L);
+// 			while (lua_next(L, -2))
+// 			{
+// 				string option = (char*)lua_tostring(L, -2);
+// 				if (option == "teleportloc")
+// 				{
+// 					if(lua_istable(L,-1))
+// 					{
+// 						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
+// 						for (uint8_t i = 1; i <= tableSize; ++i)
+// 						{
+// 							lua_pushinteger(L, i);
+// 							lua_gettable(L, -2);
+// 
+// 							lua_pushinteger(L, 1);
+// 							lua_gettable(L, -2);
+// 							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 2);
+// 							lua_gettable(L, -2);
+// 							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 3);
+// 							lua_gettable(L, -2);
+// 							string dest = (char*)lua_tostring(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 4);
+// 							lua_gettable(L, -2);
+// 							uint16_t dX = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 5);
+// 							lua_gettable(L, -2);
+// 							uint16_t dY = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 6);
+// 							lua_gettable(L, -2);
+// 							uint8_t dir = (uint8_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 
+// 							TeleportLoc * loc = new TeleportLoc();
+// 							loc->m_sSrcX = sX;
+// 							loc->m_sSrcY = sY;
+// 							loc->m_sDestX = dX;
+// 							loc->m_sDestY = dY;
+// 							loc->m_cDir = dir;
+// 							loc->m_cDestMapName = dest;
+// 
+// 							teleportLocationList.push_back(loc);
+// 
+// 							lua_pop(L, 1);
+// 						}
+// 					}
+// 				}
+// 				else if (option == "waypoint")
+// 				{
+// 					if(lua_istable(L,-1))
+// 					{
+// 						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
+// 						for (uint8_t i = 1; i <= tableSize; ++i)
+// 						{
+// 							lua_pushinteger(L, i);
+// 							lua_gettable(L, -2);
+// 
+// 							lua_pushinteger(L, 1);
+// 							lua_gettable(L, -2);
+// 							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 2);
+// 							lua_gettable(L, -2);
+// 							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 
+// 							waypointList.push_back(point(sX, sY));
+// 
+// 							lua_pop(L, 1);
+// 						}
+// 					}
+// 				}
+// 				else if (option == "npc")
+// 				{
+// 
+// 				}
+// 				else if (option == "randommobgenerator")
+// 				{
+// 					lua_pushinteger(L, 1);
+// 					lua_gettable(L, -2);
+// 					uint16_t gen = (uint16_t)lua_tointeger(L, -1);
+// 					lua_pop(L, 1);
+// 					lua_pushinteger(L, 2);
+// 					lua_gettable(L, -2);
+// 					uint16_t level = (uint16_t)lua_tointeger(L, -1);
+// 					lua_pop(L, 1);
+// 
+// 					flags.randomMobGenerator = (gen>0) ? true : false;
+// 					mobGenLevel = level;
+// 				}
+// 				else if (option == "maximumobject")
+// 				{
+// 					maximumObject = (uint16_t)lua_tointeger(L, -1);
+// 				}
+// 				else if (option == "npcavoidrect")
+// 				{
+// 
+// 				}
+// 				else if (option == "spotmobgenerator")
+// 				{
+// 
+// 				}
+// 				else if (option == "name")
+// 				{
+// 					this->factionName = (char*)lua_tostring(L, -1);;
+// 				}
+// 				else if (option == "initialpoint")
+// 				{
+// 					if(lua_istable(L,-1))
+// 					{
+// 						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
+// 						for (uint8_t i = 1; i <= tableSize; ++i)
+// 						{
+// 							lua_pushinteger(L, i);
+// 							lua_gettable(L, -2);
+// 
+// 							lua_pushinteger(L, 1);
+// 							lua_gettable(L, -2);
+// 							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 2);
+// 							lua_gettable(L, -2);
+// 							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 
+// 							initialPointList.push_back(point(sX, sY));
+// 
+// 							lua_pop(L, 1);
+// 						}
+// 					}
+// 				}
+// 				else if (option == "noattackarea")
+// 				{
+// 					if(lua_istable(L,-1))
+// 					{
+// 						uint8_t tableSize = uint8_t(lua_rawlen(L, -1));
+// 						for (uint8_t i = 1; i <= tableSize; ++i)
+// 						{
+// 							lua_pushinteger(L, i);
+// 							lua_gettable(L, -2);
+// 
+// 							lua_pushinteger(L, 1);
+// 							lua_gettable(L, -2);
+// 							uint16_t sX = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 2);
+// 							lua_gettable(L, -2);
+// 							uint16_t sY = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 3);
+// 							lua_gettable(L, -2);
+// 							uint16_t dX = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 							lua_pushinteger(L, 4);
+// 							lua_gettable(L, -2);
+// 							uint16_t dY = (uint16_t)lua_tointeger(L, -1);
+// 							lua_pop(L, 1);
+// 
+// 							safeZoneList.push_back(rect(sX, sY, dX, dY));
+// 
+// 							lua_pop(L, 1);
+// 						}
+// 					}
+// 				}
+// 				else if (option == "fixeddayornightmode")
+// 				{
+// 
+// 				}
+// 				else if (option == "fishpoint")
+// 				{
+// 
+// 				}
+// 				else if (option == "maxfish")
+// 				{
+// 					fishMax = (uint32_t)lua_tointeger(L, -1);
+// 				}
+// 				else if (option == "type")
+// 				{
+// 
+// 				}
+// 				else if (option == "levellimit")
+// 				{
+// 					levelLimitLower = (uint16_t)lua_tointeger(L, -1);
+// 				}
+// 				else if (option == "mineralgenerator")
+// 				{
+// 
+// 				}
+// 				else if (option == "mineralpoint")
+// 				{
+// 
+// 				}
+// 				else if (option == "maxmineral")
+// 				{
+// 					mineralMax = (uint16_t)lua_tointeger(L, -1);
+// 				}
+// 				else if (option == "upperlevellimit")
+// 				{
+// 					levelLimitUpper = (uint16_t)lua_tointeger(L, -1);
+// 				}
+// 				else if (option == "strategicpoint")
+// 				{
+// 
+// 				}
+// 				else if (option == "energyspherecreationpoint")
+// 				{
+// 
+// 				}
+// 				else if (option == "energyspheregoalpoint")
+// 				{
+// 
+// 				}
+// 				else if (option == "strikepoint")
+// 				{
+// 
+// 				}
+// 				else if (option == "mobeventamount")
+// 				{
+// 
+// 				}
+// 				else if (option == "ApocalypseMobGenType")
+// 				{
+// 
+// 				}
+// 				else if (option == "ApocalypseBossMob")
+// 				{
+// 
+// 				}
+// 				else if (option == "DynamicGateType")
+// 				{
+// 
+// 				}
+// 				else if (option == "DynamicGateCoord")
+// 				{
+// 
+// 				}
+// 				else if (option == "ApocalypseMap")
+// 				{
+// 
+// 				}
+// 				else if (option == "HeldenianMap")
+// 				{
+// 
+// 				}
+// 				else if (option == "HeldenianTower")
+// 				{
+// 
+// 				}
+// 				else if (option == "HeldenianModeMap")
+// 				{
+// 
+// 				}
+// 				else if (option == "HeldenianWinningZone")
+// 				{
+// 
+// 				}
+// 				else if (option == "HeldenianGateDoor")
+// 				{
+// 
+// 				}
+// 				else if (option == "chatzone")
+// 				{
+// 
+// 				}
+// 				else if (option == "itemevent")
+// 				{
+// 
+// 				}
+// 
+// 				lua_pop(L, 1);
+// 			}
+// 		}
+// 		lua_pop(L, 1);
+// 
+// 		return true;
+// 	}
+// 	catch (std::exception& e)
+// 	{
+// 		gserver->log->critical(fmt::format("bDecodeMapConfig() Exception: %s", (string)e.what()));
+// 		return false;
+// 	}
+// 	catch(...)
+// 	{
+// 		gserver->log->critical("Unspecified bDecodeMapConfig() Exception.");
+// 		return false;
+// 	}
 
 
 	return true;
@@ -1138,7 +1125,7 @@ bool Map::_bDecodeMapDataFileContents()
 	if (!file)
 	{
 		//not existing
-		gserver->logger->fatal(Poco::format("Loaded map does not exist: %s", name));
+		core_->log->critical(fmt::format("Loaded map does not exist: {}", name));
 		return false;
 	}
 
@@ -1549,15 +1536,15 @@ bool Map::GetInitialPoint(int16_t *pX, int16_t *pY, string & pPlayerLocation)//T
 {
 	//every map has to have an initial point as a "fail safe". if none exists by some stupid error, send back to town
 
-	if (initialPointList.size() == 0)
+	if (initialPointList.empty())
 	{
-		Map * tempmap = 0;
+		Map * tempmap = nullptr;
 		if (pPlayerLocation == "NONE")
-			tempmap = gserver->GetMap("default");//hardcoded. trololo. -- could use changes if attempting to ever make an additional side... doubtful though
+			tempmap = core_->GetMap("default");//hardcoded. trololo. -- could use changes if attempting to ever make an additional side... doubtful though
 		else if (pPlayerLocation.substr(0, 3) == "are")
-			tempmap = gserver->GetMap("aresden");
+			tempmap = core_->GetMap("aresden");
 		else if (pPlayerLocation.substr(0, 3) == "elv")
-			tempmap = gserver->GetMap("elvine");
+			tempmap = core_->GetMap("elvine");
 
 		if (!tempmap)
 		{
@@ -1607,9 +1594,9 @@ void Map::NpcProcess()
 	dwTime = unixtime();
 
 	//TODO: either acquire a lock on every npc in list or --> add a mutex for npc deletion
-	std::list<boost::shared_ptr<Npc>> tempnpclist = npclist;
+	std::list<std::shared_ptr<Npc>> tempnpclist = npclist;
 
-	for (boost::shared_ptr<Npc> npc : tempnpclist)
+	for (const std::shared_ptr<Npc> & npc : tempnpclist)
 	{
 		if (npc == nullptr)
 			continue;
@@ -1657,7 +1644,7 @@ void Map::NpcProcess()
 	}
 }
 
-void Map::DeleteNpc(boost::shared_ptr<Npc> npc)
+void Map::DeleteNpc(std::shared_ptr<Npc> npc)
 {
 	int  i, iNumItem, iItemID, iItemIDs[MAX_NPCITEMDROP], iSlateID;
 	char cItemName[21];
@@ -1672,7 +1659,7 @@ void Map::DeleteNpc(boost::shared_ptr<Npc> npc)
 	iNumItem = 0;
 	iItemID = 0; // No current item
 
-	gserver->SendEventToNearClient_TypeA(npc.get(), MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
+	//gserver->SendEventToNearClient_TypeA(npc.get(), MSGID_MOTION_EVENT_REJECT, 0, 0, 0);
 	ClearDeadOwner(npc->x, npc->y);
 
 	totalActiveObject--;
@@ -1727,14 +1714,14 @@ void Map::DeleteNpc(boost::shared_ptr<Npc> npc)
 	case NPC_MANASTONE:
 		npc->map->bRemoveCrusadeStructureInfo(npc->x, npc->y);
 
-		for (i = 0; i < MAXGUILDS; i++) {
-			if (gserver->m_pGuildTeleportLoc[i].m_iV1 == npc->guildGUID) {
-				gserver->m_pGuildTeleportLoc[i].m_dwTime = dwTime;
-				gserver->m_pGuildTeleportLoc[i].m_iV2--;
-				if (gserver->m_pGuildTeleportLoc[i].m_iV2 < 0) gserver->m_pGuildTeleportLoc[i].m_iV2 = 0;
-				break;
-			}
-		}
+// 		for (i = 0; i < MAXGUILDS; i++) {
+// 			if (gserver->m_pGuildTeleportLoc[i].m_iV1 == npc->guildGUID) {
+// 				gserver->m_pGuildTeleportLoc[i].m_dwTime = dwTime;
+// 				gserver->m_pGuildTeleportLoc[i].m_iV2--;
+// 				if (gserver->m_pGuildTeleportLoc[i].m_iV2 < 0) gserver->m_pGuildTeleportLoc[i].m_iV2 = 0;
+// 				break;
+// 			}
+// 		}
 		break;
 
 	case NPC_LWB:
@@ -1743,13 +1730,13 @@ void Map::DeleteNpc(boost::shared_ptr<Npc> npc)
 	case NPC_TK:
 	case NPC_BG:
 	case NPC_CP:
-		for (i = 0; i < MAXGUILDS; i++) {
-			if (gserver->m_pGuildTeleportLoc[i].m_iV1 == npc->guildGUID) {
-				gserver->m_pGuildTeleportLoc[i].m_iNumSummonNpc--;
-				if (gserver->m_pGuildTeleportLoc[i].m_iNumSummonNpc < 0) gserver->m_pGuildTeleportLoc[i].m_iNumSummonNpc = 0;
-				break;
-			}
-		}
+// 		for (i = 0; i < MAXGUILDS; i++) {
+// 			if (gserver->m_pGuildTeleportLoc[i].m_iV1 == npc->guildGUID) {
+// 				gserver->m_pGuildTeleportLoc[i].m_iNumSummonNpc--;
+// 				if (gserver->m_pGuildTeleportLoc[i].m_iNumSummonNpc < 0) gserver->m_pGuildTeleportLoc[i].m_iNumSummonNpc = 0;
+// 				break;
+// 			}
+// 		}
 		break;
 
 	case NPC_CROPS:
@@ -1768,7 +1755,7 @@ void Map::DeleteNpc(boost::shared_ptr<Npc> npc)
 		return;
 
 	npclist.remove(npc);
-	// 	for (std::list<shared_ptr<Npc>>::const_iterator iter = npclist.cbegin(); iter != npclist.cend(); ++iter)
+	// 	for (std::list<std::shared_ptr<Npc>>::const_iterator iter = npclist.cbegin(); iter != npclist.cend(); ++iter)
 	// 	{
 	// 		if (*iter == npc)
 	// 		{
@@ -1935,7 +1922,7 @@ void Map::DeleteNpc(boost::shared_ptr<Npc> npc)
 	// 		}
 	// 	}
 }
-shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode, bool bIsSummoned, bool bFirmBerserk, bool bIsMaster, int iGuildGUID)
+std::shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint16_t * poX, uint16_t * poY, Side changeSide, char * pWaypointList, rect * pArea, int iSpotMobIndex, bool bHideGenMode, bool bIsSummoned, bool bFirmBerserk, bool bIsMaster, int iGuildGUID)
 {
 	int i, t, j, k;
 	char cTxt[120];
@@ -1944,7 +1931,7 @@ shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint
 
 	if (pNpcName.length() == 0) return 0;
 
-	shared_ptr<Npc> newnpc(new Npc(++npchandle, this));
+	std::shared_ptr<Npc> newnpc(new Npc(++npchandle, this));
 
 	switch (cSA)
 	{
@@ -1959,23 +1946,23 @@ shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint
 		//		break;
 	}
 
-	for (auto npc : gserver->m_npcConfigList)
-	{
-		if (npc && npc->name == pNpcName)
-		{
-			if (!newnpc->initNpcAttr(npc, cSA))
-			{
-				gserver->logger->error(Poco::format("(!) Error in Npc Creation (%s) Ignored.", pNpcName));
-				return 0;
-			}
-			break;
-		}
-	}
-	if (newnpc->name.length() == 0)
-	{
-		gserver->logger->error(Poco::format("(!) Non-existing NPC creation request! (%s) Ignored.", pNpcName));
-		return 0;
-	}
+// 	for (auto npc : core_->m_npcConfigList)
+// 	{
+// 		if (npc && npc->name == pNpcName)
+// 		{
+// 			if (!newnpc->initNpcAttr(npc, cSA))
+// 			{
+// 				core_->log->error(fmt::format("(!) Error in Npc Creation ({}) Ignored.", pNpcName));
+// 				return nullptr;
+// 			}
+// 			break;
+// 		}
+// 	}
+// 	if (newnpc->name.length() == 0)
+// 	{
+// 		core_->log->error(fmt::format("(!) Non-existing NPC creation request! ({}) Ignored.", pNpcName));
+// 		return nullptr;
+// 	}
 
 	newnpc->map = this;
 
@@ -2241,13 +2228,13 @@ shared_ptr<Npc> Map::CreateNpc(string & pNpcName, char cSA, char cMoveType, uint
 		break;
 	}
 
-	gserver->SendEventToNearClient_TypeA(newnpc.get(), MSGID_MOTION_EVENT_CONFIRM, 0, 0, 0);
+	//gserver->SendEventToNearClient_TypeA(newnpc.get(), MSGID_MOTION_EVENT_CONFIRM, 0, 0, 0);
 	return newnpc;
 }
 
-shared_ptr<Npc> Map::GetNpc(uint64_t ObjectID)
+std::shared_ptr<Npc> Map::GetNpc(uint64_t ObjectID)
 {
-	for (shared_ptr<Npc> npc : npclist)
+	for (std::shared_ptr<Npc> npc : npclist)
 	{
 		if (npc->handle == ObjectID)
 			return npc;
@@ -2258,9 +2245,9 @@ shared_ptr<Npc> Map::GetNpc(uint64_t ObjectID)
 void Map::RemoveFromDelayEventList(Unit * unit, int32_t iEffectType)
 {
 	delayMutex.lock();
-	std::list<shared_ptr<DelayEvent>> removedelaylist;
+	std::list<std::shared_ptr<DelayEvent>> removedelaylist;
 
-	for (shared_ptr<DelayEvent> delayevent : DelayEventList)
+	for (std::shared_ptr<DelayEvent> delayevent : DelayEventList)
 	{
 		if (iEffectType != 0)
 		{
@@ -2278,7 +2265,7 @@ void Map::RemoveFromDelayEventList(Unit * unit, int32_t iEffectType)
 		}
 	}
 
-	for (shared_ptr<DelayEvent> delayevent : removedelaylist)
+	for (std::shared_ptr<DelayEvent> delayevent : removedelaylist)
 	{
 		DelayEventList.remove(delayevent);
 	}
@@ -2287,7 +2274,7 @@ void Map::RemoveFromDelayEventList(Unit * unit, int32_t iEffectType)
 
 bool Map::RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTime, Unit * unit, int dX, int dY, int iV1, int iV2, int iV3)
 {
-	boost::shared_ptr<DelayEvent> delayevent(new DelayEvent);
+	std::shared_ptr<DelayEvent> delayevent(new DelayEvent);
 
 
 	delayevent->m_iDelayType = iDelayType;
@@ -2310,11 +2297,11 @@ bool Map::RegisterDelayEvent(int iDelayType, int iEffectType, uint64_t dwLastTim
 	return true;
 }
 
-void Map::RemoveFromTarget(boost::shared_ptr<Unit> target, int iCode)
+void Map::RemoveFromTarget(std::shared_ptr<Unit> target, int iCode)
 {
 	uint64_t dwTime = unixtime();
 
-	for (boost::shared_ptr<Npc> npc : npclist)
+	for (std::shared_ptr<Npc> npc : npclist)
 	{
 		if ((npc->guildGUID != 0) && (target->IsPlayer()) && (target->guildGUID == npc->guildGUID))
 		{
@@ -2348,69 +2335,69 @@ void Map::RemoveFromTarget(boost::shared_ptr<Unit> target, int iCode)
 	}
 }
 
-void Map::NpcDeadItemGenerator(shared_ptr<Unit> attacker, shared_ptr<Npc> npc)
+void Map::NpcDeadItemGenerator(std::shared_ptr<Unit> attacker, std::shared_ptr<Npc> npc)
 {
-	return;
-	if (!npc || !attacker) return;
-	if (!gserver->m_npcDropData[npc->Type()]) {
-		gserver->logger->information(Poco::format("NPC has no drop data: %d", npc->Type()));
-	}
-	uint32_t dwTime = unixtime();
-	srand(time(0));
-	// Select a random item
-	int baseChance = rand() % 9999 + 1;
-	int currentChance = baseChance;
-	int tierMultiplier = 10000;
-	int rareChance = rand() % 10 + 1;
-	int epicChance = rand() % 100 + 1;
-	int godChance = rand() % 1000 + 1;
-	if (rareChance == 10) {
-		currentChance += 10000;
-	}
-	if (epicChance == 100) {
-		currentChance += 20000;
-	}
-	if (godChance == 1000) {
-		currentChance += 30000;
-	}
-
-	int npcItems[MAXITEMTYPES];
-	for (int ni = 0; ni < MAXITEMTYPES; ni++) {
-		npcItems[ni] = 0;
-	}
-	int npcItemCount = 0;
-	for (int nif = 0; nif < MAXITEMTYPES; nif++) {
-		if (gserver->m_npcDropData[npc->Type()][nif] != 0) {
-			npcItems[npcItemCount] = nif;
-			npcItemCount++;
-		}
-	}
-	gserver->logger->information(Poco::format("Item drop rolling. Chance: %d, Items: %d", currentChance, npcItemCount));
-	for (int ii = 0; ii <= npcItemCount; ii++) {
-		if (gserver->m_pItemConfigList[npcItems[ii]] != 0) {
-			int aProb = gserver->m_npcDropData[npc->Type()][npcItems[ii]];
-			if (aProb < currentChance) {
-				int itemID = npcItems[ii];
-				// Winner, winner, chicken dinner
-				if (gserver->m_pItemConfigList[itemID] != 0 && gserver->m_pItemConfigList[itemID]->name != "") {
-					Item * newItem = new Item(itemID, gserver->m_pItemConfigList);
-					bSetItem(npc->x, npc->y, newItem);
-					gserver->logger->information(Poco::format("Dropping %s for from npc #%?d",
-						gserver->m_pItemConfigList[npcItems[ii]]->name, attacker->m_uid));
-					gserver->SendEventToNearClient_TypeB(
-						MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, attacker->map,
-						npc->x, npc->y, newItem->spriteID, newItem->spriteFrame, newItem->color);
-
-// 					gserver->SendNotifyMsg(nullptr, (Client*)attacker.get(),
-// 						NOTIFY_DROPITEMFIN_COUNTCHANGED, itemID, 1, 0);
-					return;
-				}
-			}
-		}
-	}
+// 	return;
+// 	if (!npc || !attacker) return;
+// 	if (!gserver->m_npcDropData[npc->Type()]) {
+// 		gserver->log->info(fmt::format("NPC has no drop data: {}", npc->Type()));
+// 	}
+// 	uint32_t dwTime = unixtime();
+// 	//srand(time(0));
+// 	// Select a random item
+// 	int baseChance = rand() % 9999 + 1;
+// 	int currentChance = baseChance;
+// 	int tierMultiplier = 10000;
+// 	int rareChance = rand() % 10 + 1;
+// 	int epicChance = rand() % 100 + 1;
+// 	int godChance = rand() % 1000 + 1;
+// 	if (rareChance == 10) {
+// 		currentChance += 10000;
+// 	}
+// 	if (epicChance == 100) {
+// 		currentChance += 20000;
+// 	}
+// 	if (godChance == 1000) {
+// 		currentChance += 30000;
+// 	}
+// 
+// 	int npcItems[MAXITEMTYPES];
+// 	for (int ni = 0; ni < MAXITEMTYPES; ni++) {
+// 		npcItems[ni] = 0;
+// 	}
+// 	int npcItemCount = 0;
+// 	for (int nif = 0; nif < MAXITEMTYPES; nif++) {
+// 		if (gserver->m_npcDropData[npc->Type()][nif] != 0) {
+// 			npcItems[npcItemCount] = nif;
+// 			npcItemCount++;
+// 		}
+// 	}
+// 	gserver->log->info(fmt::format("Item drop rolling. Chance: %d, Items: %d", currentChance, npcItemCount));
+// 	for (int ii = 0; ii <= npcItemCount; ii++) {
+// 		if (gserver->m_pItemConfigList[npcItems[ii]] != 0) {
+// 			int aProb = gserver->m_npcDropData[npc->Type()][npcItems[ii]];
+// 			if (aProb < currentChance) {
+// 				int itemID = npcItems[ii];
+// 				// Winner, winner, chicken dinner
+// 				if (gserver->m_pItemConfigList[itemID] != 0 && gserver->m_pItemConfigList[itemID]->name != "") {
+// 					Item * newItem = new Item(itemID, gserver->m_pItemConfigList);
+// 					bSetItem(npc->x, npc->y, newItem);
+// 					gserver->log->info(fmt::format("Dropping %s for from npc #%?d",
+// 						gserver->m_pItemConfigList[npcItems[ii]]->name, attacker->m_uid));
+// 					gserver->SendEventToNearClient_TypeB(
+// 						MSGID_EVENT_COMMON, COMMONTYPE_ITEMDROP, attacker->map,
+// 						npc->x, npc->y, newItem->spriteID, newItem->spriteFrame, newItem->color);
+// 
+// // 					gserver->SendNotifyMsg(nullptr, (Client*)attacker.get(),
+// // 						NOTIFY_DROPITEMFIN_COUNTCHANGED, itemID, 1, 0);
+// 					return;
+// 				}
+// 			}
+// 		}
+// 	}
 }
 
-void Map::NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16_t damage)
+void Map::NpcKilledHandler(std::shared_ptr<Unit> attacker, std::shared_ptr<Npc> npc, int16_t damage)
 {
 	if (npc->_dead) return;
 
@@ -2430,7 +2417,7 @@ void Map::NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16
 
 	// 	if (attacker->m_ownerType == OWNERTYPE_PLAYER)
 	// 	{
-	// 		shared_ptr<Client> player = static_cast<Client*>(attacker.get())->self.lock();
+	// 		std::shared_ptr<Client> player = static_cast<Client*>(attacker.get())->self.lock();
 	// 		switch (npc->m_sType) {
 	// 		case NPC_ENRAGED_HELLCLAW: // Hellclaw 
 	// 			if (player->_str > 400 && player->_dex > 400) // Warrior
@@ -2468,7 +2455,7 @@ void Map::NpcKilledHandler(shared_ptr<Unit> attacker, shared_ptr<Npc> npc, int16
 	// 	}
 }
 
-void Map::NpcBehavior_Dead(shared_ptr<Npc> npc)
+void Map::NpcBehavior_Dead(std::shared_ptr<Npc> npc)
 {
 	uint32_t dwTime;
 
@@ -2484,11 +2471,11 @@ void Map::NpcBehavior_Dead(shared_ptr<Npc> npc)
 		DeleteNpc(npc);
 }
 
-void Map::NpcBehavior_Flee(shared_ptr<Npc> npc)
+void Map::NpcBehavior_Flee(std::shared_ptr<Npc> npc)
 {
 	char cDir;
 	short sX, sY, dX, dY;
-	shared_ptr<Unit> sTarget;
+	std::shared_ptr<Unit> sTarget;
 
 	if (npc == nullptr) return;
 	if (npc->_dead == true) return;
@@ -2551,7 +2538,7 @@ void Map::NpcBehavior_Flee(shared_ptr<Npc> npc)
 		npc->x = dX;
 		npc->y = dY;
 		npc->direction = cDir;
-		gserver->SendEventToNearClient_TypeA(npc.get(), MSGID_MOTION_MOVE, 0, 0, 0);
+		//gserver->SendEventToNearClient_TypeA(npc.get(), MSGID_MOTION_MOVE, 0, 0, 0);
 	}
 }
 
@@ -2635,7 +2622,7 @@ char Map::cGetNextMoveDir(short sX, short sY, short dstX, short dstY, Map * map,
 	return 0;
 }
 
-bool Map::bGetEmptyPosition(short & x, short & y, shared_ptr<Unit> client)
+bool Map::bGetEmptyPosition(short & x, short & y, std::shared_ptr<Unit> client)
 {
 	int i;
 	int16_t sX, sY;
@@ -2663,7 +2650,7 @@ void Map::DelayEventProcessor()
 {
 	uint64_t _time = unixtime();
 	delayMutex.lock();
-	std::list<shared_ptr<DelayEvent>> tempDelayEventList = DelayEventList;
+	std::list<std::shared_ptr<DelayEvent>> tempDelayEventList = DelayEventList;
 	for (auto delayevent : tempDelayEventList)
 	{
 		if (delayevent->m_dwTriggerTime < _time)
@@ -2694,9 +2681,9 @@ void Map::DelayEventProcessor()
 					player->skillInUse[skillnum] = 0;
 					player->skillInUseTime[skillnum] = 0;
 
-					int32_t result = gserver->CalculateUseSkillItemEffect(player, delayevent->m_iV1, skillnum, player->map, delayevent->m_dX, delayevent->m_dY);
+					//int32_t result = gserver->CalculateUseSkillItemEffect(player, delayevent->m_iV1, skillnum, player->map, delayevent->m_dX, delayevent->m_dY);
 
-					gserver->SendNotifyMsg(nullptr, player, NOTIFY_SKILLUSINGEND, result);
+					//gserver->SendNotifyMsg(nullptr, player, NOTIFY_SKILLUSINGEND, result);
 				}
 				break;
 

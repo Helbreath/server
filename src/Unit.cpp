@@ -3,6 +3,7 @@
 #include "netmessages.h"
 #include "Map.h"
 #include "Npc.h"
+#include "Client.h"
 // #include "ActionID.h"
 // #include "DelayEvent.h"
 // #include "maths.h"
@@ -28,14 +29,14 @@ void Unit::SetStatusFlag(long flag, bool enabled)
 	else 
 		status &= ~flag;
 
-	map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
+	//map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
 }
 
 void Unit::ToggleStatusFlag(long flag)
 {
 	status ^= flag;	
 	
-	map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
+	//map->gserver->SendEventToNearClient_TypeA(this, MSGID_MOTION_NULL, 0, 0, 0);
 }
 
 bool Unit::GetStatusFlag(long flag) const
@@ -115,8 +116,8 @@ bool Unit::AddMagicEffect(int16_t magicType, uint64_t effectTime, int8_t kind)
 // 		gs->RegisterDelayEvent(DELAYEVENTTYPE_MAGICRELEASE, magicType, dwTime + (effectTime)_s, 
 // 			this, 0, 0, 0, kind, 0, 0);
 	
-	if (IsPlayer())
-		map->gserver->SendNotifyMsg(nullptr, GetPlayer(), NOTIFY_MAGICEFFECTON, magicType, kind, 0);
+// 	if (IsPlayer())
+// 		map->gserver->SendNotifyMsg(nullptr, GetPlayer(), NOTIFY_MAGICEFFECTON, magicType, kind, 0);
 
 	SetMagicFlag(magicType, true);
  	return true;
@@ -127,18 +128,30 @@ bool Unit::RemoveMagicEffect(int8_t magicType)
 	if (!magicEffectStatus[magicType])
 		return false;
 
-	if (IsPlayer())
-		map->gserver->SendNotifyMsg(nullptr, GetPlayer(), NOTIFY_MAGICEFFECTOFF, magicType, magicEffectStatus[magicType], 0);
+// 	if (IsPlayer())
+// 		map->gserver->SendNotifyMsg(nullptr, GetPlayer(), NOTIFY_MAGICEFFECTOFF, magicType, magicEffectStatus[magicType], 0);
 
 	SetMagicFlag(magicType, false);
 	magicEffectStatus[magicType] = 0;
-	map->gserver->RemoveFromDelayEventList(this, magicType);
+// 	map->gserver->RemoveFromDelayEventList(this, magicType);
  	return true;
 }
 
 void Unit::SetSideFlag(Side side)
 {
 //	SetNibble(m_iStatus, 7, side);
+}
+
+
+Client * Unit::GetPlayer()
+{
+    return dynamic_cast<Client *>(this);
+}
+
+
+Npc * Unit::GetNpc()
+{
+    return dynamic_cast<Npc *>(this);
 }
 
 void Unit::SetPoison(uint32_t level, uint64_t time)
